@@ -1,0 +1,488 @@
+我将为Spokenly克隆项目配置完整的CI/CD和部署流程。
+
+## 1. GitHub Actions工作流配置
+
+### .github/workflows/ci.yml
+```yaml
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Run linting
+      run: npm run lint
+    
+    - name: Run tests
+      run: npm test
+    
+    - name: Run security audit
+      run: npm audit --audit-level moderate
+    
+    - name: CodeQL Analysis
+      if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+      uses: github/codeql-action/analyze@v3
+      with:
+        languages: javascript
+```
+
+### .github/workflows/build-and-release.yml
+```yaml
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+            arch: x64
+            ext: exe
+          - os: macos-latest
+            platform: darwin
+            arch: x64
+            ext: dmg
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+            ext: dmg
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      run: npm run build
+    
+    - name: Prepare for packaging
+      run: npm run build:electron
+    
+    # Windows specific steps
+    - name: Import Windows certificate
+      if: matrix.platform == 'win32'
+      run: |
+        echo "${{ secrets.WINDOWS_CERTIFICATE }}" | base64 --decode > certificate.p12
+      shell: bash
+    
+    - name: Build Windows MSI
+      if: matrix.platform == 'win32'
+      run: |
+        npm run package:win
+        npm run build:msi
+      env:
+        CSC_LINK: certificate.p12
+        CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    
+    # macOS specific steps
+    - name: Import macOS certificate
+      if: matrix.platform == 'darwin'
+      run: |
+        echo "${{ secrets.MACOS_CERTIFICATE }}" | base64 --decode > certificate.p12
+        security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+        security default-keychain -s build.keychain
+        security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+        security import certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERT_PASSWORD }}" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+    
+    - name: Build macOS DMG
+      if: matrix.platform == 'darwin'
+      run: |
+        npm run package:mac -- --arch=${{ matrix.arch }}
+        npm run build:dmg -- --arch=${{ matrix.arch }}
+      env:
+        CSC_LINK: certificate.p12
+        CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    
+    - name: Notarize macOS app
+      if: matrix.platform == 'darwin'
+      run: npm run notarize
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: spokenly-${{ matrix.platform }}-${{ matrix.arch }}
+        path: |
+          dist/*.exe
+          dist/*.msi
+          dist/*.dmg
+          dist/*.zip
+    
+    - name: Upload to Sentry
+      if: success()
+      run: |
+        npm install -g @sentry/cli
+        sentry-cli releases new ${{ github.ref_name }}
+        sentry-cli releases files ${{ github.ref_name }} upload-sourcemaps ./dist
+        sentry-cli releases finalize ${{ github.ref_name }}
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+        SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/**/*.exe
+          artifacts/**/*.msi
+          artifacts/**/*.dmg
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update release channels
+      run: |
+        curl -X POST "${{ secrets.UPDATE_SERVER_URL }}/api/releases" \
+          -H "Authorization: Bearer ${{ secrets.UPDATE_SERVER_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "version": "${{ github.ref_name }}",
+            "channel": "stable",
+            "assets": {
+              "win32": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/spokenly-setup.exe",
+              "darwin": "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/spokenly.dmg"
+            }
+          }'
+```
+
+## 2. 构建脚本
+
+### scripts/build.js
+```javascript
+const { build } = require('electron-builder');
+const path = require('path');
+const fs = require('fs-extra');
+
+const platform = process.platform;
+const arch = process.arch;
+
+async function buildApp() {
+  console.log(`Building for ${platform}-${arch}`);
+  
+  // 清理构建目录
+  await fs.remove('./dist');
+  await fs.ensureDir('./dist');
+  
+  // 复制资源文件
+  await fs.copy('./src/assets', './dist/assets');
+  
+  const config = {
+    appId: 'com.spokenly.app',
+    productName: 'Spokenly',
+    directories: {
+      output: 'dist',
+      buildResources: 'build'
+    },
+    files: [
+      'dist/**/*',
+      'node_modules/**/*',
+      'package.json'
+    ],
+    extraMetadata: {
+      main: 'dist/main.js'
+    },
+    publish: {
+      provider: 'github',
+      owner: 'your-org',
+      repo: 'spokenly'
+    }
+  };
+
+  if (platform === 'win32') {
+    config.win = {
+      target: [
+        {
+          target: 'nsis',
+          arch: ['x64']
+        },
+        {
+          target: 'msi',
+          arch: ['x64']
+        }
+      ],
+      certificateFile: process.env.CSC_LINK,
+      certificatePassword: process.env.CSC_KEY_PASSWORD,
+      signingHashAlgorithms: ['sha256'],
+      signDlls: true
+    };
+    
+    config.nsis = {
+      oneClick: false,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
+      shortcutName: 'Spokenly'
+    };
+    
+    config.msi = {
+      oneClick: false,
+      upgradeCode: 'your-upgrade-code-guid'
+    };
+  }
+
+  if (platform === 'darwin') {
+    config.mac = {
+      target: [
+        {
+          target: 'dmg',
+          arch: ['x64', 'arm64']
+        }
+      ],
+      category: 'public.app-category.productivity',
+      hardenedRuntime: true,
+      gatekeeperAssess: false,
+      entitlements: 'build/entitlements.mac.plist',
+      entitlementsInherit: 'build/entitlements.mac.plist'
+    };
+    
+    config.dmg = {
+      background: 'build/background.png',
+      iconSize: 100,
+      contents: [
+        {
+          x: 380,
+          y: 280,
+          type: 'link',
+          path: '/Applications'
+        },
+        {
+          x: 110,
+          y: 280,
+          type: 'file'
+        }
+      ],
+      window: {
+        width: 540,
+        height: 380
+      }
+    };
+  }
+
+  try {
+    await build({
+      targets: platform === 'darwin' ? 
+        build.Platform.MAC.createTarget() : 
+        build.Platform.WINDOWS.createTarget(),
+      config
+    });
+    
+    console.log('Build completed successfully!');
+  } catch (error) {
+    console.error('Build failed:', error);
+    process.exit(1);
+  }
+}
+
+buildApp();
+```
+
+### scripts/notarize.js
+```javascript
+const { notarize } = require('electron-notarize');
+const path = require('path');
+
+async function notarizeApp() {
+  if (process.platform !== 'darwin') {
+    console.log('Notarization is only required for macOS');
+    return;
+  }
+
+  const appPath = path.join(__dirname, '../dist/mac/Spokenly.app');
+  
+  console.log('Starting notarization process...');
+  
+  try {
+    await notarize({
+      appBundleId: 'com.spokenly.app',
+      appPath: appPath,
+      appleId: process.env.APPLE_ID,
+      appleIdPassword: process.env.APPLE_ID_PASSWORD,
+      teamId: process.env.APPLE_TEAM_ID
+    });
+    
+    console.log('Notarization completed successfully!');
+  } catch (error) {
+    console.error('Notarization failed:', error);
+    process.exit(1);
+  }
+}
+
+notarizeApp();
+```
+
+## 3. 打包配置
+
+### electron-builder.json
+```json
+{
+  "appId": "com.spokenly.app",
+  "productName": "Spokenly",
+  "copyright": "Copyright © 2024 Spokenly",
+  "directories": {
+    "output": "dist",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "node_modules/**/*",
+    "!node_modules/**/*.{md,txt}",
+    "!node_modules/**/test/**",
+    "!node_modules/**/*.d.ts"
+  ],
+  "extraMetadata": {
+    "main": "dist/main.js"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "msi",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "build/icon.ico",
+    "publisherName": "Spokenly Inc.",
+    "verifyUpdateCodeSignature": true
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "allowElevation": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Spokenly",
+    "include": "build/installer.nsh",
+    "script": "build/installer.nsh"
+  },
+  "msi": {
+    "oneClick": false,
+    "upgradeCode": "{12345678-1234-1234-1234-123456789012}"
+  },
+  "mac": {
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "icon": "build/icon.icns",
+    "category": "public.app-category.productivity",
+    "hardenedRuntime": true,
+    "gatekeeperAssess": false,
+    "entitlements": "build/entitlements.mac.plist",
+    "entitlementsInherit": "build/entitlements.mac.plist"
+  },
+  "dmg": {
+    "background": "build/background.png",
+    "iconSize": 100,
+    "contents": [
+      {
+        "x": 380,
+        "y": 280,
+        "type": "link",
+        "path": "/Applications"
+      },
+      {
+        "x": 110,
+        "y": 280,
+        "type": "file"
+      }
+    ],
+    "window": {
+      "width": 540,
+      "height": 380
+    }
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "your-org",
+    "repo": "spokenly"
+  },
+  "afterSign": "scripts/notarize.js"
+}
+```
+
+### build/entitlements.mac.plist
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+    <key>com.apple.security.cs.debugger</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+    <key>com.apple.security.device.microphone</key>
+    

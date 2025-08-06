@@ -1,0 +1,24 @@
+[package]
+name = "spokenly-clone"
+version = "1.0.1"
+description = "A Tauri App for real-time speech to text"
+authors = ["Your Name"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+tauri = { version = "1.5", features = ["shell-open", "global-shortcut"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+cpal = "0.15"
+tokio = { version = "1", features = ["full"] }
+ringbuf = "0.3"
+crossbeam-channel = "0.5"
+once_cell = "1.19"
+reqwest = { version = "0.11", features = ["json"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
