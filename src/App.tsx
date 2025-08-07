@@ -19,6 +19,7 @@ import PermissionIndicator from './components/PermissionIndicator';
 import FirstLaunchWizard from './components/FirstLaunchWizard';
 import SubscriptionManager from './components/SubscriptionManager';
 import AIPrompts from './components/AIPrompts';
+import AIPromptsEnhanced from './components/AIPromptsEnhanced';
 import { shortcutManager } from './utils/shortcutManager';
 import { advancedShortcutManager } from './utils/advancedShortcutManager';
 import { permissionManager } from './utils/permissionManager';
@@ -69,6 +70,7 @@ interface AppStore {
   mcpConfig: McpConfig;
   showFloatingDialog: boolean;
   aiProcessingActive: boolean;
+  useEnhancedAIPrompts: boolean;
   setRecording: (value: boolean) => void;
   setTranscription: (text: string) => void;
   setDevices: (devices: AudioDevice[]) => void;
@@ -82,6 +84,7 @@ interface AppStore {
   setMcpConfig: (config: McpConfig) => void;
   setShowFloatingDialog: (show: boolean) => void;
   setAiProcessingActive: (active: boolean) => void;
+  setUseEnhancedAIPrompts: (use: boolean) => void;
 }
 
 const useStore = create<AppStore>((set) => ({
@@ -102,6 +105,7 @@ const useStore = create<AppStore>((set) => ({
   },
   showFloatingDialog: false,
   aiProcessingActive: false,
+  useEnhancedAIPrompts: false, // 默认使用原版
   setRecording: (value) => set({ isRecording: value }),
   setTranscription: (text) => set({ transcriptionText: text }),
   setDevices: (devices) => set({ audioDevices: devices }),
@@ -117,6 +121,7 @@ const useStore = create<AppStore>((set) => ({
   setMcpConfig: (config) => set({ mcpConfig: config }),
   setShowFloatingDialog: (show) => set({ showFloatingDialog: show }),
   setAiProcessingActive: (active) => set({ aiProcessingActive: active }),
+  setUseEnhancedAIPrompts: (use) => set({ useEnhancedAIPrompts: use }),
 }));
 
 // 导航菜单项
@@ -209,7 +214,9 @@ const PageContent: React.FC<{
   isRecording?: boolean;
   useAdvancedShortcuts?: boolean;
   setUseAdvancedShortcuts?: (value: boolean) => void;
-}> = ({ page, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts }) => {
+  useEnhancedAIPrompts?: boolean;
+  setUseEnhancedAIPrompts?: (value: boolean) => void;
+}> = ({ page, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -314,7 +321,7 @@ const PageContent: React.FC<{
         <div className="page-content">
           <div className="page-header">
             <h1>常规首选项</h1>
-            <p>根据您的工作流程和偏好配置 Spokenly。</p>
+            <p>根据您的工作流程和偏好配置 Recording King。</p>
           </div>
 
           <div className="section">
@@ -394,7 +401,7 @@ const PageContent: React.FC<{
         <div className="page-content">
           <div className="page-header">
             <h1>转录文件</h1>
-            <p>将音频或视频文件转换为文本。Spokenly 将为您进行转录。</p>
+            <p>将音频或视频文件转换为文本。Recording King 将为您进行转录。</p>
           </div>
 
           <div className="file-upload-area">
@@ -562,7 +569,7 @@ const PageContent: React.FC<{
         <div className="page-content">
           <div className="page-header">
             <h1>快捷键</h1>
-            <p>选择您喜欢的键盘修饰键来启动 Spokenly。仅按这些修饰键即可开始录音。</p>
+            <p>选择您喜欢的键盘修饰键来启动 Recording King。仅按这些修饰键即可开始录音。</p>
           </div>
 
           <div className="section">
@@ -615,7 +622,7 @@ const PageContent: React.FC<{
                   <li>• 打开系统设置 → 键盘</li>
                   <li>• 点击"按下 🌐 键以"下拉菜单</li>
                   <li>• 选择"无操作"</li>
-                  <li>• 这允许 Spokenly 检测 Fn 键按下</li>
+                  <li>• 这允许 Recording King 检测 Fn 键按下</li>
                 </ul>
               </div>
             </div>
@@ -640,11 +647,67 @@ const PageContent: React.FC<{
 
     case 'ai-prompts':
       return (
-        <AIPrompts 
-          onEnhancedTextReady={onEnhancedTextReady}
-          transcriptionText={transcriptionText}
-          isRecording={isRecording}
-        />
+        <div className="page-content">
+          <div className="page-header">
+            <h1>AI 提示管理</h1>
+            <p>选择和配置AI提示处理模式</p>
+          </div>
+
+          <div className="section">
+            <h2>模式选择</h2>
+            <div className="mode-selector">
+              <div className="mode-toggle">
+                <label className="toggle-option">
+                  <input
+                    type="radio"
+                    name="aiPromptsMode"
+                    checked={!useEnhancedAIPrompts}
+                    onChange={() => setUseEnhancedAIPrompts?.(false)}
+                  />
+                  <span className="toggle-label">
+                    <span className="toggle-icon">🎯</span>
+                    <div className="toggle-info">
+                      <span className="toggle-name">基础模式</span>
+                      <span className="toggle-desc">简单易用的Agent链配置</span>
+                    </div>
+                  </span>
+                </label>
+                
+                <label className="toggle-option">
+                  <input
+                    type="radio"
+                    name="aiPromptsMode"
+                    checked={useEnhancedAIPrompts}
+                    onChange={() => setUseEnhancedAIPrompts?.(true)}
+                  />
+                  <span className="toggle-label">
+                    <span className="toggle-icon">🚀</span>
+                    <div className="toggle-info">
+                      <span className="toggle-name">增强模式</span>
+                      <span className="toggle-desc">支持多种LLM模型和快捷键</span>
+                    </div>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-prompts-wrapper">
+            {useEnhancedAIPrompts ? (
+              <AIPromptsEnhanced
+                onEnhancedTextReady={onEnhancedTextReady}
+                transcriptionText={transcriptionText}
+                isRecording={isRecording}
+              />
+            ) : (
+              <AIPrompts 
+                onEnhancedTextReady={onEnhancedTextReady}
+                transcriptionText={transcriptionText}
+                isRecording={isRecording}
+              />
+            )}
+          </div>
+        </div>
       );
 
     case 'contact':
@@ -688,6 +751,7 @@ function App() {
     transcriptionText,
     showFloatingDialog,
     audioDevices,
+    useEnhancedAIPrompts,
     setDevices,
     setCurrentPage,
     setTranscriptionHistory,
@@ -695,6 +759,7 @@ function App() {
     addTranscriptionEntry,
     setRecording,
     setShowFloatingDialog,
+    setUseEnhancedAIPrompts,
   } = useStore();
 
   // 新增的状态管理
@@ -1055,8 +1120,8 @@ function App() {
       <div className="sidebar">
         <div className="sidebar-header">
           <div className="app-logo">
-            <span className="logo-icon">🎤</span>
-            <span className="logo-text">Spokenly</span>
+            <span className="logo-icon">👑</span>
+            <span className="logo-text">Recording King</span>
           </div>
         </div>
 
@@ -1102,6 +1167,8 @@ function App() {
           isRecording={isRecording}
           useAdvancedShortcuts={useAdvancedShortcuts}
           setUseAdvancedShortcuts={setUseAdvancedShortcuts}
+          useEnhancedAIPrompts={useEnhancedAIPrompts}
+          setUseEnhancedAIPrompts={setUseEnhancedAIPrompts}
         />
       </div>
 

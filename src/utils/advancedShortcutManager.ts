@@ -3,9 +3,7 @@
  * 支持更多组合键、双击、长按、语音激活等多种触发方式
  */
 
-import { register, unregister, unregisterAll } from '@tauri-apps/api/globalShortcut';
-import { appWindow } from '@tauri-apps/api/window';
-import { invoke } from '@tauri-apps/api/tauri';
+import { register, unregisterAll } from '@tauri-apps/api/globalShortcut';
 
 export type TriggerMode = 'single' | 'double' | 'hold' | 'sequence' | 'voice';
 export type ShortcutCategory = 'recording' | 'navigation' | 'editing' | 'system' | 'custom';
@@ -57,15 +55,15 @@ export class AdvancedShortcutManager {
   
   // 双击检测
   private lastKeyPress: Map<string, number> = new Map();
-  private doubleClickTimeouts: Map<string, NodeJS.Timeout> = new Map();
+  private doubleClickTimeouts: Map<string, number> = new Map();
   
   // 长按检测
-  private holdTimers: Map<string, NodeJS.Timeout> = new Map();
+  private holdTimers: Map<string, number> = new Map();
   private heldKeys: Set<string> = new Set();
   
   // 序列键检测
   private sequenceBuffer: string[] = [];
-  private sequenceTimer: NodeJS.Timeout | null = null;
+  private sequenceTimer: number | null = null;
   
   // 语音识别
   private voiceRecognitionActive = false;
@@ -238,7 +236,7 @@ export class AdvancedShortcutManager {
     this.generateFlexibleCombinations(modifiers, [...keys, ...functionKeys, ...specialKeys, ...arrowKeys, ...numpadKeys, ...mediaKeys]);
   }
 
-  private generateFlexibleCombinations(modifiers: string[], keys: string[]) {
+  private generateFlexibleCombinations(_modifiers: string[], _keys: string[]) {
     // 这里不实际生成所有组合，而是提供一个灵活的系统
     // 允许用户自定义任意组合
     console.log('🔧 灵活快捷键系统已初始化');
@@ -272,7 +270,7 @@ export class AdvancedShortcutManager {
     
     // 清除长按计时器
     if (this.holdTimers.has(key)) {
-      clearTimeout(this.holdTimers.get(key)!);
+      window.clearTimeout(this.holdTimers.get(key)!);
       this.holdTimers.delete(key);
       this.heldKeys.delete(key);
     }
@@ -285,7 +283,7 @@ export class AdvancedShortcutManager {
     }
   }
 
-  private handleContextMenu(event: MouseEvent) {
+  private handleContextMenu(_event: MouseEvent) {
     // 可以在这里处理右键菜单相关的快捷键
   }
 
@@ -307,7 +305,7 @@ export class AdvancedShortcutManager {
           
           // 清除超时
           if (this.doubleClickTimeouts.has(key)) {
-            clearTimeout(this.doubleClickTimeouts.get(key)!);
+            window.clearTimeout(this.doubleClickTimeouts.get(key)!);
             this.doubleClickTimeouts.delete(key);
           }
         } else {
@@ -315,7 +313,7 @@ export class AdvancedShortcutManager {
           this.lastKeyPress.set(key, now);
           
           // 设置超时清除
-          const timeout = setTimeout(() => {
+          const timeout = window.setTimeout(() => {
             this.lastKeyPress.delete(key);
             this.doubleClickTimeouts.delete(key);
           }, shortcut.doubleClick.timeout);
@@ -326,7 +324,7 @@ export class AdvancedShortcutManager {
     }
   }
 
-  private detectHold(key: string, event: KeyboardEvent) {
+  private detectHold(key: string, _event: KeyboardEvent) {
     if (this.heldKeys.has(key)) return; // 已经在长按中
     
     // 检查长按快捷键
@@ -338,7 +336,7 @@ export class AdvancedShortcutManager {
         
         this.heldKeys.add(key);
         
-        const timer = setTimeout(() => {
+        const timer = window.setTimeout(() => {
           shortcut.action();
           this.heldKeys.delete(key);
         }, shortcut.hold.duration);
@@ -353,7 +351,7 @@ export class AdvancedShortcutManager {
     
     // 清除之前的计时器
     if (this.sequenceTimer) {
-      clearTimeout(this.sequenceTimer);
+      window.clearTimeout(this.sequenceTimer);
     }
     
     // 检查序列快捷键
@@ -376,7 +374,7 @@ export class AdvancedShortcutManager {
     }
     
     // 设置清除计时器
-    this.sequenceTimer = setTimeout(() => {
+    this.sequenceTimer = window.setTimeout(() => {
       this.sequenceBuffer = [];
     }, 500);
   }
@@ -535,7 +533,7 @@ export class AdvancedShortcutManager {
 
   importConfig(configJson: string) {
     try {
-      const config = JSON.parse(configJson);
+      const _config = JSON.parse(configJson);
       // 恢复快捷键配置
       // 注意：需要重新绑定action函数
       console.log('配置已导入');

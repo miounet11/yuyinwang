@@ -1,3 +1,25 @@
+/* 紧凑设计token系统 */
+:root {
+  /* Spacing tokens - 紧凑设计 */
+  --space-xs: 2px;
+  --space-sm: 4px;
+  --space-md: 8px;
+  --space-lg: 12px;
+  --space-xl: 16px;
+  --space-2xl: 20px;
+  --space-3xl: 24px;
+  
+  /* Component tokens - 优化空间利用率 */
+  --dialog-padding: var(--space-lg);
+  --card-padding: var(--space-md);
+  --card-gap: var(--space-sm);
+  --element-gap: var(--space-sm);
+  --section-gap: var(--space-md);
+  --border-radius-sm: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+}
+
 .advanced-shortcut-editor-overlay {
   position: fixed;
   top: 0;
@@ -25,10 +47,10 @@
 .advanced-shortcut-editor-dialog {
   background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border-radius: var(--border-radius-lg);
   width: 90%;
   max-width: 900px;
-  height: 85vh;
+  height: 70vh; /* 从85vh减少到70vh */
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -46,40 +68,44 @@
   }
 }
 
-/* Header */
+/* Header - 紧凑设计 */
 .editor-header {
-  padding: 24px;
+  padding: var(--dialog-padding);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: var(--element-gap);
 }
 
 .header-content h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
+  margin: 0 0 var(--space-sm) 0;
+  font-size: 20px; /* 从24px减少到20px */
   font-weight: 600;
   color: #ffffff;
+  line-height: 1.2; /* 紧凑行高 */
 }
 
 .header-content p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px; /* 从14px减少到13px */
   color: #999;
+  line-height: 1.3;
 }
 
 .close-btn {
   background: rgba(255, 255, 255, 0.1);
   border: none;
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
+  border-radius: var(--border-radius-md);
+  width: 28px; /* 从32px减少到28px */
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #999;
   cursor: pointer;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .close-btn:hover {
@@ -87,23 +113,24 @@
   color: #fff;
 }
 
-/* Main Tabs */
+/* Main Tabs - 紧凑设计 */
 .main-tabs {
-  padding: 0 24px;
-  margin-top: 16px;
+  padding: 0 var(--dialog-padding);
+  margin-top: var(--space-md); /* 从16px减少到8px */
   display: flex;
-  gap: 8px;
+  gap: var(--element-gap);
 }
 
 .main-tab {
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 10px 20px;
+  border-radius: var(--border-radius-md);
+  padding: var(--space-md) var(--space-xl); /* 从10px 20px减少到8px 16px */
   color: #999;
-  font-size: 14px;
+  font-size: 13px; /* 从14px减少到13px */
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .main-tab:hover {
@@ -117,11 +144,11 @@
   color: #fff;
 }
 
-/* Category Filter */
+/* Category Filter - 紧凑设计 */
 .category-filter {
-  padding: 16px 24px;
+  padding: var(--space-md) var(--dialog-padding); /* 从16px减少到8px */
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm); /* 从8px减少到4px */
   flex-wrap: wrap;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
@@ -129,13 +156,14 @@
 .filter-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 6px 16px;
+  border-radius: 16px; /* 从20px减少到16px，更紧凑 */
+  padding: var(--space-sm) var(--space-lg); /* 从6px 16px减少到4px 12px */
   color: #999;
-  font-size: 13px;
+  font-size: 12px; /* 从13px减少到12px */
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .filter-btn:hover {
@@ -150,11 +178,11 @@
   color: #4da6ff;
 }
 
-/* Shortcuts List */
+/* Shortcuts List - 紧凑设计 */
 .shortcuts-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 24px;
+  padding: var(--space-md) var(--dialog-padding); /* 从16px 24px减少到8px 12px */
 }
 
 .shortcuts-list::-webkit-scrollbar {
@@ -175,13 +203,13 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* Shortcut Card */
+/* Shortcut Card - 紧凑高密度设计 */
 .shortcut-card {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
+  border-radius: var(--border-radius-md); /* 从12px减少到6px */
+  padding: var(--card-padding); /* 从16px减少到8px */
+  margin-bottom: var(--card-gap); /* 从12px减少到4px */
   transition: all 0.2s ease;
 }
 
@@ -198,7 +226,7 @@
 .shortcut-main {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-md); /* 从16px减少到8px */
 }
 
 .shortcut-info {
@@ -207,36 +235,38 @@
 }
 
 .shortcut-info h3 {
-  margin: 0 0 4px 0;
-  font-size: 15px;
+  margin: 0 0 var(--space-xs) 0; /* 从4px减少到2px */
+  font-size: 14px; /* 从15px减少到14px */
   font-weight: 500;
   color: #fff;
+  line-height: 1.2; /* 紧凑行高 */
 }
 
 .shortcut-info p {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px; /* 从13px减少到12px */
   color: #999;
+  line-height: 1.3;
 }
 
-/* Trigger Mode */
+/* Trigger Mode - 紧凑设计 */
 .trigger-mode {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm); /* 从8px减少到4px */
 }
 
 .mode-icon {
-  font-size: 20px;
+  font-size: 16px; /* 从20px减少到16px */
 }
 
 .trigger-mode select {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 6px 12px;
+  border-radius: var(--border-radius-sm);
+  padding: var(--space-sm) var(--space-md); /* 从6px 12px减少到4px 8px */
   color: #fff;
-  font-size: 13px;
+  font-size: 12px; /* 从13px减少到12px */
   cursor: pointer;
 }
 
@@ -245,26 +275,28 @@
   cursor: not-allowed;
 }
 
-/* Shortcut Config */
+/* Shortcut Config - 紧凑设计 */
 .shortcut-config {
-  min-width: 200px;
+  min-width: 160px; /* 从200px减少到160px */
 }
 
 .config-text {
   background: rgba(0, 102, 204, 0.1);
   border: 1px solid rgba(0, 102, 204, 0.3);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
+  border-radius: var(--border-radius-sm);
+  padding: var(--space-sm) var(--space-md); /* 从6px 12px减少到4px 8px */
+  font-size: 11px; /* 从13px减少到11px */
   color: #4da6ff;
   font-family: 'SF Mono', 'Monaco', monospace;
   display: inline-block;
+  line-height: 1.2;
 }
 
-/* Shortcut Actions */
+/* Shortcut Actions - 紧凑设计 */
 .shortcut-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm); /* 从8px减少到4px */
+  flex-shrink: 0;
 }
 
 .toggle-btn,
@@ -272,14 +304,15 @@
 .delete-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  width: 32px;
-  height: 32px;
+  border-radius: var(--border-radius-sm);
+  width: 26px; /* 从32px减少到26px */
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-size: 12px; /* 减小图标尺寸 */
 }
 
 .toggle-btn:hover {
@@ -301,22 +334,22 @@
   border-color: #f44336;
 }
 
-/* Add Custom Button */
+/* Add Custom Button - 紧凑设计 */
 .add-custom-btn {
-  margin: 16px 24px;
+  margin: var(--space-md) var(--dialog-padding); /* 从16px 24px减少到8px 12px */
   background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
   border: none;
-  border-radius: 10px;
-  padding: 12px 24px;
+  border-radius: var(--border-radius-md);
+  padding: var(--space-md) var(--space-xl); /* 从12px 24px减少到8px 16px */
   color: #fff;
-  font-size: 14px;
+  font-size: 13px; /* 从14px减少到13px */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .add-custom-btn:hover {
@@ -341,30 +374,31 @@
 .add-dialog {
   background: #2a2a2a;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: var(--border-radius-md);
+  padding: var(--space-xl); /* 从24px减少到16px */
   width: 90%;
   max-width: 500px;
-  max-height: 80vh;
+  max-height: 75vh; /* 从80vh减少到75vh */
   overflow-y: auto;
 }
 
 .add-dialog h3 {
-  margin: 0 0 20px 0;
-  font-size: 20px;
+  margin: 0 0 var(--space-xl) 0; /* 从20px减少到16px */
+  font-size: 18px; /* 从20px减少到18px */
   font-weight: 500;
   color: #fff;
 }
 
 .form-group {
-  margin-bottom: 16px;
+  margin-bottom: var(--space-lg); /* 从16px减少到12px */
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 13px;
+  margin-bottom: var(--space-sm); /* 从6px减少到4px */
+  font-size: 12px; /* 从13px减少到12px */
   color: #999;
+  font-weight: 500;
 }
 
 .form-group input,
@@ -372,10 +406,11 @@
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: var(--border-radius-sm);
+  padding: var(--space-md) var(--space-lg); /* 从10px 12px减少到8px 12px */
   color: #fff;
-  font-size: 14px;
+  font-size: 13px; /* 从14px减少到13px */
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -388,16 +423,16 @@
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
+  gap: var(--space-md); /* 从12px减少到8px */
+  margin-top: var(--space-xl); /* 从24px减少到16px */
 }
 
 .cancel-btn,
 .save-btn {
-  padding: 10px 20px;
+  padding: var(--space-md) var(--space-xl); /* 从10px 20px减少到8px 16px */
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--border-radius-md);
+  font-size: 13px; /* 从14px减少到13px */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -423,19 +458,21 @@
   box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
 }
 
-/* Footer */
+/* Footer - 紧凑设计 */
 .editor-footer {
-  padding: 16px 24px;
+  padding: var(--space-lg) var(--dialog-padding); /* 从16px 24px减少到12px 12px */
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-md); /* 添加间距防止挤压 */
+  flex-shrink: 0;
 }
 
 .footer-left,
 .footer-right {
   display: flex;
-  gap: 12px;
+  gap: var(--space-md); /* 从12px减少到8px */
 }
 
 .voice-toggle-btn,
@@ -443,13 +480,14 @@
 .import-btn,
 .export-btn,
 .done-btn {
-  padding: 10px 20px;
+  padding: var(--space-md) var(--space-xl); /* 从10px 20px减少到8px 16px */
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--border-radius-md);
+  font-size: 12px; /* 从14px减少到12px */
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap; /* 防止文字换行 */
 }
 
 .voice-toggle-btn,
@@ -500,25 +538,41 @@
   box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
 }
 
-/* Responsive Design */
+/* Responsive Design - 紧凑版本 */
 @media (max-width: 768px) {
   .advanced-shortcut-editor-dialog {
     width: 95%;
-    height: 90vh;
+    height: 85vh; /* 从90vh减少到85vh */
   }
 
   .shortcut-main {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-sm); /* 移动端更紧凑的间距 */
   }
 
   .shortcut-config {
     min-width: 100%;
+    width: 100%;
   }
 
   .footer-left,
   .footer-right {
     flex-direction: column;
     width: 100%;
+    gap: var(--space-sm); /* 移动端按钮间距更小 */
+  }
+  
+  /* 移动端进一步减小字体 */
+  .shortcut-info h3 {
+    font-size: 13px;
+  }
+  
+  .shortcut-info p {
+    font-size: 11px;
+  }
+  
+  .config-text {
+    font-size: 10px;
   }
 }

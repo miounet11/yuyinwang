@@ -151,6 +151,7 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
   const [activePrompt, setActivePrompt] = useState<AIPrompt | null>(null);
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [selectedPrompt, setSelectedPrompt] = useState<AIPrompt | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [processingState, setProcessingState] = useState({
     isProcessing: false,
     currentStep: '',
@@ -165,7 +166,9 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
 
   // 加载保存的提示
   useEffect(() => {
-    loadPrompts();
+    if (!isLoading && prompts.length === 0) {
+      loadPrompts();
+    }
     registerGlobalShortcut();
   }, []);
 
@@ -185,6 +188,18 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
 
   // 注册提示专用快捷键
   const registerPromptShortcuts = async () => {
+    // 先清除所有已注册的快捷键
+    for (const prompt of prompts) {
+      if (prompt.shortcut) {
+        try {
+          await unregister(prompt.shortcut);
+        } catch (error) {
+          // 忽略未注册的快捷键错误
+        }
+      }
+    }
+    
+    // 重新注册快捷键
     for (const prompt of prompts) {
       if (prompt.shortcut) {
         try {
@@ -200,7 +215,11 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
   };
 
   const loadPrompts = async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
     try {
+      console.log('🔄 加载AI提示配置...');
       // 加载默认提示
       const defaultPrompts: AIPrompt[] = [
         {
@@ -312,10 +331,14 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
       setPrompts(defaultPrompts);
       setActivePrompt(defaultPrompts[0]);
       
+      console.log(`✅ 已加载 ${defaultPrompts.length} 个AI提示配置`);
+      
       // 注册所有提示的快捷键
       await registerPromptShortcuts();
     } catch (error) {
       console.error('加载提示失败:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -1,5 +1,5 @@
 /**
- * Spokenly Clone 快捷键管理器
+ * Recording King 快捷键管理器
  * 提供完整的快捷键功能实现
  */
 
@@ -465,7 +465,7 @@ export class ShortcutManager {
   private async showPermissionError(shortcutName: string): Promise<void> {
     await message(
       `无法注册快捷键 "${shortcutName}"。\n\n` +
-      `请确保已授予 Spokenly 以下权限：\n` +
+      `请确保已授予 Recording King 以下权限：\n` +
       `• 辅助功能（Accessibility）\n` +
       `• 输入监控（Input Monitoring）\n\n` +
       `您可以在应用中点击 🔐 图标打开权限设置。`,

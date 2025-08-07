@@ -1,12 +1,21 @@
-/* AI提示功能组件样式 */
+/* AI提示功能组件样式 - 统一深色主题 */
+:root {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2a2a2a;
+  --text-primary: #ffffff;
+  --text-secondary: #b3b3b3;
+  --accent-color: #0066cc;
+}
+
 .ai-prompts-container {
   padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: var(--bg-primary);
   min-height: 100vh;
   position: relative;
+  color: var(--text-primary);
 }
 
 /* 工作流程区域 */
@@ -17,9 +26,12 @@
 .workflow-section h2 {
   font-size: 24px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
   margin-bottom: 20px;
   text-align: center;
+  background: linear-gradient(135deg, #4da6ff 0%, var(--accent-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 /* 三步工作流程 */
@@ -33,10 +45,11 @@
 }
 
 .workflow-step {
-  background: white;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
   position: relative;
   min-width: 200px;
@@ -46,12 +59,15 @@
 
 .workflow-step:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .workflow-step.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: linear-gradient(135deg, rgba(0, 102, 204, 0.2) 0%, rgba(0, 102, 204, 0.1) 100%);
+  border-color: var(--accent-color);
+  color: var(--text-primary);
   animation: pulse 2s infinite;
 }
 
@@ -61,8 +77,8 @@
 }
 
 .step-number {
-  background: #3498db;
-  color: white;
+  background: var(--accent-color);
+  color: var(--text-primary);
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -75,35 +91,36 @@
 }
 
 .workflow-step.active .step-number {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--accent-color);
   transform: scale(1.2);
+  box-shadow: 0 0 15px rgba(0, 102, 204, 0.5);
 }
 
 .step-content h3 {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .workflow-step.active .step-content h3 {
-  color: white;
+  color: var(--text-primary);
 }
 
 .step-content p {
   font-size: 14px;
-  color: #7f8c8d;
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.4;
 }
 
 .workflow-step.active .step-content p {
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--text-secondary);
 }
 
 .workflow-arrow {
   font-size: 24px;
-  color: #3498db;
+  color: var(--accent-color);
   font-weight: bold;
   animation: bounce 2s infinite;
 }
@@ -124,8 +141,8 @@
 }
 
 .edit-prompt-btn {
-  background: linear-gradient(135deg, #36d1dc 0%, #5b86e5 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--accent-color) 0%, #0052a3 100%);
+  color: var(--text-primary);
   border: none;
   border-radius: 25px;
   padding: 12px 24px;
@@ -136,12 +153,12 @@
   align-items: center;
   gap: 8px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(54, 209, 220, 0.3);
+  box-shadow: 0 4px 15px rgba(0, 102, 204, 0.3);
 }
 
 .edit-prompt-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(54, 209, 220, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 102, 204, 0.4);
 }
 
 .edit-prompt-btn:active {
@@ -153,22 +170,23 @@
 }
 
 .active-prompt-info {
-  background: white;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 10px 16px;
   border-radius: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .active-label {
-  color: #7f8c8d;
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
 .active-name {
-  color: #2c3e50;
+  color: var(--text-primary);
   font-weight: 600;
   font-size: 14px;
 }
@@ -180,8 +198,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(5px);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -195,13 +213,14 @@
 }
 
 .prompt-editor-dialog {
-  background: white;
+  background: var(--bg-primary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   width: 90vw;
   max-width: 1000px;
   max-height: 80vh;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: slideUp 0.3s ease;
 }
 
@@ -217,8 +236,9 @@
 }
 
 .editor-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
   padding: 20px 24px;
   display: flex;
   align-items: center;
@@ -232,23 +252,23 @@
 }
 
 .close-btn {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
   border: none;
-  color: white;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 20px;
   transition: all 0.2s ease;
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 .editor-content {
@@ -259,15 +279,15 @@
 /* 左侧提示列表 */
 .prompts-list {
   width: 300px;
-  border-right: 1px solid #e0e6ed;
-  background: #f8f9fa;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
   display: flex;
   flex-direction: column;
 }
 
 .list-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #e0e6ed;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -277,23 +297,24 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .add-prompt-btn {
-  background: #3498db;
-  color: white;
+  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  color: var(--text-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .add-prompt-btn:hover {
-  background: #2980b9;
-  transform: scale(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
 }
 
 .prompts-items {
@@ -303,9 +324,9 @@
 }
 
 .prompt-item {
-  background: white;
-  border: 1px solid #e0e6ed;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 10px;
   padding: 12px;
   margin-bottom: 8px;
   cursor: pointer;
@@ -316,20 +337,18 @@
 }
 
 .prompt-item:hover {
-  border-color: #3498db;
-  background: #f0f8ff;
-  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .prompt-item.active {
-  border-color: #27ae60;
-  background: #e8f5e8;
+  background: rgba(76, 175, 80, 0.15);
+  border-color: #4caf50;
 }
 
 .prompt-item.selected {
-  border-color: #3498db;
-  background: #f0f8ff;
-  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.3);
+  background: rgba(0, 102, 204, 0.15);
+  border-color: var(--accent-color);
 }
 
 .prompt-info {
@@ -341,13 +360,14 @@
 .prompt-name {
   font-size: 14px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .active-badge {
-  background: #27ae60;
-  color: white;
-  font-size: 10px;
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  color: #4caf50;
+  font-size: 11px;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
@@ -374,17 +394,18 @@
 }
 
 .activate-btn:hover {
-  background: #e8f5e8;
+  background: rgba(76, 175, 80, 0.1);
 }
 
 .delete-btn:hover {
-  background: #ffebee;
+  background: rgba(244, 67, 54, 0.1);
+  color: #f44336;
 }
 
 /* 右侧Agent配置 */
 .agent-configuration {
   flex: 1;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -396,9 +417,11 @@
 
 .prompt-name-input {
   width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e0e6ed;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 12px;
@@ -407,15 +430,17 @@
 
 .prompt-name-input:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--accent-color);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .prompt-description {
   width: 100%;
-  padding: 12px 16px;
-  border: 2px solid #e0e6ed;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text-primary);
   font-size: 14px;
   font-family: inherit;
   resize: vertical;
@@ -424,8 +449,8 @@
 
 .prompt-description:focus {
   outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+  border-color: var(--accent-color);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Agent链路配置 */
@@ -436,16 +461,16 @@
 .agent-chain h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
   margin: 0 0 12px 0;
 }
 
 .chain-visualization {
-  background: #f8f9fa;
-  border: 2px dashed #e0e6ed;
-  border-radius: 8px;
-  padding: 16px;
-  min-height: 120px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 20px;
+  min-height: 200px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -453,8 +478,8 @@
 
 .empty-chain {
   text-align: center;
-  color: #7f8c8d;
-  padding: 20px;
+  color: #666;
+  padding: 40px;
 }
 
 .empty-chain p {
@@ -463,8 +488,8 @@
 }
 
 .hint {
-  font-size: 12px;
-  color: #95a5a6;
+  font-size: 13px;
+  color: #999;
 }
 
 .chain-item {
@@ -477,8 +502,8 @@
 }
 
 .chain-order {
-  background: #3498db;
-  color: white;
+  background: var(--accent-color);
+  color: var(--text-primary);
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -486,15 +511,15 @@
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 600;
   flex-shrink: 0;
 }
 
 .chain-agent {
-  background: white;
-  border: 1px solid #e0e6ed;
-  border-radius: 6px;
-  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
   flex: 1;
   display: flex;
   align-items: center;
@@ -503,14 +528,13 @@
 }
 
 .chain-agent:hover {
-  border-color: #3498db;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .agent-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--text-primary);
   flex: 1;
 }
 
@@ -521,8 +545,8 @@
 }
 
 .move-up-btn, .move-down-btn {
-  background: #3498db;
-  color: white;
+  background: var(--accent-color);
+  color: var(--text-primary);
   border: none;
   border-radius: 2px;
   width: 16px;
@@ -536,25 +560,24 @@
 }
 
 .move-up-btn:hover:not(:disabled), .move-down-btn:hover:not(:disabled) {
-  background: #2980b9;
+  background: #0052a3;
   transform: scale(1.1);
 }
 
 .move-up-btn:disabled, .move-down-btn:disabled {
-  background: #bdc3c7;
+  background: rgba(255, 255, 255, 0.1);
   cursor: not-allowed;
   opacity: 0.5;
 }
 
 .remove-agent {
-  background: #e74c3c;
-  color: white;
+  background: none;
   border: none;
-  border-radius: 4px;
-  width: 18px;
-  height: 18px;
+  color: #999;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 20px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -562,12 +585,11 @@
 }
 
 .remove-agent:hover {
-  background: #c0392b;
-  transform: scale(1.1);
+  color: #f44336;
 }
 
 .chain-connector {
-  color: #3498db;
+  color: var(--accent-color);
   font-size: 16px;
   font-weight: bold;
   margin: 4px 0;
@@ -582,7 +604,7 @@
 .available-agents h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--text-primary);
   margin: 0 0 12px 0;
 }
 
@@ -593,24 +615,23 @@
 }
 
 .agent-option {
-  background: white;
-  border: 2px solid #e0e6ed;
-  border-radius: 8px;
-  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   text-align: center;
 }
 
 .agent-option:hover {
-  border-color: #3498db;
-  background: #f0f8ff;
+  background: rgba(0, 102, 204, 0.1);
+  border-color: var(--accent-color);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
 }
 
 .agent-option:active {
@@ -622,57 +643,59 @@
 }
 
 .agent-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: #2c3e50;
+  color: var(--text-primary);
   line-height: 1.2;
+  text-align: center;
 }
 
 /* 编辑器底部 */
 .editor-footer {
-  border-top: 1px solid #e0e6ed;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .cancel-btn {
-  background: #95a5a6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-radius: 10px;
+  padding: 12px 24px;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .cancel-btn:hover {
-  background: #7f8c8d;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .save-btn {
-  background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
-  color: white;
+  background: linear-gradient(135deg, var(--accent-color) 0%, #0052a3 100%);
+  color: var(--text-primary);
   border: none;
-  border-radius: 6px;
-  padding: 10px 20px;
+  border-radius: 10px;
+  padding: 12px 24px;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .save-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #229954 0%, #27ae60 100%);
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 102, 204, 0.3);
 }
 
 .save-btn:disabled {
-  background: #bdc3c7;
+  background: rgba(255, 255, 255, 0.1);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -683,17 +706,19 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 20px 30px;
-  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(0, 102, 204, 0.3);
+  color: var(--text-primary);
+  padding: 32px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   gap: 16px;
   z-index: 2000;
   backdrop-filter: blur(10px);
   animation: fadeIn 0.3s ease;
-  min-width: 300px;
+  min-width: 320px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .processing-content {
@@ -741,10 +766,11 @@
 }
 
 .processing-spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 20px;
+  border: 3px solid rgba(0, 102, 204, 0.2);
+  border-top-color: var(--accent-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   flex-shrink: 0;
@@ -767,10 +793,11 @@
 /* 通知和反馈 */
 .notification {
   position: relative;
-  background: white;
-  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
   padding: 16px 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   animation: slideInRight 0.3s ease;
   min-width: 280px;
   display: flex;
@@ -792,11 +819,11 @@
 }
 
 .notification.success {
-  border-left: 4px solid #27ae60;
+  border-left: 4px solid #4caf50;
 }
 
 .notification.error {
-  border-left: 4px solid #e74c3c;
+  border-left: 4px solid #f44336;
 }
 
 .notification.warning {
@@ -808,11 +835,11 @@
 }
 
 .notification.success .notification-icon {
-  color: #27ae60;
+  color: #4caf50;
 }
 
 .notification.error .notification-icon {
-  color: #e74c3c;
+  color: #f44336;
 }
 
 .notification.warning .notification-icon {
@@ -827,12 +854,12 @@
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: #2c3e50;
+  color: var(--text-primary);
 }
 
 .notification-message {
   font-size: 12px;
-  color: #7f8c8d;
+  color: var(--text-secondary);
   margin: 0;
   line-height: 1.3;
 }
@@ -841,7 +868,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #95a5a6;
+  color: #999;
   font-size: 16px;
   padding: 0;
   width: 20px;
@@ -852,7 +879,7 @@
 }
 
 .notification-close:hover {
-  color: #7f8c8d;
+  color: var(--text-secondary);
 }
 
 /* 拖拽样式 */
@@ -862,20 +889,20 @@
 }
 
 .chain-item.drag-over {
-  border: 2px dashed #3498db;
-  background: rgba(52, 152, 219, 0.1);
+  border: 2px dashed var(--accent-color);
+  background: rgba(0, 102, 204, 0.1);
 }
 
 .drag-handle {
   cursor: grab;
-  color: #95a5a6;
+  color: #999;
   font-size: 14px;
   padding: 4px;
   margin-left: auto;
 }
 
 .drag-handle:hover {
-  color: #7f8c8d;
+  color: var(--text-secondary);
 }
 
 .drag-handle:active {
@@ -887,8 +914,8 @@
   position: fixed;
   bottom: 20px;
   left: 20px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
+  background: rgba(0, 0, 0, 0.9);
+  color: var(--text-primary);
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 12px;
@@ -941,10 +968,10 @@
 }
 
 .kbd {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
-  font-family: monospace;
+  font-family: 'SF Mono', monospace;
   font-size: 11px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.2);
@@ -976,7 +1003,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(52, 152, 219, 0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 102, 204, 0.2), transparent);
   transition: left 0.5s ease;
 }
 
@@ -996,7 +1023,7 @@
   top: -2px;
   right: -2px;
   bottom: -2px;
-  background: linear-gradient(45deg, #3498db, #9b59b6, #e74c3c, #f39c12);
+  background: linear-gradient(45deg, var(--accent-color), #9b59b6, #f44336, #f39c12);
   background-size: 400% 400%;
   border-radius: 8px;
   z-index: -1;
@@ -1035,17 +1062,17 @@
 }
 
 .prompts-items::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 3px;
 }
 
 .prompts-items::-webkit-scrollbar-thumb {
-  background: rgba(52, 152, 219, 0.5);
+  background: rgba(0, 102, 204, 0.5);
   border-radius: 3px;
 }
 
 .prompts-items::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 152, 219, 0.8);
+  background: rgba(0, 102, 204, 0.8);
 }
 
 .agent-configuration::-webkit-scrollbar {
@@ -1053,17 +1080,17 @@
 }
 
 .agent-configuration::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 3px;
 }
 
 .agent-configuration::-webkit-scrollbar-thumb {
-  background: rgba(52, 152, 219, 0.5);
+  background: rgba(0, 102, 204, 0.5);
   border-radius: 3px;
 }
 
 .agent-configuration::-webkit-scrollbar-thumb:hover {
-  background: rgba(52, 152, 219, 0.8);
+  background: rgba(0, 102, 204, 0.8);
 }
 
 /* Focus states for accessibility */
@@ -1071,7 +1098,7 @@
 .agent-option:focus,
 .save-btn:focus,
 .cancel-btn:focus {
-  outline: 2px solid #3498db;
+  outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
 

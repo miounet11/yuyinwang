@@ -1,5 +1,5 @@
 /**
- * Spokenly Clone 功能验证器
+ * Recording King 功能验证器
  * 用于测试产品功能完整性
  */
 
@@ -177,7 +177,7 @@ export class FeatureValidator {
     );
 
     return `
-=== Spokenly Clone 功能完整性报告 ===
+=== Recording King 功能完整性报告 ===
 
 📊 总体统计:
 - 总功能数: ${total}

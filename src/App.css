@@ -1,4 +1,4 @@
-/* Spokenly Clone - Professional Dark Theme */
+/* Recording King - Professional Dark Theme */
 /* 专业深色主题样式 */
 
 :root {
@@ -48,10 +48,23 @@
   --spacing-xl: 32px;
   
   /* 圆角 */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+
+  /* AI提示模式切换相关颜色 */
+  --mode-selector-bg: #2a2a2a;
+  --mode-option-bg: #333333;
+  --mode-option-hover: #3a3a3a;
+  --mode-option-active: #0066cc;
+  --mode-icon-color: #66b3ff;
+
+  /* 圆角大小 */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+}
   
   /* 微交互动画时间 */
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1262,4 +1275,112 @@ body {
   color: var(--text-secondary);
   margin: var(--spacing-sm) 0 var(--spacing-md) 0;
   line-height: 1.5;
+}
+
+/* AI提示模式切换样式 */
+.mode-selector {
+  margin-bottom: var(--spacing-lg);
+}
+
+.mode-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--mode-selector-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+}
+
+.toggle-option {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--mode-option-bg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-normal);
+  position: relative;
+}
+
+.toggle-option:hover {
+  background: var(--mode-option-hover);
+  transform: translateY(-1px);
+}
+
+.toggle-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle-option input[type="radio"]:checked + .toggle-label {
+  background: var(--mode-option-active);
+  color: var(--text-primary);
+}
+
+.toggle-option input[type="radio"]:checked + .toggle-label .toggle-icon {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  width: 100%;
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  transition: var(--transition-normal);
+}
+
+.toggle-icon {
+  font-size: 24px;
+  color: var(--mode-icon-color);
+  transition: var(--transition-normal);
+}
+
+.toggle-info {
+  flex: 1;
+}
+
+.toggle-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.toggle-desc {
+  display: block;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* AI提示组件包装器 */
+.ai-prompts-wrapper {
+  margin-top: var(--spacing-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border-primary);
+  min-height: 400px;
+}
+
+/* 平滑的组件切换动画 */
+.ai-prompts-wrapper > * {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

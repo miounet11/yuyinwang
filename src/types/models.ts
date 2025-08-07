@@ -22,6 +22,12 @@ export interface TranscriptionModel {
   configurable?: boolean;
   features?: string[];
   status?: 'available' | 'downloading' | 'installed' | 'error';
+  systemRequirements?: {
+    minRam: string;
+    recommendedRam: string;
+    diskSpace: string;
+    gpu: boolean;
+  };
 }
 
 export interface ModelConfig {

@@ -1,5 +1,5 @@
 /**
- * Spokenly Clone 快捷键测试器
+ * Recording King 快捷键测试器
  * 提供完整的快捷键测试功能实现
  */
 

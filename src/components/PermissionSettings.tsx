@@ -118,7 +118,7 @@ const PermissionSettings: React.FC<PermissionSettingsProps> = ({
         <div className="permission-header">
           <div className="header-content">
             <h2>🔐 权限设置</h2>
-            <p>管理 Spokenly 所需的系统权限，确保所有功能正常工作</p>
+            <p>管理 Recording King 所需的系统权限，确保所有功能正常工作</p>
           </div>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
@@ -234,7 +234,7 @@ const PermissionSettings: React.FC<PermissionSettingsProps> = ({
                 <li><strong>输入监控</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控</li>
                 <li><strong>文件访问</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 文件和文件夹</li>
                 <li><strong>屏幕录制</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 屏幕录制</li>
-                <li><strong>通知</strong>: 系统偏好设置 → 通知与专注模式 → 通知 → Spokenly</li>
+                <li><strong>通知</strong>: 系统偏好设置 → 通知与专注模式 → 通知 → Recording King</li>
               </ul>
             </div>
             

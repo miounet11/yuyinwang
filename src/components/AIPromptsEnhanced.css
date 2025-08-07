@@ -1,7 +1,18 @@
 /* AI Prompts Enhanced - 统一的深色主题样式 */
 
+/* 间距token系统 */
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+}
+
 .ai-prompts-enhanced {
-  padding: 24px;
+  padding: var(--spacing-2xl);
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
 }
@@ -16,7 +27,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .section-header h2 {
@@ -53,9 +64,9 @@
 .active-prompt-card {
   background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 102, 204, 0.05) 100%);
   border: 1px solid rgba(0, 102, 204, 0.3);
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 32px;
+  border-radius: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-2xl);
   position: relative;
   overflow: hidden;
 }
@@ -81,7 +92,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: var(--spacing-md);
 }
 
 .card-header .label {
@@ -94,25 +105,25 @@
 .shortcut-badge {
   background: rgba(0, 102, 204, 0.2);
   border: 1px solid rgba(0, 102, 204, 0.4);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 12px;
+  border-radius: var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 11px;
   color: #4da6ff;
   font-family: 'SF Mono', monospace;
 }
 
 .card-content h3 {
-  margin: 0 0 8px 0;
-  font-size: 20px;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 18px;
   font-weight: 600;
   color: #ffffff;
 }
 
 .card-content p {
-  margin: 0 0 16px 0;
+  margin: 0 0 var(--spacing-md) 0;
   color: #b3b3b3;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .empty-state {
@@ -124,21 +135,21 @@
 .agent-flow {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
   flex-wrap: wrap;
-  padding: 16px;
+  padding: var(--spacing-md);
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 12px;
+  border-radius: var(--spacing-md);
 }
 
 .flow-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
   transition: all 0.2s ease;
 }
 
@@ -148,51 +159,51 @@
 }
 
 .flow-item .icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .flow-item .name {
-  font-size: 14px;
+  font-size: 13px;
   color: #ffffff;
   font-weight: 500;
 }
 
 .llm-badge {
   background: rgba(76, 175, 80, 0.2);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 12px;
+  border-radius: var(--spacing-xs);
+  padding: 2px var(--spacing-xs);
+  font-size: 10px;
 }
 
 .flow-arrow {
   color: #4da6ff;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
 }
 
 /* 快速切换区域 */
 .quick-switch {
-  margin-top: 32px;
+  margin-top: var(--spacing-2xl);
 }
 
 .quick-switch h3 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  margin: 0 0 16px 0;
+  margin: 0 0 var(--spacing-md) 0;
   color: #ffffff;
 }
 
 .prompt-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-md);
 }
 
 .prompt-tile {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: var(--spacing-md);
+  padding: var(--spacing-md);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
@@ -213,34 +224,34 @@
 .prompt-tile.active::after {
   content: '✓';
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
   background: #0066cc;
   color: #ffffff;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .tile-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .tile-header .name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #ffffff;
 }
 
 .tile-header .shortcut {
-  font-size: 11px;
+  font-size: 10px;
   color: #999;
   font-family: 'SF Mono', monospace;
 }
@@ -252,12 +263,12 @@
 }
 
 .agent-count {
-  font-size: 12px;
+  font-size: 11px;
   color: #666;
 }
 
 .llm-icon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* 配置对话框 */
@@ -279,10 +290,10 @@
 .config-dialog {
   background: #1a1a1a;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  width: 90%;
-  max-width: 1000px;
-  height: 80vh;
+  border-radius: var(--spacing-lg);
+  width: 75vw;
+  max-width: 800px;
+  height: 65vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -306,7 +317,7 @@
 }
 
 .dialog-header {
-  padding: 24px;
+  padding: var(--spacing-lg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   justify-content: space-between;
@@ -315,7 +326,7 @@
 
 .dialog-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #ffffff;
 }
@@ -348,7 +359,7 @@
 
 /* 左侧提示列表 */
 .prompts-sidebar {
-  width: 280px;
+  width: 220px;
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
@@ -356,7 +367,7 @@
 }
 
 .sidebar-header {
-  padding: 20px;
+  padding: var(--spacing-md);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   justify-content: space-between;
@@ -365,7 +376,7 @@
 
 .sidebar-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: #ffffff;
 }
@@ -373,10 +384,10 @@
 .add-btn {
   background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
   border: none;
-  border-radius: 8px;
-  padding: 6px 12px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -390,7 +401,7 @@
 .prompts-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: var(--spacing-sm);
 }
 
 .prompts-list::-webkit-scrollbar {
@@ -409,9 +420,9 @@
 .prompt-item {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
-  border-radius: 10px;
-  padding: 12px;
-  margin-bottom: 8px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
@@ -433,20 +444,20 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .item-content .name {
-  font-size: 14px;
+  font-size: 13px;
   color: #ffffff;
 }
 
 .active-badge {
   background: rgba(76, 175, 80, 0.2);
   border: 1px solid rgba(76, 175, 80, 0.4);
-  border-radius: 4px;
-  padding: 2px 6px;
-  font-size: 11px;
+  border-radius: var(--spacing-xs);
+  padding: 2px var(--spacing-xs);
+  font-size: 10px;
   color: #4caf50;
 }
 
@@ -455,8 +466,8 @@
   border: none;
   color: #999;
   cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
+  font-size: 14px;
+  padding: var(--spacing-xs);
   transition: all 0.2s ease;
 }
 
@@ -467,29 +478,29 @@
 /* 右侧配置区 */
 .config-area {
   flex: 1;
-  padding: 24px;
+  padding: var(--spacing-lg);
   overflow-y: auto;
 }
 
 .config-section {
-  margin-bottom: 32px;
+  margin-bottom: var(--spacing-xl);
 }
 
 .config-section h3 {
-  margin: 0 0 20px 0;
-  font-size: 18px;
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 16px;
   font-weight: 600;
   color: #ffffff;
 }
 
 .form-group {
-  margin-bottom: 20px;
+  margin-bottom: var(--spacing-md);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: var(--spacing-xs);
+  font-size: 13px;
   color: #999;
 }
 
@@ -499,10 +510,10 @@
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.2s ease;
 }
 
@@ -516,7 +527,7 @@
 
 .shortcut-input {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 
 .shortcut-input input {
@@ -526,10 +537,10 @@
 .record-btn {
   background: rgba(244, 67, 54, 0.2);
   border: 1px solid rgba(244, 67, 54, 0.4);
-  border-radius: 8px;
-  padding: 10px 20px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
   color: #f44336;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -552,38 +563,38 @@
 .agent-chain-editor {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  min-height: 200px;
+  border-radius: var(--spacing-md);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-lg);
+  min-height: 150px;
 }
 
 .empty-chain {
   text-align: center;
-  padding: 40px;
+  padding: var(--spacing-xl);
   color: #666;
 }
 
 .empty-chain p {
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--spacing-xs) 0;
 }
 
 .empty-chain .hint {
-  font-size: 13px;
+  font-size: 12px;
   color: #999;
 }
 
 .chain-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
 .chain-item {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-sm);
   transition: all 0.2s ease;
 }
 
@@ -594,29 +605,29 @@
 .item-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
 .item-header .order {
   background: #0066cc;
   color: #ffffff;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
 }
 
 .item-header .icon {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .item-header .name {
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: #ffffff;
 }
@@ -624,9 +635,9 @@
 .llm-select {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 12px;
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 11px;
   color: #ffffff;
 }
 
@@ -635,9 +646,9 @@
   border: none;
   color: #999;
   cursor: pointer;
-  font-size: 20px;
-  width: 24px;
-  height: 24px;
+  font-size: 18px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -650,12 +661,12 @@
 
 /* 可用Agents */
 .available-agents {
-  margin-top: 24px;
+  margin-top: var(--spacing-lg);
 }
 
 .available-agents h4 {
-  margin: 0 0 16px 0;
-  font-size: 14px;
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 12px;
   color: #999;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -663,21 +674,21 @@
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--spacing-sm);
 }
 
 .agent-tile {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-xs);
 }
 
 .agent-tile:hover {
@@ -687,30 +698,31 @@
 }
 
 .agent-tile .icon {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .agent-tile .name {
-  font-size: 12px;
+  font-size: 11px;
   color: #ffffff;
   text-align: center;
+  line-height: 1.2;
 }
 
 /* 配置操作按钮 */
 .config-actions {
   display: flex;
-  gap: 12px;
-  padding-top: 20px;
+  gap: var(--spacing-sm);
+  padding-top: var(--spacing-md);
   border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .activate-btn,
 .save-btn {
   flex: 1;
-  padding: 12px 24px;
+  padding: var(--spacing-sm) var(--spacing-lg);
   border: none;
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: var(--spacing-sm);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -743,7 +755,7 @@
   justify-content: center;
   height: 100%;
   color: #666;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* 处理状态覆盖层 */
@@ -764,16 +776,16 @@
 .processing-card {
   background: #1a1a1a;
   border: 1px solid rgba(0, 102, 204, 0.3);
-  border-radius: 16px;
-  padding: 32px;
-  min-width: 320px;
+  border-radius: var(--spacing-lg);
+  padding: var(--spacing-2xl);
+  min-width: 280px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 .processing-spinner {
-  width: 48px;
-  height: 48px;
-  margin: 0 auto 20px;
+  width: 40px;
+  height: 40px;
+  margin: 0 auto var(--spacing-lg);
   border: 3px solid rgba(0, 102, 204, 0.2);
   border-top-color: #0066cc;
   border-radius: 50%;
@@ -785,16 +797,16 @@
 }
 
 .processing-info h3 {
-  margin: 0 0 8px 0;
-  font-size: 18px;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 16px;
   font-weight: 600;
   color: #ffffff;
   text-align: center;
 }
 
 .processing-info p {
-  margin: 0 0 16px 0;
-  font-size: 14px;
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 13px;
   color: #999;
   text-align: center;
 }
@@ -810,4 +822,62 @@
   height: 100%;
   background: linear-gradient(90deg, #0066cc, #4da6ff);
   transition: width 0.3s ease;
+}
+
+/* 响应式设计优化 */
+@media (max-width: 1024px) {
+  .config-dialog {
+    width: 85vw;
+    max-width: none;
+    height: 70vh;
+  }
+  
+  .prompts-sidebar {
+    width: 200px;
+  }
+  
+  .agents-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: var(--spacing-xs);
+  }
+  
+  .prompt-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .config-dialog {
+    width: 95vw;
+    height: 85vh;
+  }
+  
+  .dialog-content {
+    flex-direction: column;
+  }
+  
+  .prompts-sidebar {
+    width: 100%;
+    max-height: 180px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  
+  .config-area {
+    padding: var(--spacing-md);
+  }
+  
+  .agents-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  }
+  
+  .prompt-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--spacing-sm);
+  }
+  
+  .processing-card {
+    min-width: 240px;
+    padding: var(--spacing-lg);
+  }
 }

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { permissionManager } from '../utils/permissionManager';
-import { shortcutTester, ShortcutOption, TestResult, KeyCombination } from '../utils/shortcutTester';
-import { shortcutManager } from '../utils/shortcutManager';
+import { shortcutTester, TestResult, KeyCombination } from '../utils/shortcutTester';
 import './FirstLaunchWizard.css';
 
 interface FirstLaunchWizardProps {
@@ -19,13 +18,6 @@ interface WizardProgress {
   timestamp: number;
 }
 
-// 工具提示配置
-interface TooltipConfig {
-  id: string;
-  content: string;
-  position: 'top' | 'bottom' | 'left' | 'right';
-  delay?: number;
-}
 
 const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
   isVisible,
@@ -43,21 +35,18 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
   
   // 交互状态
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [showTooltip, setShowTooltip] = useState<string | null>(null);
   const [permissionError, setPermissionError] = useState<string>('');
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [testHistory, setTestHistory] = useState<TestResult[]>([]);
   const [realTimeKeyInfo, setRealTimeKeyInfo] = useState<KeyCombination | null>(null);
   
   // 可访问性状态
-  const [focusedElement, setFocusedElement] = useState<string>('');
   const [announceText, setAnnounceText] = useState<string>('');
   
   // Refs
   const testTimeoutRef = useRef<number | null>(null);
   const keyPressTimeoutRef = useRef<number | null>(null);
   const transitionTimeoutRef = useRef<number | null>(null);
-  const focusTrappedRef = useRef<HTMLDivElement>(null);
   const skipToMainRef = useRef<HTMLButtonElement>(null);
 
   // 步骤配置（增强版）
@@ -98,7 +87,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     {
       id: 'complete',
       title: '一切就绪！',
-      subtitle: '开始使用 Spokenly',
+      subtitle: '开始使用 Recording King - 录音王',
       description: '正式开始使用强大的语音转录功能',
       icon: '🎉',
       completed: false,
@@ -155,6 +144,99 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
       }))
     ];
   }, []);
+
+  // 加载保存的进度
+  const loadSavedProgress = useCallback(() => {
+    try {
+      const saved = localStorage.getItem('spokenly_wizard_progress');
+      if (saved) {
+        const progress: WizardProgress = JSON.parse(saved);
+        // 检查时间戳是否过期（24小时）
+        if (Date.now() - progress.timestamp < 24 * 60 * 60 * 1000) {
+          setCurrentStep(progress.currentStep);
+          setMicrophoneEnabled(progress.microphoneEnabled);
+          setAccessibilityEnabled(progress.accessibilityEnabled);
+          setSelectedShortcut(progress.selectedShortcut);
+          setShortcutTestResult(progress.shortcutTestResult);
+        }
+      }
+    } catch (error) {
+      console.error('加载进度失败:', error);
+    }
+  }, []);
+
+  // 键盘事件处理函数
+  const handleEscapeKey = useCallback(() => {
+    // ESC键关闭向导或退出当前步骤
+    if (isTestingShortcut) {
+      stopShortcutTest();
+    } else {
+      // 可以考虑显示确认对话框
+      console.log('ESC键被按下');
+    }
+  }, [isTestingShortcut]);
+
+  const handleTabNavigation = useCallback((e: KeyboardEvent) => {
+    // Tab键导航处理
+    const focusableElements = document.querySelectorAll(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])'
+    );
+    if (focusableElements.length > 0) {
+      const currentIndex = Array.from(focusableElements).indexOf(document.activeElement as Element);
+      const nextIndex = e.shiftKey 
+        ? (currentIndex - 1 + focusableElements.length) % focusableElements.length
+        : (currentIndex + 1) % focusableElements.length;
+      (focusableElements[nextIndex] as HTMLElement).focus();
+    }
+  }, []);
+
+  const handleEnterKey = useCallback(() => {
+    // Enter键确认当前操作
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement && activeElement.click) {
+      activeElement.click();
+    } else {
+      // 默认行为：前进到下一步
+      if (currentStep < steps.length - 1) {
+        const nextStep = currentStep + 1;
+        animatedStepTransition(nextStep);
+      }
+    }
+  }, [currentStep, steps.length]);
+
+  // 动画步骤转换
+  const animatedStepTransition = useCallback(async (targetStep: number) => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setPrevStep(currentStep);
+    
+    // 播放转换动画
+    await new Promise(resolve => {
+      if (transitionTimeoutRef.current) {
+        clearTimeout(transitionTimeoutRef.current);
+      }
+      transitionTimeoutRef.current = window.setTimeout(resolve, 300);
+    });
+    
+    setCurrentStep(targetStep);
+    setIsTransitioning(false);
+    
+    // 设置焦点到新步骤
+    setTimeout(() => {
+      const firstButton = document.querySelector('.step-actions button:not([disabled])') as HTMLElement;
+      if (firstButton) {
+        firstButton.focus();
+      }
+    }, 100);
+  }, [currentStep, isTransitioning]);
+
+  const handleNextStep = useCallback(() => {
+    if (currentStep < steps.length - 1) {
+      const nextStep = currentStep + 1;
+      animatedStepTransition(nextStep);
+    }
+  }, [currentStep, steps.length, animatedStepTransition]);
 
   // 初始化和清理
   useEffect(() => {
@@ -236,7 +318,6 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
       await checkInitialPermissions();
       // 设置初始焦点
       setTimeout(() => {
-        setFocusedElement('wizard-main');
         if (skipToMainRef.current) {
           skipToMainRef.current.focus();
         }
@@ -452,7 +533,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     }
   };
 
-  // 函数已移动到renderStepActions中，不再需要
+  // 辅助函数定义完成
 
   const handlePrevStep = () => {
     if (currentStep > 0) {
@@ -476,7 +557,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
               <div className="step-icon-large">🎤</div>
               <h2 className="step-title">启用语音录制</h2>
               <p className="step-description">
-                Spokenly 需要访问您的麦克风来进行语音转录。
+                Recording King 需要访问您的麦克风来进行语音转录。
                 您的语音数据将仅在本地处理，不会上传到服务器。
               </p>
               
@@ -504,7 +585,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
               <h2 className="step-title">启用免提文本插入</h2>
               <p className="step-description">
                 为了将转录的文字直接插入到任何应用程序中，
-                Spokenly 需要辅助功能权限。
+                Recording King 需要辅助功能权限。
               </p>
               
               {accessibilityEnabled ? (
@@ -615,8 +696,12 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
               <div className="step-icon-large celebration">🎉</div>
               <h2 className="step-title">一切就绪！</h2>
               <p className="step-description">
-                恭喜！Spokenly 已完成设置，您现在可以享受强大的语音转录功能。
+                恭喜！Recording King (录音王) 已完成设置，您现在可以享受强大的语音转录功能。
               </p>
+              
+              <div className="welcome-message">
+                <p className="tagline">如果你觉得我好用，那么你就叫我-录音王吧！👑</p>
+              </div>
               
               <div className="feature-showcase">
                 <div className="feature-item">

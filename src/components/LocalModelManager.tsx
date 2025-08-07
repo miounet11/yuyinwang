@@ -21,7 +21,7 @@ const LocalModelManager: React.FC<LocalModelManagerProps> = ({
     uninstallModel
   } = useModelsStore();
 
-  const [storagePath] = useState('/Users/lu/Library/Caches/Spokenly/Models');
+  const [storagePath] = useState('/Users/lu/Library/Caches/RecordingKing/Models');
   const [storageUsed] = useState(2.3); // GB
   const [storageTotal] = useState(10); // GB
 

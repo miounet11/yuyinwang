@@ -1,5 +1,5 @@
 /**
- * Spokenly Clone 权限管理器
+ * Recording King 权限管理器
  * 处理所有系统权限请求和状态管理
  */
 
@@ -36,7 +36,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'accessibility',
       name: '辅助功能',
-      description: '允许 Spokenly 使用全局快捷键和系统集成功能',
+      description: '允许 Recording King 使用全局快捷键和系统集成功能',
       status: 'not-determined',
       required: true,
       category: 'system',
@@ -47,7 +47,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'microphone',
       name: '麦克风',
-      description: '允许 Spokenly 录制音频并进行语音转录',
+      description: '允许 Recording King 录制音频并进行语音转录',
       status: 'not-determined',
       required: true,
       category: 'audio',
@@ -58,7 +58,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'file-system',
       name: '文件访问',
-      description: '允许 Spokenly 读取和保存转录文件',
+      description: '允许 Recording King 读取和保存转录文件',
       status: 'not-determined',
       required: true,
       category: 'file',
@@ -69,7 +69,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'notifications',
       name: '通知',
-      description: '允许 Spokenly 发送转录完成通知',
+      description: '允许 Recording King 发送转录完成通知',
       status: 'not-determined',
       required: false,
       category: 'notification',
@@ -80,7 +80,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'screen-recording',
       name: '屏幕录制',
-      description: '允许 Spokenly 录制屏幕内容（可选功能）',
+      description: '允许 Recording King 录制屏幕内容（可选功能）',
       status: 'not-determined',
       required: false,
       category: 'screen',
@@ -91,7 +91,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'automation',
       name: '自动化',
-      description: '允许 Spokenly 与其他应用程序交互',
+      description: '允许 Recording King 与其他应用程序交互',
       status: 'not-determined',
       required: false,
       category: 'system',
@@ -102,7 +102,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'input-monitoring',
       name: '输入监控',
-      description: '允许 Spokenly 监听键盘快捷键',
+      description: '允许 Recording King 监听键盘快捷键',
       status: 'not-determined',
       required: true,
       category: 'system',
@@ -242,7 +242,7 @@ export class PermissionManager {
       `此权限${permission.required ? '是必需的' : '是可选的'}。\n` +
       `是否前往系统设置授予权限？`,
       {
-        title: 'Spokenly 需要您的授权',
+        title: 'Recording King 需要您的授权',
         type: 'info'
       }
     );
@@ -263,7 +263,7 @@ export class PermissionManager {
       // 显示简短提示
       await message(
         '系统设置已打开\n\n' +
-        '请找到 Spokenly 并勾选复选框授予权限',
+        '请找到 Recording King 并勾选复选框授予权限',
         {
           title: '辅助功能权限',
           type: 'info'
@@ -304,7 +304,7 @@ export class PermissionManager {
       
       await message(
         '系统设置已打开\n\n' +
-        '请找到 Spokenly 并开启麦克风权限',
+        '请找到 Recording King 并开启麦克风权限',
         {
           title: '麦克风权限',
           type: 'info'
@@ -443,7 +443,7 @@ export class PermissionManager {
       
       await message(
         '系统设置已打开\n\n' +
-        '请找到 Spokenly 并开启输入监控权限以使用快捷键',
+        '请找到 Recording King 并开启输入监控权限以使用快捷键',
         {
           title: '输入监控权限',
           type: 'info'
