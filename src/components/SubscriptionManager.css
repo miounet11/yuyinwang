@@ -343,36 +343,38 @@
   color: #808080;
 }
 
-/* FAQ */
+/* FAQ - 优化信息密度 */
 .faq-section {
-  padding: 20px 30px 30px;
-  background: rgba(0, 0, 0, 0.2);
+  padding: var(--spacing-lg) var(--spacing-xl) var(--spacing-xl);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .faq-section h4 {
-  margin: 0 0 15px 0;
-  font-size: 16px;
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: var(--text-lg);
   font-weight: 600;
+  line-height: var(--line-height-tight);
   color: #ffffff;
 }
 
 .faq-section details {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-sm);
   padding: 0;
   transition: all 0.3s ease;
 }
 
 .faq-section details[open] {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .faq-section summary {
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  font-size: var(--text-base);
   font-weight: 500;
+  line-height: var(--line-height-normal);
   color: #e0e0e0;
   cursor: pointer;
   list-style: none;
@@ -397,11 +399,11 @@
 }
 
 .faq-section p {
-  padding: 0 16px 12px;
+  padding: 0 var(--spacing-lg) var(--spacing-md);
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: #b3b3b3;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 /* 动画 */

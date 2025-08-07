@@ -1,4 +1,19 @@
-/* 权限设置样式 */
+/* 权限设置样式 - 优化版本 */
+/* CSS变量定义统一间距token */
+:root {
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 32px;
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+}
+
 .permission-settings-overlay {
   position: fixed;
   top: 0;
@@ -17,10 +32,10 @@
 .permission-settings-dialog {
   background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
   border: 1px solid #404040;
-  border-radius: 16px;
-  width: 90%;
+  border-radius: var(--border-radius-xl);
+  width: 92%;
   max-width: 900px;
-  height: 85vh;
+  height: 88vh;
   max-height: 800px;
   min-height: 600px;
   display: flex;
@@ -31,38 +46,41 @@
   position: relative;
 }
 
-/* 头部 */
+/* 头部 - 压缩padding */
 .permission-header {
-  padding: 24px;
+  padding: var(--spacing-lg) var(--spacing-xl);
   border-bottom: 1px solid #404040;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .header-content h2 {
-  margin: 0 0 8px 0;
-  font-size: 24px;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 22px;
   font-weight: 600;
   color: #ffffff;
+  line-height: 1.2;
 }
 
 .header-content p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: #b3b3b3;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .close-btn {
   background: transparent;
   border: none;
   color: #808080;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .close-btn:hover {
@@ -70,57 +88,64 @@
   transform: rotate(90deg);
 }
 
-/* 快速设置横幅 */
+/* 快速设置横幅 - 优化空间 */
 .permission-banner {
   background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
-  padding: 20px 24px;
+  padding: var(--spacing-lg) var(--spacing-xl);
   border-bottom: 1px solid #404040;
+  flex-shrink: 0;
 }
 
 .banner-content {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: var(--spacing-lg);
 }
 
 .banner-icon {
-  font-size: 36px;
+  font-size: 32px;
   background: rgba(255, 255, 255, 0.2);
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--border-radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .banner-text {
   flex: 1;
+  min-width: 0;
 }
 
 .banner-text h3 {
-  margin: 0 0 4px 0;
-  font-size: 18px;
+  margin: 0 0 var(--spacing-xs) 0;
+  font-size: 16px;
   font-weight: 600;
   color: #ffffff;
+  line-height: 1.2;
 }
 
 .banner-text p {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   color: rgba(255, 255, 255, 0.9);
+  line-height: 1.3;
 }
 
 .quick-setup-btn {
   background: #ffffff;
   color: #0066cc;
   border: none;
-  border-radius: 8px;
-  padding: 12px 24px;
-  font-size: 14px;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .quick-setup-btn:hover {
@@ -132,23 +157,24 @@
   transform: translateY(0);
 }
 
-/* 分类标签 */
+/* 分类标签 - 压缩padding */
 .permission-tabs {
   display: flex;
-  gap: 8px;
-  padding: 16px 24px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md) var(--spacing-xl);
   border-bottom: 1px solid #404040;
   background: rgba(0, 0, 0, 0.1);
   overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .permission-tab {
   background: #3a3a3a;
   border: 1px solid #505050;
   border-radius: 20px;
-  padding: 8px 16px;
+  padding: var(--spacing-xs) var(--spacing-md);
   color: #b3b3b3;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
@@ -158,7 +184,7 @@
 .permission-tab:hover {
   background: #444444;
   color: #ffffff;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .permission-tab.active {
@@ -168,20 +194,20 @@
   animation: tabActivate 0.3s ease;
 }
 
-/* 权限列表容器 */
+/* 权限列表容器 - 增加信息密度 */
 .permission-list-container {
   flex: 1;
   min-height: 0;
   overflow: hidden;
   position: relative;
-  margin: 0 24px;
+  margin: 0 var(--spacing-xl);
 }
 
-/* 权限列表 */
+/* 权限列表 - 压缩顶部padding，增加信息密度 */
 .permission-list {
   height: 100%;
   overflow-y: auto;
-  padding: 20px 0;
+  padding: var(--spacing-md) 0;
   scrollbar-width: thin;
   scrollbar-color: #666 #333;
 }
@@ -208,9 +234,9 @@
 .permission-item {
   background: #333333;
   border: 1px solid #404040;
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 12px;
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
+  margin-bottom: var(--spacing-sm);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -256,71 +282,79 @@
 .permission-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--spacing-md);
   flex: 1;
+  min-width: 0;
 }
 
 .permission-icon {
-  font-size: 28px;
-  width: 48px;
-  height: 48px;
+  font-size: 24px;
+  width: 40px;
+  height: 40px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
+  border-radius: var(--border-radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .permission-info {
   flex: 1;
+  min-width: 0;
 }
 
 .permission-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: #ffffff;
-  margin-bottom: 4px;
+  margin-bottom: var(--spacing-xs);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
+  line-height: 1.3;
 }
 
 .required-badge {
   background: #ff9800;
   color: #000000;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--spacing-xs);
   text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 .permission-description {
-  font-size: 13px;
+  font-size: 12px;
   color: #b3b3b3;
-  line-height: 1.4;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .permission-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--spacing-md);
+  flex-shrink: 0;
 }
 
 .permission-status {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
-  min-width: 100px;
+  min-width: 80px;
   text-align: right;
 }
 
 .grant-btn {
   background: #0066cc;
   border: none;
-  border-radius: 6px;
-  padding: 8px 16px;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-xs) var(--spacing-md);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -338,22 +372,22 @@
   cursor: not-allowed;
 }
 
-/* 帮助信息容器 */
+/* 帮助信息容器 - 优化空间利用率 */
 .permission-help-container {
   background: rgba(0, 0, 0, 0.2);
   border-top: 1px solid #404040;
-  max-height: 250px;
+  max-height: 200px;
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
 }
 
-/* 帮助信息 */
+/* 帮助信息 - 压缩padding，提升信息密度 */
 .permission-help {
-  padding: 20px 24px;
+  padding: var(--spacing-lg) var(--spacing-xl);
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: var(--spacing-lg);
   height: 100%;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -381,10 +415,10 @@
 .help-section {
   background: #2a2a2a;
   border: 1px solid #404040;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
   overflow-y: auto;
-  max-height: 250px;
+  max-height: 180px;
   position: relative;
 }
 
@@ -401,22 +435,23 @@
 }
 
 .help-section h4 {
-  margin: 0 0 12px 0;
-  font-size: 14px;
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 13px;
   font-weight: 600;
   color: #ffffff;
+  line-height: 1.3;
 }
 
 .help-section ul {
   margin: 0;
-  padding-left: 20px;
-  font-size: 12px;
+  padding-left: var(--spacing-lg);
+  font-size: 11px;
   color: #b3b3b3;
-  line-height: 1.8;
+  line-height: 1.5;
 }
 
 .help-section ul li {
-  margin-bottom: 6px;
+  margin-bottom: var(--spacing-xs);
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
@@ -425,30 +460,30 @@
   color: #ffffff;
 }
 
-/* 底部操作栏 */
+/* 底部操作栏 - 优化高度 */
 .permission-footer {
-  padding: 16px 24px;
+  padding: var(--spacing-md) var(--spacing-xl);
   border-top: 1px solid #404040;
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
-  min-height: 60px;
+  min-height: 48px;
 }
 
 .footer-left {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 
 .refresh-btn {
   background: transparent;
   border: 1px solid #505050;
-  border-radius: 6px;
-  padding: 8px 16px;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   color: #b3b3b3;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -465,16 +500,16 @@
 
 .footer-right {
   display: flex;
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 
 .done-btn {
   background: #0066cc;
   border: none;
-  border-radius: 6px;
-  padding: 8px 20px;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -536,47 +571,92 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* 响应式设计 */
+/* 响应式设计 - 统一使用间距token */
 @media (max-width: 768px) {
   .permission-settings-dialog {
-    max-height: 95vh;
+    max-height: 90vh;
     width: 95%;
   }
   
   .permission-help {
     grid-template-columns: 1fr;
+    gap: var(--spacing-md);
   }
   
   .permission-help-container {
-    max-height: 200px;
+    max-height: 160px;
   }
   
   .permission-tabs {
     overflow-x: scroll;
     -webkit-overflow-scrolling: touch;
+    padding: var(--spacing-sm) var(--spacing-lg);
   }
   
   .permission-list-container {
-    margin: 0 16px;
+    margin: 0 var(--spacing-lg);
   }
   
   .help-section {
-    max-height: 200px;
+    max-height: 140px;
+    padding: var(--spacing-sm);
+  }
+  
+  .permission-header,
+  .permission-banner,
+  .permission-help,
+  .permission-footer {
+    padding-left: var(--spacing-lg);
+    padding-right: var(--spacing-lg);
   }
 }
 
 @media (max-width: 480px) {
   .permission-settings-dialog {
-    max-height: 98vh;
+    max-height: 95vh;
     width: 98%;
     min-height: 500px;
   }
   
   .permission-help-container {
-    max-height: 180px;
+    max-height: 140px;
   }
   
   .permission-list-container {
-    margin: 0 12px;
+    margin: 0 var(--spacing-md);
+  }
+  
+  .permission-header,
+  .permission-banner,
+  .permission-help,
+  .permission-footer {
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+  }
+  
+  .permission-tabs {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .permission-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+  
+  .permission-left {
+    gap: var(--spacing-sm);
+  }
+  
+  .permission-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+  }
+  
+  .permission-name {
+    font-size: 13px;
+  }
+  
+  .permission-description {
+    font-size: 11px;
   }
 }
