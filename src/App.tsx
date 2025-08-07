@@ -10,6 +10,7 @@ import './styles/micro-interactions.css';
 import FloatingDialog from './components/FloatingDialog';
 import AppSelector from './components/AppSelector';
 import ShortcutEditor from './components/ShortcutEditor';
+import AdvancedShortcutEditor from './components/AdvancedShortcutEditor';
 import HistorySettings from './components/HistorySettings';
 import TranscriptionModelsPage from './components/TranscriptionModelsPage';
 import FeatureTestPanel from './components/FeatureTestPanel';
@@ -19,6 +20,7 @@ import FirstLaunchWizard from './components/FirstLaunchWizard';
 import SubscriptionManager from './components/SubscriptionManager';
 import AIPrompts from './components/AIPrompts';
 import { shortcutManager } from './utils/shortcutManager';
+import { advancedShortcutManager } from './utils/advancedShortcutManager';
 import { permissionManager } from './utils/permissionManager';
 // import SystemChecker from './utils/systemCheck';
 import { ttsService } from './services/ttsService';
@@ -205,7 +207,9 @@ const PageContent: React.FC<{
   setShowSubscriptionManager?: (show: boolean) => void;
   onEnhancedTextReady?: (text: string) => void;
   isRecording?: boolean;
-}> = ({ page, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording }) => {
+  useAdvancedShortcuts?: boolean;
+  setUseAdvancedShortcuts?: (value: boolean) => void;
+}> = ({ page, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -563,7 +567,18 @@ const PageContent: React.FC<{
 
           <div className="section">
             <h2>录音快捷键</h2>
-            <button className="add-shortcut" onClick={() => setShowShortcutEditor?.(true)}>+</button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+              <button className="add-shortcut" onClick={() => setShowShortcutEditor?.(true)}>⚙️ 管理快捷键</button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#999' }}>
+                <input
+                  type="checkbox"
+                  checked={useAdvancedShortcuts}
+                  onChange={(e) => setUseAdvancedShortcuts(e.target.checked)}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                <span>高级模式（支持双击、长按、语音等）</span>
+              </label>
+            </div>
             
             <div className="shortcut-item">
               <div className="shortcut-display">
@@ -685,6 +700,7 @@ function App() {
   // 新增的状态管理
   const [showAppSelector, setShowAppSelector] = useState(false);
   const [showShortcutEditor, setShowShortcutEditor] = useState(false);
+  const [useAdvancedShortcuts, setUseAdvancedShortcuts] = useState(true); // 默认使用高级快捷键
   const [showHistorySettings, setShowHistorySettings] = useState(false);
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [showPermissionSettings, setShowPermissionSettings] = useState(false);
@@ -1084,6 +1100,8 @@ function App() {
           setShowSubscriptionManager={setShowSubscriptionManager}
           onEnhancedTextReady={handleEnhancedTextReady}
           isRecording={isRecording}
+          useAdvancedShortcuts={useAdvancedShortcuts}
+          setUseAdvancedShortcuts={setUseAdvancedShortcuts}
         />
       </div>
 
@@ -1113,26 +1131,33 @@ function App() {
         }}
       />
 
-      {/* 快捷键编辑器对话框 */}
-      <ShortcutEditor
-        isVisible={showShortcutEditor}
-        onClose={() => setShowShortcutEditor(false)}
-        shortcuts={shortcuts}
-        onUpdateShortcut={(shortcut) => {
-          setShortcuts(shortcuts.map(s => s.id === shortcut.id ? shortcut : s));
-        }}
-        onAddShortcut={() => {
-          const newShortcut = {
-            id: `${shortcuts.length + 1}`,
+      {/* 快捷键编辑器对话框 - 根据设置选择标准或高级版本 */}
+      {useAdvancedShortcuts ? (
+        <AdvancedShortcutEditor
+          isVisible={showShortcutEditor}
+          onClose={() => setShowShortcutEditor(false)}
+        />
+      ) : (
+        <ShortcutEditor
+          isVisible={showShortcutEditor}
+          onClose={() => setShowShortcutEditor(false)}
+          shortcuts={shortcuts}
+            onUpdateShortcut={(shortcut) => {
+            setShortcuts(shortcuts.map(s => s.id === shortcut.id ? shortcut : s));
+          }}
+          onAddShortcut={() => {
+            const newShortcut = {
+              id: `${shortcuts.length + 1}`,
             name: '新快捷键',
             key: '未指定',
             modifiers: [],
             mode: 'toggle' as const,
             assigned: false
           };
-          setShortcuts([...shortcuts, newShortcut]);
-        }}
-      />
+            setShortcuts([...shortcuts, newShortcut]);
+          }}
+        />
+      )}
 
       {/* 历史记录设置对话框 */}
       <HistorySettings
