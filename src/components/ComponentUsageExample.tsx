@@ -119,7 +119,7 @@ const ComponentUsageExample: React.FC = () => {
       {/* Model Configuration Dialog */}
       <ModelConfigDialog
         isVisible={showModelConfig}
-        model={selectedModelData || null}
+        modelId={selectedModelData?.id || ''}
         onClose={handleCloseConfig}
       />
 

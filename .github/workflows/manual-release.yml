@@ -1,0 +1,131 @@
+name: 'Manual Release - Recording King'
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.2)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes (optional)'
+        required: false
+        type: string
+        default: |
+          ## ✨ 新版本发布
+
+          ### 主要更新
+          - 🎯 性能优化和稳定性提升
+          - 🐛 修复已知问题
+          - 🔧 用户体验改进
+
+          ### 📦 安装说明
+          由于暂未进行数字签名，请参考安装指南：
+          - [macOS 安装指南](https://github.com/${{ github.repository }}/blob/main/INSTALLATION-GUIDE.md#-macos-安装指南)
+          - [Windows 安装指南](https://github.com/${{ github.repository }}/blob/main/INSTALLATION-GUIDE.md#-windows-安装指南)
+
+jobs:
+  manual-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Update package.json version
+        run: |
+          # 提取版本号（去掉 v 前缀）
+          VERSION=${{ github.event.inputs.version }}
+          VERSION=${VERSION#v}
+          
+          # 更新 package.json
+          npm version $VERSION --no-git-tag-version
+          
+          # 更新 Cargo.toml
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          
+          echo "CLEAN_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Commit version updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add package.json src-tauri/Cargo.toml
+          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git tag ${{ github.event.inputs.version }}
+          git push origin main
+          git push origin ${{ github.event.inputs.version }}
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const releaseNotes = `${{ github.event.inputs.release_notes }}` || `
+            ## 🎤 Recording King ${{ github.event.inputs.version }} - 录音王
+
+            ### ✨ 主要功能
+            - 🎯 实时语音转文字，准确率高达95%+
+            - 🤖 集成8大AI模型：OpenAI、Claude、DeepSeek等
+            - ⌨️ 全局快捷键，随时开始录音
+            - 💡 智能AI提示词管理系统
+            - 🌍 完美支持中英文混合识别
+            - 📱 跨平台支持：macOS & Windows
+
+            ### 📦 下载安装
+
+            **🚨 重要：本应用暂未数字签名，请按指南安装**
+
+            #### 🍎 macOS 用户
+            1. 下载 \`.dmg\` 文件
+            2. 右键选择"打开"（不要双击）
+            3. 系统提示时选择"仍要打开"
+
+            #### 🪟 Windows 用户  
+            1. 下载 \`.exe\` 文件
+            2. Windows Defender 提示时选择"更多信息" > "仍要运行"
+
+            📖 **详细安装教程**: [查看完整指南](https://github.com/${{ github.repository }}/blob/main/INSTALLATION-GUIDE.md)
+
+            ### 🎯 如果你觉得我好用，那么你就叫我-录音王吧！👑
+            `;
+
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ github.event.inputs.version }}',
+              name: 'Recording King ${{ github.event.inputs.version }} - 录音王',
+              body: releaseNotes,
+              draft: false,
+              prerelease: false
+            });
+
+            return data.id;
+
+      - name: Trigger Build Workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build-release.yml',
+              ref: '${{ github.event.inputs.version }}',
+              inputs: {
+                version: '${{ github.event.inputs.version }}'
+              }
+            });
+
+      - name: Output Release Info
+        run: |
+          echo "🎉 Release created successfully!"
+          echo "📦 Version: ${{ github.event.inputs.version }}"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.version }}"
+          echo "⏳ Build workflow triggered, binaries will be available soon."

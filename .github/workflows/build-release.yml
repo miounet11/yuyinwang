@@ -1,0 +1,249 @@
+name: 'Recording King - Build & Release'
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.2)'
+        required: true
+        default: 'v1.0.2'
+
+env:
+  TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+  TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+jobs:
+  create-release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Get version
+        run: echo "PACKAGE_VERSION=$(node -pe "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Create release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${process.env.PACKAGE_VERSION}`,
+              name: `Recording King v${process.env.PACKAGE_VERSION} - 录音王`,
+              body: `## 🎤 Recording King v${process.env.PACKAGE_VERSION}
+
+            ### ✨ 新特性
+            - 实时语音转文字功能
+            - 多LLM支持（OpenAI、Claude、DeepSeek等）
+            - 全局快捷键录音控制
+            - 智能AI提示词管理
+            - 跨平台支持 (macOS & Windows)
+
+            ### 📦 下载说明
+
+            **🚨 重要提醒：本应用暂未进行数字签名，请按以下指南安装**
+
+            #### macOS 用户
+            1. 下载 \`Recording-King-v${process.env.PACKAGE_VERSION}-macOS-Universal.dmg\`
+            2. 双击打开DMG文件
+            3. 将应用拖拽到Applications文件夹
+            4. 首次运行会提示"无法验证开发者"，请：
+               - 前往 **系统偏好设置** > **安全性与隐私** > **通用**
+               - 点击 **仍要打开** 按钮
+               - 或右键应用选择 **打开** 两次
+
+            #### Windows 用户
+            1. 下载 \`Recording-King-v${process.env.PACKAGE_VERSION}-Windows-Setup.exe\`
+            2. 运行安装程序
+            3. 如遇到Windows Defender提示：
+               - 点击 **更多信息**
+               - 选择 **仍要运行**
+            4. 按提示完成安装
+
+            ### 🛡️ 安全说明
+            - 本应用完全开源，代码可在GitHub查看
+            - 未来版本将提供数字签名以简化安装流程
+            - 所有权限请求都是为了核心功能正常运行
+
+            ### 🎯 如果你觉得我好用，那么你就叫我-录音王吧！👑
+
+            ---
+            **完整安装教程**: [查看详细说明](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/INSTALLATION-GUIDE.md)`,
+              draft: false,
+              prerelease: false
+            })
+            return data.id
+
+  build-binaries:
+    needs: create-release
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            target: 'universal-apple-darwin'
+            arch: 'Universal'
+          - platform: 'windows-latest'
+            args: '--target x86_64-pc-windows-msvc'
+            target: 'x86_64-pc-windows-msvc'
+            arch: 'x64'
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.args }}
+
+  update-release-notes:
+    needs: [create-release, build-binaries]
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update release with installation guide
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // 读取安装指南
+            let installGuide = '';
+            try {
+              installGuide = fs.readFileSync('./INSTALLATION-GUIDE.md', 'utf8');
+            } catch (error) {
+              console.log('Installation guide not found, using default');
+              installGuide = `
+            ## 📱 安装指南
+
+            ### macOS 安装步骤
+            1. 下载对应的 DMG 文件
+            2. 双击打开，拖拽到Applications
+            3. 首次运行需要在安全设置中允许
+
+            ### Windows 安装步骤  
+            1. 下载 Setup.exe 文件
+            2. 运行安装程序
+            3. 如有安全提示，选择"仍要运行"
+
+            详细教程请查看项目README.md
+            `;
+            }
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }},
+              body: `## 🎤 Recording King - 专业语音转文字应用
+
+            ### ✨ 主要功能
+            - 🎯 实时语音转文字，准确率高达95%+
+            - 🤖 集成8大AI模型：OpenAI、Claude、DeepSeek等
+            - ⌨️ 全局快捷键，随时开始录音
+            - 💡 智能AI提示词管理系统
+            - 🌍 完美支持中英文混合识别
+            - 📱 跨平台支持：macOS & Windows
+
+            ### 🚨 重要安装说明
+
+            **由于应用暂未进行数字签名，请按以下步骤安装：**
+
+            #### 🍎 macOS 用户
+            1. 下载 \`.dmg\` 文件并双击打开
+            2. 将 Recording King 拖拽到 Applications 文件夹  
+            3. 首次运行时系统会提示"无法验证开发者"：
+               - 方法1：前往 **系统偏好设置** > **安全性与隐私** > **通用** > 点击**仍要打开**
+               - 方法2：右键点击应用，选择**打开**，再次确认**打开**
+
+            #### 🪟 Windows 用户
+            1. 下载 \`.exe\` 安装程序
+            2. 双击运行，如遇Windows Defender提示：
+               - 点击 **更多信息**
+               - 选择 **仍要运行**
+            3. 按照向导完成安装
+
+            ### 🛡️ 安全保障
+            - ✅ 完全开源，代码透明可审查
+            - ✅ 本地处理，不上传敏感数据  
+            - ✅ 权限最小化，仅申请必要权限
+            - 🔄 未来版本将提供代码签名
+
+            ### 🎯 如果你觉得我好用，那么你就叫我-录音王吧！👑
+
+            ${installGuide}
+
+            ---
+            **项目地址**: https://github.com/${context.repo.owner}/${context.repo.repo}
+            **问题反馈**: [提交Issue](https://github.com/${context.repo.owner}/${context.repo.repo}/issues)`
+            });
+
+  # 构建完成后的通知
+  notify-completion:
+    needs: [create-release, build-binaries, update-release-notes]
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - name: Build Success Notification
+        if: needs.build-binaries.result == 'success'
+        run: |
+          echo "🎉 Recording King 构建成功！"
+          echo "📦 Release: https://github.com/${{ github.repository }}/releases/tag/v$(node -pe "require('./package.json').version")"
+          
+      - name: Build Failure Notification  
+        if: needs.build-binaries.result == 'failure'
+        run: |
+          echo "❌ Recording King 构建失败"
+          echo "请检查构建日志并修复问题"

@@ -22,6 +22,16 @@ export interface TranscriptionModel {
   configurable?: boolean;
   features?: string[];
   status?: 'available' | 'downloading' | 'installed' | 'error';
+  apiConfig?: {
+    apiKey?: string;
+    endpoint?: string;
+  };
+  performance?: {
+    speed: number;
+    accuracy: number;
+    quality: number;
+    realtime?: number;
+  };
   systemRequirements?: {
     minRam: string;
     recommendedRam: string;

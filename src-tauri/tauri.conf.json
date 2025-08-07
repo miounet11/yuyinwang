@@ -50,9 +50,35 @@
       }
     },
     "bundle": {
-      "active": false,
+      "active": true,
       "identifier": "com.recordingking.app",
-      "targets": "all"
+      "targets": "all",
+      "copyright": "Copyright © 2025 Recording King. All rights reserved.",
+      "category": "Productivity",
+      "shortDescription": "Recording King - 录音王",
+      "longDescription": "一个功能强大的实时语音转文字桌面应用，如果你觉得我好用，那么你就叫我-录音王吧！",
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
+        "exceptionDomain": ""
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
+        "tsp": false,
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        },
+        "allowDowngrades": true,
+        "nsis": {
+          "displayLanguageSelector": true,
+          "installerIcon": null,
+          "installMode": "currentUser",
+          "languages": ["English", "SimpChinese"],
+          "template": null
+        }
+      }
     },
     "security": {
       "csp": null

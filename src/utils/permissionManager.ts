@@ -6,6 +6,7 @@
 import { invoke } from '@tauri-apps/api/tauri';
 import { open as openUrl } from '@tauri-apps/api/shell';
 import { ask, message } from '@tauri-apps/api/dialog';
+import { platform } from '@tauri-apps/api/os';
 
 export interface Permission {
   id: string;
@@ -26,24 +27,32 @@ export interface PermissionCheckResult {
 export class PermissionManager {
   private permissions: Map<string, Permission> = new Map();
   private listeners: Map<string, Function[]> = new Map();
+  private currentPlatform: string = 'unknown';
 
   constructor() {
+    this.initializePlatform();
     this.initializePermissions();
   }
 
-  private initializePermissions() {
-    // macOS 辅助功能权限（用于全局快捷键）
-    this.addPermission({
-      id: 'accessibility',
-      name: '辅助功能',
-      description: '允许 Recording King 使用全局快捷键和系统集成功能',
-      status: 'not-determined',
-      required: true,
-      category: 'system',
-      icon: '♿️'
-    });
+  private async initializePlatform() {
+    try {
+      this.currentPlatform = await platform();
+    } catch (error) {
+      console.error('Failed to detect platform:', error);
+      this.currentPlatform = 'unknown';
+    }
+  }
 
-    // 麦克风权限
+  private isWindows(): boolean {
+    return this.currentPlatform === 'win32';
+  }
+
+  private isMacOS(): boolean {
+    return this.currentPlatform === 'darwin';
+  }
+
+  private initializePermissions() {
+    // 跨平台权限：麦克风访问
     this.addPermission({
       id: 'microphone',
       name: '麦克风',
@@ -53,6 +62,42 @@ export class PermissionManager {
       category: 'audio',
       icon: '🎤'
     });
+
+    // 平台特定权限
+    if (this.isMacOS()) {
+      // macOS 辅助功能权限（用于全局快捷键）
+      this.addPermission({
+        id: 'accessibility',
+        name: '辅助功能',
+        description: '允许 Recording King 使用全局快捷键和系统集成功能',
+        status: 'not-determined',
+        required: true,
+        category: 'system',
+        icon: '♿️'
+      });
+
+      // macOS 输入监控权限
+      this.addPermission({
+        id: 'input-monitoring',
+        name: '输入监控',
+        description: '允许 Recording King 监听键盘快捷键',
+        status: 'not-determined',
+        required: true,
+        category: 'system',
+        icon: '⌨️'
+      });
+    } else if (this.isWindows()) {
+      // Windows UAC权限（用于全局快捷键）
+      this.addPermission({
+        id: 'uac-bypass',
+        name: '系统访问',
+        description: '允许 Recording King 注册全局快捷键',
+        status: 'not-determined',
+        required: true,
+        category: 'system',
+        icon: '🛡️'
+      });
+    }
 
     // 文件系统访问权限
     this.addPermission({
@@ -251,7 +296,7 @@ export class PermissionManager {
   }
 
   /**
-   * 请求辅助功能权限（macOS）
+   * 请求辅助功能权限（跨平台）
    */
   private async requestAccessibilityPermission(): Promise<boolean> {
     try {
