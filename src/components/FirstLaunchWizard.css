@@ -1,0 +1,1144 @@
+/* Spokenly 风格首次启动向导样式 */
+
+/* 覆盖层和对话框 */
+.wizard-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+  backdrop-filter: blur(12px);
+  animation: overlayFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.wizard-dialog {
+  background: 
+    linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(15, 15, 15, 0.95) 100%),
+    radial-gradient(circle at 20% 20%, rgba(0, 122, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(52, 199, 89, 0.08) 0%, transparent 50%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 28px;
+  width: 92%;
+  max-width: 880px;
+  min-height: 650px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 
+    0 60px 140px rgba(0, 0, 0, 0.9),
+    0 20px 60px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: dialogSlideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.wizard-dialog::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.03),
+    transparent
+  );
+  animation: shimmer 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* 向导头部 - 进度指示器和步骤信息 */
+.wizard-header {
+  padding: 48px 50px 24px;
+  text-align: center;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  position: relative;
+  z-index: 1;
+}
+
+/* 圆点进度指示器 */
+.progress-dots {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 40px;
+  gap: 28px;
+  padding: 0 20px;
+}
+
+.progress-dot {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 3px solid transparent;
+  backdrop-filter: blur(8px);
+}
+
+.progress-dot.pending {
+  background: #333;
+  border-color: #555;
+}
+
+.progress-dot.current {
+  background: linear-gradient(135deg, #007AFF 0%, #005ce6 100%);
+  border-color: #007AFF;
+  transform: scale(1.15);
+  box-shadow: 
+    0 0 30px rgba(0, 122, 255, 0.6),
+    0 0 60px rgba(0, 122, 255, 0.3),
+    0 0 0 6px rgba(0, 122, 255, 0.15),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  animation: currentDotPulse 2s ease-in-out infinite;
+}
+
+.progress-dot.completed {
+  background: linear-gradient(135deg, #34C759 0%, #28a745 100%);
+  border-color: #34C759;
+  box-shadow: 
+    0 0 20px rgba(52, 199, 89, 0.4),
+    0 0 40px rgba(52, 199, 89, 0.2),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  animation: successPulse 0.6s ease;
+  transform: scale(1.05);
+}
+
+.progress-dot.success {
+  background: linear-gradient(135deg, #34C759 0%, #28a745 100%);
+  border-color: #34C759;
+}
+
+.dot-inner {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1;
+}
+
+/* 进度连接线 */
+.progress-line {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #333;
+  transform: translateY(-50%);
+  z-index: 1;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #34C759 0%, #007AFF 100%);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 1px;
+}
+
+/* 步骤标题信息 */
+.step-info {
+  margin-bottom: 16px;
+}
+
+.step-info .step-title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+}
+
+.step-info .step-subtitle {
+  font-size: 17px;
+  color: #b8b8b8;
+  margin: 0;
+  font-weight: 500;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
+/* 步骤内容区域 */
+.wizard-content {
+  padding: 0 50px 40px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  scroll-behavior: smooth;
+}
+
+.wizard-step {
+  animation: stepSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.step-content {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 20px 0;
+}
+
+/* 大图标 */
+.step-icon-large {
+  font-size: 80px;
+  margin-bottom: 28px;
+  line-height: 1;
+  filter: 
+    drop-shadow(0 8px 16px rgba(0, 0, 0, 0.4))
+    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+.step-icon-large.celebration {
+  animation: celebration 2s ease infinite;
+}
+
+/* 步骤标题和描述 */
+.step-content .step-title {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.4px;
+  line-height: 1.3;
+}
+
+.step-description {
+  font-size: 17px;
+  color: #c0c0c0;
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  opacity: 0.95;
+}
+
+/* 成功和警告指示器 */
+.success-indicator, .permission-required {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 28px;
+  border-radius: 18px;
+  margin: 32px 0;
+  font-size: 17px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.success-indicator {
+  background: 
+    linear-gradient(135deg, rgba(52, 199, 89, 0.2) 0%, rgba(40, 167, 69, 0.15) 100%),
+    radial-gradient(circle at 50% 50%, rgba(52, 199, 89, 0.1) 0%, transparent 70%);
+  border: 2px solid rgba(52, 199, 89, 0.4);
+  color: #34C759;
+  box-shadow: 
+    0 8px 32px rgba(52, 199, 89, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.permission-required {
+  background: 
+    linear-gradient(135deg, rgba(255, 159, 10, 0.2) 0%, rgba(255, 149, 0, 0.15) 100%),
+    radial-gradient(circle at 50% 50%, rgba(255, 159, 10, 0.1) 0%, transparent 70%);
+  border: 2px solid rgba(255, 159, 10, 0.4);
+  color: #FF9F0A;
+  box-shadow: 
+    0 8px 32px rgba(255, 159, 10, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  animation: warningPulse 2s ease-in-out infinite;
+}
+
+.success-icon, .warning-icon {
+  font-size: 24px;
+  animation: iconPulse 2s ease infinite;
+}
+
+/* 信息项 */
+.step-info {
+  margin: 32px 0;
+}
+
+.info-item, .tip-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  color: #b3b3b3;
+  font-size: 14px;
+  text-align: left;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.info-icon, .tip-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+/* 快捷键选项 */
+.shortcut-options {
+  margin: 32px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.shortcut-option {
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%),
+    radial-gradient(circle at 10% 20%, rgba(0, 122, 255, 0.05) 0%, transparent 50%);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 20px 22px;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.shortcut-option:hover {
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%),
+    radial-gradient(circle at 10% 20%, rgba(0, 122, 255, 0.1) 0%, transparent 50%);
+  border-color: rgba(0, 122, 255, 0.4);
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.shortcut-option.selected {
+  background: 
+    linear-gradient(135deg, rgba(0, 122, 255, 0.2) 0%, rgba(0, 92, 230, 0.15) 100%),
+    radial-gradient(circle at 20% 30%, rgba(0, 122, 255, 0.15) 0%, transparent 60%);
+  border-color: #007AFF;
+  box-shadow: 
+    0 12px 40px rgba(0, 122, 255, 0.3),
+    0 0 0 1px rgba(0, 122, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.option-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.option-radio {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #666;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.shortcut-option.selected .option-radio {
+  border-color: #007AFF;
+}
+
+.radio-dot {
+  width: 10px;
+  height: 10px;
+  background: #007AFF;
+  border-radius: 50%;
+  animation: radioSelect 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.option-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.option-description {
+  font-size: 14px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.option-instructions {
+  font-size: 14px;
+  color: #007AFF;
+  padding-left: 36px;
+}
+
+/* 快捷键测试区域 */
+.shortcut-test {
+  margin: 48px 0;
+}
+
+.shortcut-test h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 20px 0;
+}
+
+.test-area {
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%),
+    radial-gradient(circle at center, rgba(0, 122, 255, 0.05) 0%, transparent 70%);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 40px 28px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.test-area.testing {
+  background: 
+    linear-gradient(135deg, rgba(0, 122, 255, 0.15) 0%, rgba(0, 92, 230, 0.08) 100%),
+    radial-gradient(circle at center, rgba(0, 122, 255, 0.1) 0%, transparent 70%);
+  border-color: rgba(0, 122, 255, 0.4);
+  animation: testingPulse 2s ease infinite;
+  box-shadow: 
+    0 0 40px rgba(0, 122, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.test-active {
+  text-align: center;
+}
+
+.test-spinner {
+  font-size: 48px;
+  animation: spin 1.5s linear infinite;
+  margin-bottom: 16px;
+}
+
+.test-message {
+  font-size: 18px;
+  font-weight: 600;
+  color: #007AFF;
+  margin-bottom: 12px;
+}
+
+.test-instructions {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.key-press-indicator {
+  background: rgba(52, 199, 89, 0.2);
+  border: 1px solid rgba(52, 199, 89, 0.4);
+  border-radius: 8px;
+  padding: 8px 16px;
+  color: #34C759;
+  font-size: 14px;
+  margin: 12px 0;
+  animation: keyPressFlash 0.3s ease;
+}
+
+.test-result.success {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(52, 199, 89, 0.15) 0%, rgba(40, 167, 69, 0.1) 100%);
+  border: 1px solid rgba(52, 199, 89, 0.3);
+  border-radius: 12px;
+  padding: 16px 20px;
+  color: #34C759;
+  margin-bottom: 20px;
+}
+
+.result-icon {
+  font-size: 24px;
+  animation: successBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.test-placeholder {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+/* 功能展示 */
+.feature-showcase {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin: 40px 0;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px;
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%),
+    radial-gradient(circle at 30% 40%, rgba(0, 122, 255, 0.03) 0%, transparent 70%);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  text-align: left;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.feature-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.feature-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.feature-content h4 {
+  font-size: 17px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff 0%, #e8e8e8 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 10px 0;
+  line-height: 1.3;
+}
+
+.feature-content p {
+  font-size: 15px;
+  color: #a8a8a8;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+/* 使用小贴士 */
+.tips-section {
+  margin: 32px 0;
+}
+
+.tips-section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 20px 0;
+}
+
+/* 固定的底部按钮区域 */
+.step-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 50px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  background: 
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%),
+    linear-gradient(90deg, rgba(0, 122, 255, 0.05) 0%, rgba(52, 199, 89, 0.05) 100%);
+  backdrop-filter: blur(20px);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.back-btn,
+.next-btn,
+.enable-btn,
+.complete-btn,
+.test-btn,
+.stop-test-btn {
+  padding: 16px 32px;
+  border-radius: 16px;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  outline: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  letter-spacing: 0.3px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.back-btn {
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: #e0e0e0;
+  min-width: 120px;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.back-btn:hover {
+  background: 
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.next-btn.primary,
+.enable-btn.primary,
+.complete-btn.primary {
+  background: 
+    linear-gradient(135deg, #007AFF 0%, #005ce6 100%),
+    linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  color: #ffffff;
+  min-width: 160px;
+  box-shadow: 
+    0 6px 20px rgba(0, 122, 255, 0.4),
+    0 2px 8px rgba(0, 122, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.next-btn.primary::after,
+.enable-btn.primary::after,
+.complete-btn.primary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.next-btn.primary:active::after,
+.enable-btn.primary:active::after,
+.complete-btn.primary:active::after {
+  width: 300px;
+  height: 300px;
+}
+
+.next-btn.primary:hover,
+.enable-btn.primary:hover,
+.complete-btn.primary:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0 12px 32px rgba(0, 122, 255, 0.5),
+    0 4px 16px rgba(0, 122, 255, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: 
+    linear-gradient(135deg, #0066cc 0%, #004bb8 100%),
+    linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.15) 50%, transparent 70%);
+}
+
+.next-btn:disabled {
+  background: #333;
+  color: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.test-btn {
+  background: 
+    linear-gradient(135deg, #34C759 0%, #28a745 100%),
+    linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  color: #ffffff;
+  box-shadow: 
+    0 6px 20px rgba(52, 199, 89, 0.4),
+    0 2px 8px rgba(52, 199, 89, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.test-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(52, 199, 89, 0.4);
+}
+
+.stop-test-btn {
+  background: linear-gradient(135deg, #FF453A 0%, #d73027 100%);
+  color: #ffffff;
+  padding: 8px 16px;
+  font-size: 14px;
+  min-height: 36px;
+}
+
+.stop-test-btn:hover {
+  background: linear-gradient(135deg, #e63946 0%, #c62828 100%);
+}
+
+/* 动画效果 */
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(12px);
+  }
+}
+
+@keyframes dialogSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(60px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes stepSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(52, 199, 89, 0.6);
+  }
+  50% {
+    transform: scale(1.2);
+    box-shadow: 0 0 30px rgba(52, 199, 89, 0.8);
+  }
+  100% {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(52, 199, 89, 0.4);
+  }
+}
+
+@keyframes celebration {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-5deg) scale(1.05);
+  }
+  75% {
+    transform: rotate(5deg) scale(1.05);
+  }
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes radioSelect {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes testingPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(0, 122, 255, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 122, 255, 0.3);
+  }
+}
+
+@keyframes keyPressFlash {
+  from {
+    background: rgba(52, 199, 89, 0.4);
+    transform: scale(1.05);
+  }
+  to {
+    background: rgba(52, 199, 89, 0.2);
+    transform: scale(1);
+  }
+}
+
+@keyframes successBounce {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 新增平板设备适配 */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .feature-showcase {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  
+  .step-content {
+    max-width: 620px;
+  }
+}
+
+/* 针对超宽屏幕的优化 */
+@media (min-width: 1440px) {
+  .wizard-dialog {
+    max-width: 960px;
+    min-height: 700px;
+  }
+  
+  .step-content {
+    max-width: 720px;
+  }
+  
+  .wizard-header {
+    padding: 56px 60px 32px;
+  }
+  
+  .wizard-content {
+    padding: 0 60px 48px;
+  }
+  
+  .step-actions {
+    padding: 40px 60px;
+  }
+}
+
+/* 新增动画效果 */
+@keyframes currentDotPulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 30px rgba(0, 122, 255, 0.6),
+      0 0 60px rgba(0, 122, 255, 0.3),
+      0 0 0 6px rgba(0, 122, 255, 0.15),
+      inset 0 2px 4px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 
+      0 0 40px rgba(0, 122, 255, 0.8),
+      0 0 80px rgba(0, 122, 255, 0.4),
+      0 0 0 8px rgba(0, 122, 255, 0.2),
+      inset 0 2px 4px rgba(255, 255, 255, 0.4);
+  }
+}
+
+@keyframes warningPulse {
+  0%, 100% {
+    box-shadow: 
+      0 8px 32px rgba(255, 159, 10, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 12px 40px rgba(255, 159, 10, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+}
+
+@keyframes iconFloat {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  33% {
+    transform: translateY(-8px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(-4px) rotate(-1deg);
+  }
+}
+
+@keyframes buttonRipple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 1024px) {
+  .wizard-dialog {
+    width: 95%;
+    max-width: 760px;
+    min-height: 600px;
+  }
+  
+  .wizard-header {
+    padding: 40px 40px 20px;
+  }
+  
+  .wizard-content {
+    padding: 0 40px 32px;
+  }
+  
+  .step-actions {
+    padding: 28px 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .wizard-dialog {
+    width: 96%;
+    max-height: 92vh;
+    min-height: 560px;
+    border-radius: 24px;
+  }
+  
+  .wizard-header {
+    padding: 32px 28px 16px;
+  }
+  
+  .wizard-content {
+    padding: 0 28px 24px;
+  }
+  
+  .step-actions {
+    padding: 24px 28px;
+  }
+  
+  .step-info .step-title {
+    font-size: 28px;
+  }
+  
+  .step-content .step-title {
+    font-size: 24px;
+  }
+  
+  .step-icon-large {
+    font-size: 70px;
+  }
+  
+  .progress-dots {
+    gap: 20px;
+  }
+  
+  .progress-dot {
+    width: 42px;
+    height: 42px;
+  }
+  
+  .feature-showcase {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .step-actions {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .back-btn,
+  .next-btn,
+  .enable-btn,
+  .complete-btn {
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .shortcut-option {
+    padding: 18px 20px;
+  }
+  
+  .test-area {
+    padding: 32px 20px;
+    min-height: 120px;
+  }
+  
+  .shortcut-test {
+    margin: 40px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .wizard-dialog {
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    min-height: 100vh;
+    border-radius: 0;
+  }
+  
+  .wizard-header {
+    padding: 24px 20px 12px;
+  }
+  
+  .wizard-content {
+    padding: 0 20px 20px;
+  }
+  
+  .step-actions {
+    padding: 20px;
+  }
+  
+  .step-info .step-title {
+    font-size: 24px;
+  }
+  
+  .step-content .step-title {
+    font-size: 22px;
+  }
+  
+  .step-description {
+    font-size: 16px;
+  }
+  
+  .step-icon-large {
+    font-size: 64px;
+  }
+  
+  .progress-dots {
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  
+  .progress-dot {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .feature-item {
+    padding: 20px 16px;
+    gap: 16px;
+  }
+  
+  .shortcut-option {
+    padding: 16px 18px;
+  }
+  
+  .test-area {
+    padding: 28px 16px;
+    min-height: 100px;
+  }
+  
+  .shortcut-test {
+    margin: 32px 0;
+  }
+  
+  .back-btn,
+  .next-btn,
+  .enable-btn,
+  .complete-btn,
+  .test-btn {
+    padding: 14px 24px;
+    font-size: 16px;
+    min-height: 50px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .wizard-dialog {
+    border: 2px solid #ffffff;
+  }
+  
+  .shortcut-option {
+    border-width: 3px;
+  }
+  
+  .shortcut-option:focus-visible {
+    outline-width: 4px;
+  }
+  
+  .test-area {
+    border-width: 3px;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .wizard-step.transitioning {
+    transform: none;
+    opacity: 1;
+  }
+  
+  .loading-spinner {
+    animation: none;
+  }
+}

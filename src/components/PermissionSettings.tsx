@@ -177,9 +177,10 @@ const PermissionSettings: React.FC<PermissionSettingsProps> = ({
           </button>
         </div>
 
-        {/* 权限列表 */}
-        <div className="permission-list">
-          {getFilteredPermissions().map(permission => {
+        {/* 权限列表 - 添加滚动容器 */}
+        <div className="permission-list-container">
+          <div className="permission-list">
+            {getFilteredPermissions().map(permission => {
             const result = permissionResults.get(permission.id);
             const status = result?.status || permission.status;
             
@@ -220,11 +221,13 @@ const PermissionSettings: React.FC<PermissionSettingsProps> = ({
               </div>
             );
           })}
+          </div>
         </div>
 
-        {/* 帮助信息 */}
-        <div className="permission-help">
-          <div className="help-section">
+        {/* 帮助信息 - 添加滚动容器 */}
+        <div className="permission-help-container">
+          <div className="permission-help">
+            <div className="help-section">
             <h4>🍎 macOS 权限设置路径</h4>
             <ul>
               <li><strong>辅助功能</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能</li>
@@ -248,6 +251,7 @@ const PermissionSettings: React.FC<PermissionSettingsProps> = ({
               <li>• 文件保存和加载需要文件访问权限</li>
               <li>• 屏幕共享功能需要屏幕录制权限</li>
             </ul>
+          </div>
           </div>
         </div>
 

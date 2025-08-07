@@ -1,0 +1,331 @@
+/* 快捷键编辑器样式 - 增强版 */
+.shortcut-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.shortcut-editor-dialog {
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shortcut-editor-dialog.enhanced {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+}
+
+.shortcut-editor-header {
+  padding: 24px;
+  border-bottom: 1px solid #404040;
+}
+
+.shortcut-editor-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.shortcut-editor-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #b3b3b3;
+  line-height: 1.5;
+}
+
+.shortcut-section {
+  padding: 24px;
+  border-bottom: 1px solid #404040;
+}
+
+.shortcut-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #ffffff;
+  display: inline-block;
+}
+
+.add-shortcut-btn {
+  float: right;
+  width: 32px;
+  height: 32px;
+  background: #3a3a3a;
+  border: 1px solid #505050;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-shortcut-btn:hover {
+  background: #0066cc;
+  border-color: #0066cc;
+}
+
+.shortcuts-list {
+  clear: both;
+  margin-top: 16px;
+}
+
+.shortcut-item {
+  background: #333333;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.shortcut-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  margin-bottom: 12px;
+}
+
+.shortcut-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mode-select {
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 150px;
+}
+
+.mode-select:focus {
+  outline: none;
+  border-color: #0066cc;
+}
+
+.key-display {
+  flex: 1;
+  background: #2a2a2a;
+  border: 2px solid #404040;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+}
+
+.key-display .assigned {
+  color: #66b3ff;
+  font-weight: 500;
+}
+
+.key-display .unassigned {
+  color: #808080;
+}
+
+.key-display .recording {
+  color: #ff6b35;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.record-btn {
+  background: #3a3a3a;
+  border: 1px solid #505050;
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.record-btn:hover {
+  background: #444444;
+  border-color: #606060;
+}
+
+.delete-btn {
+  background: transparent;
+  border: 1px solid #505050;
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: #ff6b35;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: #ff6b35;
+}
+
+.shortcut-description {
+  font-size: 12px;
+  color: #808080;
+  line-height: 1.5;
+}
+
+.shortcut-tips {
+  padding: 24px;
+  border-bottom: 1px solid #404040;
+}
+
+.shortcut-tips h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.tip-box {
+  background: rgba(255, 152, 0, 0.1);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.tip-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.tip-content h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ff9800;
+}
+
+.tip-content p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: #b3b3b3;
+  line-height: 1.5;
+}
+
+.tip-content ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.tip-content li {
+  font-size: 13px;
+  color: #b3b3b3;
+  line-height: 1.8;
+}
+
+.test-section {
+  padding: 24px;
+  border-bottom: 1px solid #404040;
+}
+
+.test-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.test-area {
+  background: #333333;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.test-instruction {
+  font-size: 14px;
+  color: #b3b3b3;
+  margin-bottom: 12px;
+}
+
+.test-input {
+  width: 100%;
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 12px;
+  color: #ffffff;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 100px;
+}
+
+.test-input:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.shortcut-editor-footer {
+  padding: 16px 24px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-btn,
+.close-btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid #505050;
+  color: #b3b3b3;
+}
+
+.cancel-btn:hover {
+  background: #3a3a3a;
+  color: #ffffff;
+}
+
+.close-btn {
+  background: #0066cc;
+  border: none;
+  color: #ffffff;
+}
+
+.close-btn:hover {
+  background: #0052a3;
+}

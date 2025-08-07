@@ -1,0 +1,432 @@
+.local-manager-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.local-manager-dialog {
+  background: #2a2a2a;
+  border: 1px solid #404040;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.manager-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #404040;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.manager-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.manager-header .close-btn {
+  background: transparent;
+  border: none;
+  color: #808080;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+}
+
+.manager-header .close-btn:hover {
+  color: #ffffff;
+}
+
+.manager-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* 存储路径部分 */
+.storage-section {
+  margin-bottom: 32px;
+}
+
+.storage-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.storage-path {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.path-input {
+  flex: 1;
+  background: #1e1e1e;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.path-btn {
+  background: #3a3a3a;
+  border: 1px solid #505050;
+  border-radius: 6px;
+  padding: 8px 16px;
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.path-btn:hover {
+  background: #444444;
+  border-color: #606060;
+}
+
+.storage-hint {
+  margin: 0;
+  font-size: 12px;
+  color: #808080;
+  line-height: 1.4;
+}
+
+/* 存储统计 */
+.storage-stats {
+  margin-bottom: 32px;
+}
+
+.storage-stats h3 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.storage-bar {
+  height: 8px;
+  background: #404040;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.storage-used {
+  height: 100%;
+  background: linear-gradient(90deg, #0066cc, #0052a3);
+  transition: width 0.3s ease;
+}
+
+.storage-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #808080;
+}
+
+/* 模型区域 */
+.models-section {
+  margin-bottom: 32px;
+}
+
+.models-section:last-child {
+  margin-bottom: 0;
+}
+
+.models-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.empty-state {
+  background: #333333;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-state p {
+  margin: 0;
+  color: #808080;
+  font-size: 14px;
+}
+
+/* 已安装模型 */
+.installed-models {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.installed-model {
+  background: #333333;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.installed-model .model-icon {
+  width: 40px;
+  height: 40px;
+  background: #2a2a2a;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.installed-model .model-details {
+  flex: 1;
+}
+
+.installed-model h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.installed-model p {
+  margin: 0;
+  font-size: 12px;
+  color: #808080;
+}
+
+.uninstall-btn {
+  background: transparent;
+  border: 1px solid #505050;
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: #ff6b35;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.uninstall-btn:hover {
+  background: rgba(255, 107, 53, 0.1);
+  border-color: #ff6b35;
+}
+
+/* 下载中的模型 */
+.downloading-models {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.downloading-model {
+  background: #333333;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.downloading-model .model-info {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+}
+
+.downloading-model .model-icon {
+  width: 40px;
+  height: 40px;
+  background: #2a2a2a;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.downloading-model .model-details {
+  flex: 1;
+}
+
+.downloading-model h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.download-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-bar {
+  height: 4px;
+  background: #404040;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #0066cc;
+  transition: width 0.3s ease;
+}
+
+.progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #808080;
+}
+
+.download-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.download-controls button {
+  width: 32px;
+  height: 32px;
+  background: #3a3a3a;
+  border: 1px solid #505050;
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.download-controls button:hover {
+  background: #444444;
+  border-color: #606060;
+}
+
+/* 可用模型 */
+.available-models {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.available-model {
+  background: #333333;
+  border: 1px solid #404040;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.available-model .model-icon {
+  width: 40px;
+  height: 40px;
+  background: #2a2a2a;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.available-model .model-details {
+  flex: 1;
+}
+
+.available-model h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.model-desc {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #b3b3b3;
+  line-height: 1.4;
+}
+
+.model-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: #808080;
+}
+
+.available-model .download-btn {
+  background: #0066cc;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.available-model .download-btn:hover {
+  background: #0052a3;
+}
+
+/* 页脚 */
+.manager-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #404040;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.manager-footer .close-btn {
+  background: #0066cc;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.manager-footer .close-btn:hover {
+  background: #0052a3;
+}
