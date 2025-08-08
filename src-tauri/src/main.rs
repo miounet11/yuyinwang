@@ -1,4 +1,8 @@
 // Spokenly Clone - 简化版本专注文件上传功能和AI Agent处理
+#[cfg(target_os = "macos")]
+use objc::runtime::{BOOL, YES};
+#[cfg(target_os = "macos")]
+use objc::{msg_send, sel, sel_impl, class};
 use tauri::{Manager, AppHandle, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -467,45 +471,36 @@ async fn get_current_app_info() -> Result<HashMap<String, String>, String> {
 #[cfg(target_os = "macos")]
 #[tauri::command]
 async fn check_permission(permission: String) -> Result<String, String> {
-    use std::process::Command;
-    
     match permission.as_str() {
         "accessibility" => {
-            // 检查辅助功能权限
-            let output = Command::new("osascript")
-                .arg("-e")
-                .arg("tell application \"System Events\" to get UI elements enabled")
-                .output()
-                .map_err(|e| e.to_string())?;
-            
-            let result = String::from_utf8_lossy(&output.stdout);
-            if result.trim() == "true" {
+            let trusted: BOOL = unsafe { msg_send![class!(AXAPI), isProcessTrusted] };
+            if trusted == YES {
                 Ok("granted".to_string())
             } else {
                 Ok("denied".to_string())
             }
         },
         "microphone" => {
-            // 检查麦克风权限 - 在实际应用中需要使用原生API
-            // 这里先返回一个基本的检查结果
-            Ok("not-determined".to_string())
-        },
-        "file-system" => {
-            // 文件系统权限通常是自动授予的
-            Ok("granted".to_string())
-        },
-        "notifications" => {
-            // 检查通知权限
-            Ok("not-determined".to_string())
-        },
-        "screen-recording" => {
-            // 检查屏幕录制权限
-            Ok("not-determined".to_string())
+            let status: i32 = unsafe {
+                msg_send![class!(AVCaptureDevice), authorizationStatusForMediaType: "soun"]
+            };
+            match status {
+                3 => Ok("granted".to_string()),  // AVAuthorizationStatusAuthorized
+                2 => Ok("denied".to_string()),    // AVAuthorizationStatusDenied
+                _ => Ok("not-determined".to_string()),
+            }
         },
         "input-monitoring" => {
-            // 检查输入监控权限
-            Ok("not-determined".to_string())
+            let trusted: BOOL = unsafe { msg_send![class!(IOHIDCheckAccess), accessForType: 1] };  // kIOHIDRequestTypeListenEvent
+            if trusted == YES {
+                Ok("granted".to_string())
+            } else {
+                Ok("denied".to_string())
+            }
         },
+        "file-system" => Ok("granted".to_string()),
+        "notifications" => Ok("not-determined".to_string()),
+        "screen-recording" => Ok("not-determined".to_string()),
         _ => Ok("not-determined".to_string())
     }
 }

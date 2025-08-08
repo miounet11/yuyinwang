@@ -22,6 +22,7 @@ hound = "3.5"
 uuid = { version = "1.0", features = ["v4"] }
 directories = "5.0"
 parking_lot = "0.12"
+objc = "0.2.7"
 
 [features]
 default = ["custom-protocol"]

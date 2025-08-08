@@ -50,9 +50,16 @@
       }
     },
     "bundle": {
-      "active": false,
+      "active": true,
       "identifier": "com.spokenly.clone",
-      "targets": "all"
+      "targets": "all",
+      "macOS": {
+        "infoPlist": {
+          "NSMicrophoneUsageDescription": "允许 Spokenly 访问麦克风以进行语音录制和转录。",
+          "NSAccessibilityUsageDescription": "允许 Spokenly 使用辅助功能以注册全局快捷键。",
+          "NSListenEventUsageDescription": "允许 Spokenly 监控输入事件以支持高级快捷键功能。"
+        }
+      }
     },
     "security": {
       "csp": null
