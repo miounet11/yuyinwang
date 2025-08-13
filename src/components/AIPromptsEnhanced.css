@@ -1,18 +1,18 @@
 /* AI Prompts Enhanced - 统一的深色主题样式 */
 
-/* 间距token系统 */
+/* 间距token系统 - 更紧凑的布局 */
 :root {
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 12px;
-  --spacing-lg: 16px;
-  --spacing-xl: 20px;
-  --spacing-2xl: 24px;
-  --spacing-3xl: 32px;
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
+  --spacing-xl: 16px;
+  --spacing-2xl: 20px;
+  --spacing-3xl: 24px;
 }
 
 .ai-prompts-enhanced {
-  padding: var(--spacing-2xl);
+  padding: var(--spacing-lg);
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
 }
@@ -27,11 +27,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
 }
 
 .section-header h2 {
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
   background: linear-gradient(135deg, #4da6ff 0%, #0066cc 100%);
@@ -64,9 +64,9 @@
 .active-prompt-card {
   background: linear-gradient(135deg, rgba(0, 102, 204, 0.1) 0%, rgba(0, 102, 204, 0.05) 100%);
   border: 1px solid rgba(0, 102, 204, 0.3);
-  border-radius: var(--spacing-lg);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-2xl);
+  border-radius: var(--spacing-md);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
   position: relative;
   overflow: hidden;
 }
@@ -114,16 +114,16 @@
 
 .card-content h3 {
   margin: 0 0 var(--spacing-xs) 0;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   color: #ffffff;
 }
 
 .card-content p {
-  margin: 0 0 var(--spacing-md) 0;
+  margin: 0 0 var(--spacing-sm) 0;
   color: #b3b3b3;
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 .empty-state {
@@ -135,22 +135,23 @@
 .agent-flow {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
   flex-wrap: wrap;
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   background: rgba(0, 0, 0, 0.2);
-  border-radius: var(--spacing-md);
+  border-radius: var(--spacing-sm);
 }
 
 .flow-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 2px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--spacing-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--spacing-xs);
+  padding: 2px var(--spacing-sm);
   transition: all 0.2s ease;
+  font-size: 11px;
 }
 
 .flow-item:hover {
@@ -159,11 +160,11 @@
 }
 
 .flow-item .icon {
-  font-size: 16px;
+  font-size: 12px;
 }
 
 .flow-item .name {
-  font-size: 13px;
+  font-size: 11px;
   color: #ffffff;
   font-weight: 500;
 }
@@ -183,30 +184,31 @@
 
 /* 快速切换区域 */
 .quick-switch {
-  margin-top: var(--spacing-2xl);
+  margin-top: var(--spacing-lg);
 }
 
 .quick-switch h3 {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
-  margin: 0 0 var(--spacing-md) 0;
+  margin: 0 0 var(--spacing-sm) 0;
   color: #ffffff;
 }
 
 .prompt-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--spacing-md);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--spacing-sm);
 }
 
 .prompt-tile {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--spacing-md);
-  padding: var(--spacing-md);
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  min-height: 60px;
 }
 
 .prompt-tile:hover {
@@ -245,13 +247,17 @@
 }
 
 .tile-header .name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 .tile-header .shortcut {
-  font-size: 10px;
+  font-size: 9px;
   color: #999;
   font-family: 'SF Mono', monospace;
 }
@@ -291,9 +297,10 @@
   background: #1a1a1a;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--spacing-lg);
-  width: 75vw;
-  max-width: 800px;
-  height: 65vh;
+  width: 85vw;
+  max-width: 900px;
+  height: 75vh;
+  max-height: 600px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
@@ -317,7 +324,7 @@
 }
 
 .dialog-header {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-lg);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   justify-content: space-between;
@@ -326,7 +333,7 @@
 
 .dialog-header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   color: #ffffff;
 }
@@ -359,7 +366,7 @@
 
 /* 左侧提示列表 */
 .prompts-sidebar {
-  width: 220px;
+  width: 180px;
   background: rgba(255, 255, 255, 0.02);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
@@ -367,7 +374,7 @@
 }
 
 .sidebar-header {
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-md);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   justify-content: space-between;
@@ -376,7 +383,7 @@
 
 .sidebar-header h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #ffffff;
 }
@@ -420,8 +427,8 @@
 .prompt-item {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
-  border-radius: var(--spacing-sm);
-  padding: var(--spacing-sm);
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
   margin-bottom: var(--spacing-xs);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -478,29 +485,29 @@
 /* 右侧配置区 */
 .config-area {
   flex: 1;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   overflow-y: auto;
 }
 
 .config-section {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-lg);
 }
 
 .config-section h3 {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: 16px;
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 13px;
   font-weight: 600;
   color: #ffffff;
 }
 
 .form-group {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 .form-group label {
   display: block;
-  margin-bottom: var(--spacing-xs);
-  font-size: 13px;
+  margin-bottom: 2px;
+  font-size: 11px;
   color: #999;
 }
 
@@ -510,10 +517,10 @@
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   transition: all 0.2s ease;
 }
 
@@ -563,10 +570,10 @@
 .agent-chain-editor {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: var(--spacing-md);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
-  min-height: 150px;
+  border-radius: var(--spacing-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  min-height: 120px;
 }
 
 .empty-chain {
@@ -674,21 +681,21 @@
 
 .agents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: var(--spacing-sm);
+  grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+  gap: var(--spacing-xs);
 }
 
 .agent-tile {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--spacing-sm);
-  padding: var(--spacing-sm);
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 2px;
 }
 
 .agent-tile:hover {
@@ -698,14 +705,14 @@
 }
 
 .agent-tile .icon {
-  font-size: 20px;
+  font-size: 16px;
 }
 
 .agent-tile .name {
-  font-size: 11px;
+  font-size: 10px;
   color: #ffffff;
   text-align: center;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 /* 配置操作按钮 */
@@ -776,9 +783,9 @@
 .processing-card {
   background: #1a1a1a;
   border: 1px solid rgba(0, 102, 204, 0.3);
-  border-radius: var(--spacing-lg);
-  padding: var(--spacing-2xl);
-  min-width: 280px;
+  border-radius: var(--spacing-md);
+  padding: var(--spacing-lg);
+  min-width: 240px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
@@ -822,6 +829,169 @@
   height: 100%;
   background: linear-gradient(90deg, #0066cc, #4da6ff);
   transition: width 0.3s ease;
+}
+
+/* 紧凑的提示列表样式 */
+.prompts-compact-list {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--spacing-sm);
+  overflow: hidden;
+}
+
+.prompt-row {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.prompt-row:last-child {
+  border-bottom: none;
+}
+
+.prompt-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.prompt-row.active {
+  background: rgba(0, 102, 204, 0.1);
+  border-left: 3px solid #0066cc;
+  padding-left: calc(var(--spacing-md) - 3px);
+}
+
+.prompt-row-left {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 0 0 200px;
+}
+
+.prompt-status input[type="radio"] {
+  width: 14px;
+  height: 14px;
+  accent-color: #0066cc;
+}
+
+.prompt-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.active-tag {
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  border-radius: var(--spacing-xs);
+  padding: 1px 4px;
+  font-size: 9px;
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.prompt-row-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+.agent-mini-flow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--spacing-xs);
+  padding: 2px 6px;
+}
+
+.mini-agent {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.mini-arrow {
+  font-size: 10px;
+  color: #4da6ff;
+  margin: 0 1px;
+}
+
+.more-agents {
+  font-size: 9px;
+  color: #999;
+  margin-left: 2px;
+}
+
+.prompt-row-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 0 0 140px;
+  justify-content: flex-end;
+}
+
+.prompt-shortcut {
+  font-size: 9px;
+  color: #999;
+  font-family: 'SF Mono', monospace;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--spacing-xs);
+  padding: 1px 4px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.prompt-llm {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.prompt-edit-btn {
+  background: rgba(0, 102, 204, 0.1);
+  border: 1px solid rgba(0, 102, 204, 0.3);
+  border-radius: var(--spacing-xs);
+  padding: 2px 6px;
+  color: #4da6ff;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prompt-edit-btn:hover {
+  background: rgba(0, 102, 204, 0.2);
+  border-color: #0066cc;
+}
+
+/* Agent选择器优化 */
+.agents-selector {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.agents-selector label {
+  font-size: 11px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.agents-selector select {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  color: #ffffff;
+  font-size: 11px;
 }
 
 /* 响应式设计优化 */

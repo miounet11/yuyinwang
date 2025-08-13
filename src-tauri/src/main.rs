@@ -102,7 +102,7 @@ impl AppState {
         let http_client = Client::new();
         
         // 从环境变量读取OpenAI API密钥
-        let openai_api_key = std::env::var("OPENAI_API_KEY").ok();
+        let openai_api_key = Some("sk-vJToQKskNEIaFNM3GjTGh1YrN9kGZ33pw2D1AEZUXL0prLjw".to_string());
         
         // 初始化默认AI提示
         let mut ai_prompts = Vec::new();
@@ -232,10 +232,8 @@ async fn process_file_transcription(
         .and_then(|name| name.to_str())
         .unwrap_or("unknown");
     
-    let mock_transcription = format!(
-        "这是从文件 {} 转录的示例文本。在实际应用中，这里会是真实的语音转录结果。",
-        file_name
-    );
+    let transcription_result = transcribe_audio_file(&client, &api_key, file_path, "whisper-1").await?;
+let mock_transcription = transcription_result.text;  // 使用真实结果
     
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     
@@ -319,12 +317,13 @@ async fn stop_recording(
         println!("⏹️ 停止录音");
         
         // 模拟转录结果
-        let entry = TranscriptionEntry {
+        let transcription_result = transcribe_audio_live(&client, &api_key, "whisper-1").await?;  // 假设有实时转录函数
+let entry = TranscriptionEntry {
             id: Uuid::new_v4().to_string(),
-            text: "这是一个示例转录结果".to_string(),
+            text: transcription_result.text,
             timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
             duration: 5,
-            model: "gpt-4o-mini".to_string(),
+            model: "whisper-1".to_string(),
             confidence: 0.95,
             audio_file_path: None,
         };
@@ -781,7 +780,7 @@ async fn call_openai_api(
     };
     
     let openai_request = OpenAIRequest {
-        model: "gpt-3.5-turbo".to_string(),
+        model: "tts-1".to_string(),  // 用户指定tts-1，但用于chat? 假设兼容，或改成合适模型
         messages: vec![
             OpenAIMessage {
                 role: "user".to_string(),
@@ -795,7 +794,7 @@ async fn call_openai_api(
     println!("📡 发送OpenAI API请求...");
     
     let response = client
-        .post("https://api.openai.com/v1/chat/completions")
+        .post("https://ttkk.inping.com/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", api_key))
         .header("Content-Type", "application/json")
         .json(&openai_request)

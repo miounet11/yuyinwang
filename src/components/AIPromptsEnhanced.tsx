@@ -477,6 +477,7 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
     
     setPrompts([...prompts, newPrompt]);
     setSelectedPrompt(newPrompt);
+    setShowConfigDialog(true);
   };
 
   // 保存提示
@@ -565,22 +566,22 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
       {/* 主界面 */}
       <div className="main-section">
         <div className="section-header">
-          <h2>🤖 AI 提示管理</h2>
+          <h2>AI 提示配置</h2>
           <button 
             className="config-btn"
             onClick={() => setShowConfigDialog(true)}
           >
-            ⚙️ 配置
+            新建
           </button>
         </div>
 
         {/* 活动提示卡片 */}
         <div className="active-prompt-card">
           <div className="card-header">
-            <span className="label">当前活动提示</span>
+            <span className="label">提示列表</span>
             {activePrompt && (
               <span className="shortcut-badge">
-                {activePrompt.shortcut || globalShortcut}
+                活动
               </span>
             )}
           </div>
@@ -614,35 +615,63 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
           </div>
         </div>
 
-        {/* 快速切换提示 */}
-        <div className="quick-switch">
-          <h3>快速切换</h3>
-          <div className="prompt-grid">
-            {prompts.map(prompt => (
-              <button
-                key={prompt.id}
-                className={`prompt-tile ${activePrompt?.id === prompt.id ? 'active' : ''}`}
-                onClick={() => setActivePrompt(prompt)}
-              >
-                <div className="tile-header">
-                  <span className="name">{prompt.name}</span>
-                  {prompt.shortcut && (
-                    <span className="shortcut">{prompt.shortcut}</span>
-                  )}
+        {/* 提示列表合并显示 */}
+        <div className="prompts-compact-list">
+          {prompts.map((prompt, index) => (
+            <div
+              key={prompt.id}
+              className={`prompt-row ${activePrompt?.id === prompt.id ? 'active' : ''}`}
+            >
+              <div className="prompt-row-left">
+                <span className="prompt-status">
+                  <input
+                    type="radio"
+                    checked={activePrompt?.id === prompt.id}
+                    onChange={() => setActivePrompt(prompt)}
+                  />
+                </span>
+                <span className="prompt-name" onClick={() => setActivePrompt(prompt)}>
+                  {prompt.name}
+                </span>
+                {prompt.is_active && <span className="active-tag">活动</span>}
+              </div>
+              <div className="prompt-row-center">
+                <div className="agent-mini-flow">
+                  {prompt.agentChain.slice(0, 3).map((agent, idx) => (
+                    <React.Fragment key={agent.id}>
+                      <span className="mini-agent" title={agent.name}>
+                        {agent.icon}
+                      </span>
+                      {idx < Math.min(2, prompt.agentChain.length - 1) && 
+                        <span className="mini-arrow">→</span>
+                      }
+                    </React.Fragment>
+                  ))}
+                  {prompt.agentChain.length > 3 && 
+                    <span className="more-agents">+{prompt.agentChain.length - 3}</span>
+                  }
                 </div>
-                <div className="tile-footer">
-                  <span className="agent-count">
-                    {prompt.agentChain.length} 个Agent
-                  </span>
-                  {prompt.llmModel && (
-                    <span className="llm-icon">
-                      {availableLLMs.find(l => l.id === prompt.llmModel)?.icon}
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
+              </div>
+              <div className="prompt-row-right">
+                <span className="prompt-shortcut">
+                  {prompt.shortcut || '未设置'}
+                </span>
+                <span className="prompt-llm">
+                  {availableLLMs.find(l => l.id === prompt.llmModel)?.icon || '🤖'}
+                </span>
+                <button
+                  className="prompt-edit-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPrompt(prompt);
+                    setShowConfigDialog(true);
+                  }}
+                >
+                  编辑
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -651,10 +680,13 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
         <div className="config-dialog-overlay" onClick={() => setShowConfigDialog(false)}>
           <div className="config-dialog" onClick={(e) => e.stopPropagation()}>
             <div className="dialog-header">
-              <h2>AI 提示配置</h2>
+              <h2>编辑提示</h2>
               <button 
                 className="close-btn"
-                onClick={() => setShowConfigDialog(false)}
+                onClick={() => {
+                  setShowConfigDialog(false);
+                  setSelectedPrompt(null);
+                }}
               >
                 ✕
               </button>
@@ -804,20 +836,26 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
                         )}
                       </div>
 
-                      {/* 可用Agents */}
+                      {/* 可用Agents - 紧凑模式 */}
                       <div className="available-agents">
-                        <h4>可用的Agents</h4>
-                        <div className="agents-grid">
-                          {availableAgents.map(agent => (
-                            <button
-                              key={agent.type}
-                              className="agent-tile"
-                              onClick={() => addAgentToChain(agent.type)}
-                            >
-                              <span className="icon">{agent.icon}</span>
-                              <span className="name">{agent.name}</span>
-                            </button>
-                          ))}
+                        <div className="agents-selector">
+                          <label>添加Agent：</label>
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                addAgentToChain(e.target.value);
+                                e.target.value = '';
+                              }
+                            }}
+                            defaultValue=""
+                          >
+                            <option value="">选择Agent...</option>
+                            {availableAgents.map(agent => (
+                              <option key={agent.type} value={agent.type}>
+                                {agent.icon} {agent.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -825,16 +863,23 @@ const AIPromptsEnhanced: React.FC<AIPromptsEnhancedProps> = ({
                     {/* 操作按钮 */}
                     <div className="config-actions">
                       <button
-                        className="activate-btn"
-                        onClick={() => setActivePrompt(selectedPrompt)}
-                      >
-                        设为活动提示
-                      </button>
-                      <button
                         className="save-btn"
-                        onClick={() => savePrompt(selectedPrompt)}
+                        onClick={() => {
+                          savePrompt(selectedPrompt);
+                          setShowConfigDialog(false);
+                        }}
                       >
                         保存
+                      </button>
+                      <button
+                        className="activate-btn"
+                        onClick={() => {
+                          setActivePrompt(selectedPrompt);
+                          savePrompt(selectedPrompt);
+                          setShowConfigDialog(false);
+                        }}
+                      >
+                        保存并激活
                       </button>
                     </div>
                   </>
