@@ -1,6 +1,6 @@
 // Spokenly Clone - 简化版本专注文件上传功能和AI Agent处理
 #[cfg(target_os = "macos")]
-use objc::runtime::{BOOL, YES};
+use objc::runtime::{Object, BOOL, YES};
 #[cfg(target_os = "macos")]
 use objc::{msg_send, sel, sel_impl, class};
 use tauri::{Manager, AppHandle, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent};
@@ -14,6 +14,11 @@ use tokio::fs;
 use reqwest::Client;
 use std::collections::HashMap;
 use std::process::Command;
+use cpal::{traits::{DeviceTrait, HostTrait, StreamTrait}, SampleFormat, StreamConfig, BufferSize};
+use std::ffi::CString;
+use std::sync::mpsc;
+use std::time::Duration;
+use block::ConcreteBlock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscriptionEntry {
@@ -481,9 +486,9 @@ async fn check_permission(permission: String) -> Result<String, String> {
             }
         },
         "microphone" => {
-            let status: i32 = unsafe {
-                msg_send![class!(AVCaptureDevice), authorizationStatusForMediaType: "soun"]
-            };
+            // 使用 NSString("soun") 作为 AVMediaTypeAudio
+            let ns_str = unsafe { nsstring_from("soun") };
+            let status: i32 = unsafe { msg_send![class!(AVCaptureDevice), authorizationStatusForMediaType: ns_str] };
             match status {
                 3 => Ok("granted".to_string()),  // AVAuthorizationStatusAuthorized
                 2 => Ok("denied".to_string()),    // AVAuthorizationStatusDenied
@@ -517,8 +522,10 @@ async fn check_permission(permission: String) -> Result<String, String> {
 async fn request_permission(permission: String, _app_handle: AppHandle) -> Result<String, String> {
     match permission.as_str() {
         "microphone" => {
-            // 暂时返回模拟结果
-            Ok("granted".to_string())
+            // 先通过 AVFoundation 正式请求一次权限
+            if let Ok(granted) = macos_request_mic_access() { if granted { return Ok("granted".into()); } }
+            // 回退：通过音频输入流触发一次
+            match trigger_mic_permission().await { Ok(_) => Ok("granted".into()), Err(e) => Err(e) }
         },
         "accessibility" => {
             // 引导用户到系统设置
@@ -528,6 +535,66 @@ async fn request_permission(permission: String, _app_handle: AppHandle) -> Resul
             Err("未知权限类型".to_string())
         }
     }
+}
+
+#[tauri::command]
+async fn trigger_mic_permission() -> Result<(), String> {
+    let host = cpal::default_host();
+    let device = host
+        .default_input_device()
+        .ok_or_else(|| "未找到系统输入设备".to_string())?;
+
+    let input_config = device
+        .default_input_config()
+        .map_err(|e| format!("获取输入配置失败: {}", e))?;
+
+    let config = StreamConfig {
+        channels: input_config.channels(),
+        sample_rate: input_config.sample_rate(),
+        buffer_size: BufferSize::Default,
+    };
+
+    let build_stream = |format: SampleFormat| -> Result<cpal::Stream, String> {
+        match format {
+            SampleFormat::F32 => device
+                .build_input_stream(&config, |_data: &[f32], _| {}, |err| eprintln!("输入流错误: {}", err), None)
+                .map_err(|e| e.to_string()),
+            SampleFormat::I16 => device
+                .build_input_stream(&config, |_data: &[i16], _| {}, |err| eprintln!("输入流错误: {}", err), None)
+                .map_err(|e| e.to_string()),
+            SampleFormat::U16 => device
+                .build_input_stream(&config, |_data: &[u16], _| {}, |err| eprintln!("输入流错误: {}", err), None)
+                .map_err(|e| e.to_string()),
+            _ => Err("不支持的采样格式".to_string()),
+        }
+    };
+
+    let stream = build_stream(input_config.sample_format())?;
+    stream.play().map_err(|e| e.to_string())?;
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    drop(stream);
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn nsstring_from(s: &str) -> *mut Object {
+    let c = CString::new(s).unwrap();
+    let ns: *mut Object = msg_send![class!(NSString), stringWithUTF8String: c.as_ptr()];
+    ns
+}
+
+#[cfg(target_os = "macos")]
+fn macos_request_mic_access() -> Result<bool, String> {
+    let (tx, rx) = mpsc::channel::<bool>();
+    let block = ConcreteBlock::new(move |granted: BOOL| {
+        let _ = tx.send(granted == YES);
+    }).copy();
+    unsafe {
+        let media = nsstring_from("soun");
+        let _: () = msg_send![class!(AVCaptureDevice), requestAccessForMediaType: media completionHandler: &*block];
+    }
+    let granted = rx.recv_timeout(Duration::from_secs(5)).unwrap_or(false);
+    Ok(granted)
 }
 
 #[tauri::command] 
@@ -1197,6 +1264,7 @@ async fn main() {
             check_permission,
             request_permission,
             open_system_preferences,
+            trigger_mic_permission,
             // 系统托盘相关命令
             set_tray_icon_recording,
             show_main_window,

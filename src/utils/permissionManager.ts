@@ -297,21 +297,25 @@ export class PermissionManager {
    */
   private async requestMicrophonePermission(): Promise<boolean> {
     try {
-      // 使用后端命令打开系统设置
-      await invoke('open_system_preferences', { 
-        preferencePane: 'microphone' 
-      });
-      
-      await message(
-        '系统设置已打开\n\n' +
-        '请找到 Spokenly 并开启麦克风权限',
-        {
-          title: '麦克风权限',
-          type: 'info'
-        }
-      );
+      // 1) 优先通过 getUserMedia 触发系统权限弹窗（最可靠）
+      if (navigator?.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        const result = await this.checkPermission('microphone');
+        return result.status === 'granted';
+      }
 
-      return true;
+      // 2) 回退：调后端原生触发一次输入流，强制系统登记申请
+      try {
+        await invoke('trigger_mic_permission');
+        const result = await this.checkPermission('microphone');
+        if (result.status === 'granted') return true;
+      } catch {}
+
+      // 3) 最后回退：打开系统设置对应面板
+      await invoke('open_system_preferences', { preferencePane: 'microphone' });
+      await message('系统设置已打开\n\n请找到应用并开启麦克风权限', { title: '麦克风权限', type: 'info' });
+      return true; // 交给用户去开，稍后会由轮询检测到
     } catch (error) {
       console.error('请求麦克风权限失败:', error);
       // 回退方法
