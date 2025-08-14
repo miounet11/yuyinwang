@@ -14,362 +14,100 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
   isVisible,
   onClose
 }) => {
-  const [allShortcuts, setAllShortcuts] = useState<Shortcut[]>([]);
+  const [shortcuts, setShortcuts] = useState([
+    { id: 'shortcut', name: '快捷键', key: 'Fn', description: '按住或切功能' },
+    { id: 'attach-shortcut', name: '附加快捷键', key: '右键', description: '按住或功能' }
+  ]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [recordingKeys, setRecordingKeys] = useState(false);
   const [currentKeyCombo, setCurrentKeyCombo] = useState<string>('');
-  const [activeCategory, setActiveCategory] = useState<'all' | 'recording' | 'navigation' | 'editing' | 'system'>('all');
-  const [testMode, setTestMode] = useState(false);
-  const [lastTriggered, setLastTriggered] = useState<string>('');
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const [testResult, setTestResult] = useState<string>('');
 
-  useEffect(() => {
-    if (isVisible) {
-      // 加载所有快捷键
-      const shortcuts = shortcutManager.getShortcuts();
-      setAllShortcuts(shortcuts);
-
-      // 注册事件监听器
-      const handleShortcutTrigger = (id: string) => {
-        setLastTriggered(id);
-        setTimeout(() => setLastTriggered(''), 2000);
-      };
-
-      // 为测试模式添加监听器
-      shortcuts.forEach(shortcut => {
-        shortcutManager.on(shortcut.id.replace(/-/g, '_'), () => {
-          handleShortcutTrigger(shortcut.id);
-        });
-      });
-    }
-  }, [isVisible]);
-
-  useEffect(() => {
-    if (dialogRef.current && isVisible) {
-      dialogRef.current.focus();
-    }
-  }, [isVisible]);
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (recordingKeys) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const combo = shortcutManager.detectKeyCombo(e);
-      if (combo) {
-        setCurrentKeyCombo(combo);
-      }
-    } else if (e.key === 'Escape' && !editingId) {
-      onClose();
-    }
+  const handleKeyEdit = (shortcutId: string, dropdown: string) => {
+    setShortcuts(prev => prev.map(s => 
+      s.id === shortcutId ? { ...s, key: dropdown } : s
+    ));
   };
 
-  const handleKeyUp = (e: KeyboardEvent) => {
-    if (recordingKeys && currentKeyCombo) {
-      e.preventDefault();
-      e.stopPropagation();
-      
-      // 验证快捷键
-      if (shortcutManager.isValidShortcut(currentKeyCombo)) {
-        // 检查是否已被使用
-        if (shortcutManager.isShortcutInUse(currentKeyCombo, editingId || undefined)) {
-          alert('此快捷键组合已被使用！');
-        } else if (editingId) {
-          // 更新快捷键
-          shortcutManager.updateShortcut(editingId, currentKeyCombo);
-          
-          // 更新显示
-          const updatedShortcuts = shortcutManager.getShortcuts();
-          setAllShortcuts(updatedShortcuts);
-        }
-      } else {
-        alert('请使用有效的快捷键组合（需要包含修饰键）');
-      }
-      
-      // 重置状态
-      setRecordingKeys(false);
-      setCurrentKeyCombo('');
-      setEditingId(null);
-    }
-  };
-
-  useEffect(() => {
-    if (recordingKeys) {
-      document.addEventListener('keydown', handleKeyDown);
-      document.addEventListener('keyup', handleKeyUp);
-      
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('keyup', handleKeyUp);
-      };
-    }
-  }, [recordingKeys, currentKeyCombo, editingId]);
-
-  const handleRecordShortcut = (shortcutId: string) => {
-    setEditingId(shortcutId);
-    setRecordingKeys(true);
-    setCurrentKeyCombo('');
-  };
-
-  const handleToggleShortcut = async (shortcutId: string) => {
-    const isEnabled = shortcutManager.toggleShortcut(shortcutId);
-    
-    // 更新显示
-    const updatedShortcuts = shortcutManager.getShortcuts();
-    setAllShortcuts(updatedShortcuts);
-    
-    console.log(`快捷键 ${shortcutId} 已${isEnabled ? '启用' : '禁用'}`);
-  };
-
-  const handleResetShortcut = (shortcutId: string) => {
-    // 重置为默认值
-    const defaultShortcuts: { [key: string]: string } = {
-      'toggle-recording': 'CommandOrControl+Shift+R',
-      'quick-transcribe': 'CommandOrControl+Shift+Space',
-      'pause-recording': 'CommandOrControl+Shift+P',
-      'open-ai-assistant': 'CommandOrControl+Shift+A',
-      'switch-to-history': 'CommandOrControl+H',
-      'switch-to-models': 'CommandOrControl+M',
-      'switch-to-settings': 'CommandOrControl+Comma',
-      'copy-transcription': 'CommandOrControl+Shift+C',
-      'export-transcription': 'CommandOrControl+Shift+E',
-      'delete-selected': 'CommandOrControl+Delete',
-      'toggle-window': 'CommandOrControl+Shift+S',
-      'minimize-window': 'CommandOrControl+Shift+M',
-      'reload-app': 'CommandOrControl+R'
-    };
-
-    if (defaultShortcuts[shortcutId]) {
-      shortcutManager.updateShortcut(shortcutId, defaultShortcuts[shortcutId]);
-      const updatedShortcuts = shortcutManager.getShortcuts();
-      setAllShortcuts(updatedShortcuts);
-    }
-  };
-
-  const handleTestMode = async () => {
-    setTestMode(!testMode);
-    
-    if (!testMode) {
-      // 注册所有快捷键以进行测试
-      await shortcutManager.registerAllShortcuts();
-      alert('测试模式已启用！按下快捷键查看效果。');
+  const testShortcut = (shortcut: any) => {
+    if (shortcut.key === 'Fn') {
+      setTestResult('🎛️ 按住Fn键话，松开停止录音。');
     } else {
-      // 注销快捷键
-      await shortcutManager.unregisterAllShortcuts();
+      setTestResult('正在测试快捷键...');
     }
-  };
-
-  const getFilteredShortcuts = () => {
-    if (activeCategory === 'all') {
-      return allShortcuts;
-    }
-    return shortcutManager.getShortcutsByCategory(activeCategory);
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'recording': return '🎤';
-      case 'navigation': return '🧭';
-      case 'editing': return '✏️';
-      case 'system': return '⚙️';
-      default: return '📌';
-    }
-  };
-
-  const formatKey = (key: string) => {
-    return key
-      .replace('CommandOrControl', '⌘/Ctrl')
-      .replace('Shift', '⇧')
-      .replace('Alt', '⌥')
-      .replace('Space', '␣')
-      .replace('Delete', '⌫')
-      .replace('Comma', ',')
-      .replace('+', ' + ');
   };
 
   if (!isVisible) return null;
 
   return (
     <div className="shortcut-editor-overlay" onClick={onClose}>
-      <div 
-        ref={dialogRef}
-        className="shortcut-editor-dialog enhanced" 
-        onClick={(e) => e.stopPropagation()}
-        tabIndex={0}
-      >
-        <div className="shortcut-editor-header">
-          <div className="header-title">
-            <h2>⌨️ 快捷键管理</h2>
-            <p>配置和管理所有快捷键组合，提升您的工作效率</p>
-          </div>
-          <button className="close-btn" onClick={onClose}>✕</button>
+      <div className="shortcut-editor-dialog" onClick={(e) => e.stopPropagation()}>
+        <div className="shortcut-header">
+          <h2>快捷键</h2>
+          <p>选择您喜欢的键盘操作键来启动 Spokenly，仅按这些键即可开启录音。</p>
         </div>
 
-        {/* 分类标签 */}
-        <div className="category-tabs">
-          <button 
-            className={`category-tab ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
-          >
-            全部 ({allShortcuts.length})
-          </button>
-          <button 
-            className={`category-tab ${activeCategory === 'recording' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('recording')}
-          >
-            🎤 录音 ({shortcutManager.getShortcutsByCategory('recording').length})
-          </button>
-          <button 
-            className={`category-tab ${activeCategory === 'navigation' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('navigation')}
-          >
-            🧭 导航 ({shortcutManager.getShortcutsByCategory('navigation').length})
-          </button>
-          <button 
-            className={`category-tab ${activeCategory === 'editing' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('editing')}
-          >
-            ✏️ 编辑 ({shortcutManager.getShortcutsByCategory('editing').length})
-          </button>
-          <button 
-            className={`category-tab ${activeCategory === 'system' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('system')}
-          >
-            ⚙️ 系统 ({shortcutManager.getShortcutsByCategory('system').length})
-          </button>
-        </div>
-
-        <div className="shortcuts-container">
-          <div className="shortcuts-list enhanced">
-            {getFilteredShortcuts().map((shortcut) => (
-              <div 
-                key={shortcut.id} 
-                className={`shortcut-item enhanced ${!shortcut.enabled ? 'disabled' : ''} ${lastTriggered === shortcut.id ? 'triggered' : ''}`}
-              >
-                <div className="shortcut-left">
-                  <div className="shortcut-icon">{getCategoryIcon(shortcut.category)}</div>
-                  <div className="shortcut-info">
-                    <div className="shortcut-name">{shortcut.name}</div>
-                    <div className="shortcut-description">{shortcut.description}</div>
-                  </div>
-                </div>
-                
-                <div className="shortcut-controls">
-                  <div className="key-display">
-                    {editingId === shortcut.id && recordingKeys ? (
-                      <span className="recording">
-                        {currentKeyCombo || '录制中...'}
-                      </span>
-                    ) : (
-                      <span className={`key-combo ${shortcut.enabled ? 'active' : 'inactive'}`}>
-                        {formatKey(shortcut.key)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="action-buttons">
-                    <button 
-                      className="toggle-btn"
-                      onClick={() => handleToggleShortcut(shortcut.id)}
-                      title={shortcut.enabled ? '禁用' : '启用'}
-                    >
-                      {shortcut.enabled ? '✅' : '❌'}
-                    </button>
-                    
-                    <button 
-                      className="edit-btn"
-                      onClick={() => handleRecordShortcut(shortcut.id)}
-                      disabled={!shortcut.enabled}
-                      title="编辑快捷键"
-                    >
-                      ✏️
-                    </button>
-                    
-                    <button 
-                      className="reset-btn"
-                      onClick={() => handleResetShortcut(shortcut.id)}
-                      title="重置为默认"
-                    >
-                      🔄
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* 测试区域 */}
-        <div className="test-section enhanced">
-          <div className="test-header">
-            <h3>🧪 测试快捷键</h3>
-            <button 
-              className={`test-toggle ${testMode ? 'active' : ''}`}
-              onClick={handleTestMode}
-            >
-              {testMode ? '停止测试' : '开始测试'}
-            </button>
+        <div className="shortcut-section">
+          <div className="section-title">
+            录音快捷键
+            <button className="add-shortcut-btn">+</button>
           </div>
           
-          {testMode && (
-            <div className="test-content">
-              <p className="test-hint">测试模式已启用！按下任意已启用的快捷键查看效果。</p>
-              {lastTriggered && (
-                <div className="test-result">
-                  <span className="triggered-label">触发:</span>
-                  <span className="triggered-shortcut">
-                    {allShortcuts.find(s => s.id === lastTriggered)?.name}
-                  </span>
-                </div>
-              )}
+          {shortcuts.map((shortcut) => (
+            <div key={shortcut.id} className="shortcut-row">
+              <div className="shortcut-name">{shortcut.name}</div>
+              <div className="shortcut-controls">
+                <select 
+                  value={shortcut.key} 
+                  onChange={(e) => handleKeyEdit(shortcut.id, e.target.value)}
+                  className="key-dropdown"
+                >
+                  <option value="Fn">Fn</option>
+                  <option value="F13">F13</option>
+                  <option value="F14">F14</option>
+                  <option value="F15">F15</option>
+                  <option value="CommandOrControl+Space">⌘+Space</option>
+                  <option value="CommandOrControl+Shift+R">⌘+Shift+R</option>
+                </select>
+              </div>
             </div>
-          )}
+          ))}
         </div>
 
-        {/* 提示信息 */}
-        <div className="shortcut-tips enhanced">
-          <div className="tip-card">
-            <div className="tip-icon">💡</div>
-            <div className="tip-content">
-              <h4>快捷键使用技巧</h4>
-              <ul>
-                <li>• 使用 <kbd>⌘/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> 快速开始录音</li>
-                <li>• 使用 <kbd>⌘/Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd> 进行快速转录</li>
-                <li>• 使用 <kbd>⌘/Ctrl</kbd> + <kbd>H</kbd> 快速查看历史记录</li>
-                <li>• 点击编辑按钮 ✏️ 可以自定义任何快捷键</li>
-              </ul>
-            </div>
+        <div className="hint-section">
+          <div className="hint-title">
+            ⚠️ 使用Fn键
           </div>
-
-          <div className="tip-card">
-            <div className="tip-icon">⚠️</div>
-            <div className="tip-content">
-              <h4>macOS Fn 键设置</h4>
-              <ul>
-                <li>• 系统设置 → 键盘</li>
-                <li>• 点击"按下 🌐 键以"</li>
-                <li>• 选择"无操作"</li>
-                <li>• 启用 Fn 键快捷键功能</li>
-              </ul>
-            </div>
+          <div className="hint-content">
+            要使用Fn键:
+            <br />• 打开系统设置 → 键盘
+            <br />• 点击"按下键盘以下拉菜单"
+            <br />• 选择"无操作"
+            <br />• 这允许 Spokenly 检测Fn键按下
           </div>
         </div>
 
-        <div className="shortcut-editor-footer">
-          <div className="footer-stats">
-            已启用: {allShortcuts.filter(s => s.enabled).length} / {allShortcuts.length}
-          </div>
-          <div className="footer-actions">
-            <button className="apply-btn" onClick={async () => {
-              await shortcutManager.registerAllShortcuts();
-              alert('快捷键已应用！');
-            }}>
-              应用更改
+        <div className="test-section">
+          <div className="test-title">测试您的快捷键</div>
+          <div className="test-area">
+            <button 
+              className="test-btn"
+              onClick={() => testShortcut(shortcuts[0])}
+            >
+              🎛️ 按住Fn键话，松开停止录音。
             </button>
-            <button className="done-btn" onClick={onClose}>
-              完成
-            </button>
+            {testResult && (
+              <div className="test-result">
+                {testResult}
+              </div>
+            )}
           </div>
+        </div>
+
+        <div className="shortcut-footer">
+          <p className="shortcut-note">
+            配置快捷键是其他录音方式：按住切功能（自动录音），切功能（点击录音）或触（快速录音功能），保持（快速录音功能）。
+          </p>
         </div>
       </div>
     </div>

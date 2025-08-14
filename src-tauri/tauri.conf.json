@@ -5,10 +5,10 @@
     "devPath": "http://localhost:1420",
     "distDir": "../dist"
   },
-  "package": {
-    "productName": "Spokenly Clone",
-    "version": "1.0.1"
-  },
+    "package": {
+      "productName": "LuYinWang",
+      "version": "1.0.1"
+    },
   "tauri": {
     "allowlist": {
       "all": false,
@@ -44,6 +44,9 @@
       "window": {
         "all": true
       },
+      "os": {
+        "all": true
+      },
       "shell": {
         "all": false,
         "open": "^x-apple\\.systempreferences:.*"
@@ -51,18 +54,33 @@
     },
     "bundle": {
       "active": true,
-      "identifier": "com.spokenly.clone",
+      "identifier": "com.luyinwang.app",
       "targets": "all",
+      "copyright": "Copyright © 2025 Recording King. All rights reserved.",
+      "category": "Productivity",
+      "shortDescription": "LuYinWang - 录音王",
+      "longDescription": "一个功能强大的实时语音转文字桌面应用，如果你觉得我好用，那么你就叫我-录音王吧！",
       "macOS": {
-        "entitlements": null,
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
         "exceptionDomain": "",
-        "signingIdentity": null,
-        "providerShortName": null,
-        "mergeAppleSandboxEntitlements": false,
-        "info": {
-          "NSMicrophoneUsageDescription": "允许 Spokenly 访问麦克风以进行语音录制和转录。",
-          "NSAccessibilityUsageDescription": "允许 Spokenly 使用辅助功能以注册全局快捷键。",
-          "NSInputMonitoringUsageDescription": "允许 Spokenly 监听输入事件以支持快捷键。"
+        "entitlements": "./Entitlements.plist"
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "",
+        "tsp": false,
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        },
+        "allowDowngrades": true,
+        "nsis": {
+          "displayLanguageSelector": true,
+          "installerIcon": null,
+          "installMode": "currentUser",
+          "languages": ["English", "SimpChinese"],
+          "template": null
         }
       }
     },
@@ -76,7 +94,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "Spokenly Clone",
+        "title": "LuYinWang - 录音王",
         "width": 1100,
         "height": 700,
         "visible": true,

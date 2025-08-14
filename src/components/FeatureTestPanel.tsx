@@ -55,8 +55,8 @@ const FeatureTestPanel: React.FC<FeatureTestPanelProps> = ({ isVisible, onClose 
     <div className="test-panel-overlay" onClick={onClose}>
       <div className="test-panel" onClick={(e) => e.stopPropagation()}>
         <div className="test-panel-header">
-          <h2>🧪 Spokenly 功能测试面板</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <h2>TEST Recording King 功能测试面板</h2>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="test-panel-tabs">

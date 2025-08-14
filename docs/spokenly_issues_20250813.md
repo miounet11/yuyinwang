@@ -42,3 +42,13 @@
 - 潜在问题：模式切换逻辑依赖 props，可能在快速操作中导致状态不一致；未集成高级功能如自动提交或提示建议。建议：添加自动结果注入当前应用光标位置，并支持自定义提示预设。
 
 建议优化微交互和错误处理，以提升用户体验至世界级。
+
+## 10. UI 一致性和专业性问题
+- 颜色选择：过多变体（如 --success #4caf50 等），导致杂乱。参考 VSCode 有限调色板（如 button.background #007ACC, button.hoverBackground #0066CC, focusBorder #007FD4, dropdown.background #3C3C3C, dropdown.border #454545, icon.foreground #C5C5C5），限制4-6色，支持高对比主题，确保一致性。
+- 字体一致性：大小变体多（如 11px-16px），权重不统一。参考 VSCode 统一 sans-serif 系统字体（如 foreground #CCCCCC, descriptionForeground #A9A9A9, errorForeground #F48771），基线14px，避免不必要变体，确保可读性和专业感。
+- 按钮样式：hover/focus 不统一（渐变/动画混用）。参考 VSCode 平坦按钮（如 button.foreground #FFFFFF, button.secondaryBackground #3A3A3A, checkbox.background #3C3C3C, checkbox.border #CECECE），hover button.hoverBackground，focus focusBorder，统一 transition 0.2s ease，不能太多装饰。
+- 选择框/下拉框：focus border变化不统一，hover弱。参考 VSCode dropdown.listBackground #252526, dropdown.foreground #CCCCCC，hover微妙变化，focus细边框（如 focusBorder #007FD4），确保交互细节一致。
+- 图标使用：过多表情符号（如 🎙️），大小不一，不专业。参考 VSCode icon.foreground #C5C5C5，最小化使用，减少不必要图标，优先文本标签（如 toolbar.hoverBackground #5A5D5A-1）。
+- 整体交互：transition 时间不统一，动画过多。参考 VSCode 快速交互（<0.2s），响应式优先，减少装饰，提升专业精致感（如 widget.border #303031, sash.hoverBorder #5A5D5A）。
+
+建议 Claude Code 参考 VSCode 主题颜色参考优化，提升整体一致性、专业精致感，减少不必要图标，确保产品看起来像成熟软件如VSCode般精致：使用有限颜色维持统一，统一字体层次，简约平坦按钮/下拉，最小图标以文本优先，支持主题切换和高对比模式。

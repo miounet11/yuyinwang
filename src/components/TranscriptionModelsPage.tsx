@@ -5,6 +5,9 @@ import ModelConfigDialog from './ModelConfigDialog';
 import LocalModelManager from './LocalModelManager';
 import './TranscriptionModelsPage.css';
 
+// 导入主应用的 store
+import { useStore } from '../App';
+
 const TranscriptionModelsPage: React.FC = () => {
   const {
     models,
@@ -12,12 +15,15 @@ const TranscriptionModelsPage: React.FC = () => {
     selectedCategory,
     searchQuery,
     downloadTasks,
-    setSelectedModel,
+    setSelectedModel: setModelStoreModel,
     setSelectedCategory,
     setSearchQuery,
     startDownload,
     getFilteredModels
   } = useModelsStore();
+  
+  // 获取主应用的 store
+  const { setSelectedModel: setMainAppModel } = useStore();
 
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [configModelId, setConfigModelId] = useState<string | null>(null);
@@ -43,8 +49,10 @@ const TranscriptionModelsPage: React.FC = () => {
       setConfigModelId(modelId);
       setShowConfigDialog(true);
     } else {
-      // 直接选择模型
-      setSelectedModel(modelId);
+      // 直接选择模型 - 同时更新两个 store
+      setModelStoreModel(modelId);
+      setMainAppModel(modelId);
+      console.log('🔍 模型选择页面: 已选择模型', modelId);
     }
   };
 
@@ -154,8 +162,18 @@ const TranscriptionModelsPage: React.FC = () => {
   return (
     <div className="transcription-models-page">
       <div className="page-header">
-        <h1>听写模型</h1>
-        <p>从各种听写模型中选择 - 从云端选项到离端工作的本地模型。选择最适合您听写需求的准确性、隐私性和速度的平衡点。</p>
+        <div className="header-content">
+          <div>
+            <h1>听写模型</h1>
+            <p>从各种听写模型中选择 - 从云端选项到离线工作的本地模型。选择最适合您听写需求的准确性、隐私性和速度的平衡点。</p>
+          </div>
+          <button 
+            className="manage-local-btn"
+            onClick={() => setShowLocalManager(true)}
+          >
+            🖥️ 管理本地模型
+          </button>
+        </div>
       </div>
 
       {/* 分类标签 */}

@@ -117,141 +117,140 @@ const PermissionSettings: React.FC<PermissionSettingsProps> = ({
       <div className="permission-settings-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="permission-header">
           <div className="header-content">
-            <h2>🔐 权限设置</h2>
-            <p>管理 Spokenly 所需的系统权限，确保所有功能正常工作</p>
+            <h2>PERM 权限设置</h2>
+            <p>管理 Recording King 所需的系统权限，确保所有功能正常工作</p>
           </div>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
-        {/* 快速设置横幅 */}
-        <div className="permission-banner">
-          <div className="banner-content">
-            <div className="banner-icon">⚡</div>
-            <div className="banner-text">
-              <h3>快速设置向导</h3>
-              <p>一键配置所有必需权限，确保最佳体验</p>
+        {/* 主内容滚动容器 */}
+        <div className="permission-main-content">
+          {/* 快速设置横幅 */}
+          <div className="permission-banner">
+            <div className="banner-content">
+              <div className="banner-icon">⚡</div>
+              <div className="banner-text">
+                <h3>快速设置向导</h3>
+                <p>一键配置所有必需权限，确保最佳体验</p>
+              </div>
+              <button className="quick-setup-btn" onClick={handleQuickSetup}>
+                开始设置
+              </button>
             </div>
-            <button className="quick-setup-btn" onClick={handleQuickSetup}>
-              开始设置
+          </div>
+
+          {/* 分类标签 */}
+          <div className="permission-tabs">
+            <button 
+              className={`permission-tab ${activeCategory === 'all' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('all')}
+            >
+              全部 ({getCategoryCount('all')})
+            </button>
+            <button 
+              className={`permission-tab ${activeCategory === 'system' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('system')}
+            >
+              🖥️ 系统 ({getCategoryCount('system')})
+            </button>
+            <button 
+              className={`permission-tab ${activeCategory === 'audio' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('audio')}
+            >
+              🎤 音频 ({getCategoryCount('audio')})
+            </button>
+            <button 
+              className={`permission-tab ${activeCategory === 'file' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('file')}
+            >
+              📁 文件 ({getCategoryCount('file')})
+            </button>
+            <button 
+              className={`permission-tab ${activeCategory === 'notification' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('notification')}
+            >
+              🔔 通知 ({getCategoryCount('notification')})
+            </button>
+            <button 
+              className={`permission-tab ${activeCategory === 'screen' ? 'active' : ''}`}
+              onClick={() => setActiveCategory('screen')}
+            >
+              🖥️ 屏幕 ({getCategoryCount('screen')})
             </button>
           </div>
-        </div>
 
-        {/* 分类标签 */}
-        <div className="permission-tabs">
-          <button 
-            className={`permission-tab ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
-          >
-            全部 ({getCategoryCount('all')})
-          </button>
-          <button 
-            className={`permission-tab ${activeCategory === 'system' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('system')}
-          >
-            🖥️ 系统 ({getCategoryCount('system')})
-          </button>
-          <button 
-            className={`permission-tab ${activeCategory === 'audio' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('audio')}
-          >
-            🎤 音频 ({getCategoryCount('audio')})
-          </button>
-          <button 
-            className={`permission-tab ${activeCategory === 'file' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('file')}
-          >
-            📁 文件 ({getCategoryCount('file')})
-          </button>
-          <button 
-            className={`permission-tab ${activeCategory === 'notification' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('notification')}
-          >
-            🔔 通知 ({getCategoryCount('notification')})
-          </button>
-          <button 
-            className={`permission-tab ${activeCategory === 'screen' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('screen')}
-          >
-            🖥️ 屏幕 ({getCategoryCount('screen')})
-          </button>
-        </div>
-
-        {/* 权限列表 - 添加滚动容器 */}
-        <div className="permission-list-container">
+          {/* 权限列表 */}
           <div className="permission-list">
             {getFilteredPermissions().map(permission => {
-            const result = permissionResults.get(permission.id);
-            const status = result?.status || permission.status;
-            
-            return (
-              <div 
-                key={permission.id} 
-                className={`permission-item ${status} ${permission.required ? 'required' : ''}`}
-              >
-                <div className="permission-left">
-                  <div className="permission-icon">{permission.icon}</div>
-                  <div className="permission-info">
-                    <div className="permission-name">
-                      {permission.name}
-                      {permission.required && <span className="required-badge">必需</span>}
+              const result = permissionResults.get(permission.id);
+              const status = result?.status || permission.status;
+              
+              return (
+                <div 
+                  key={permission.id} 
+                  className={`permission-item ${status} ${permission.required ? 'required' : ''}`}
+                >
+                  <div className="permission-left">
+                    <div className="permission-icon">{permission.icon}</div>
+                    <div className="permission-info">
+                      <div className="permission-name">
+                        {permission.name}
+                        {permission.required && <span className="required-badge">必需</span>}
+                      </div>
+                      <div className="permission-description">{permission.description}</div>
                     </div>
-                    <div className="permission-description">{permission.description}</div>
-                  </div>
-                </div>
-                
-                <div className="permission-right">
-                  <div 
-                    className="permission-status"
-                    style={{ color: getStatusColor(status) }}
-                  >
-                    {getStatusIcon(status)} {result?.message || '检查中...'}
                   </div>
                   
-                  {status !== 'granted' && (
-                    <button 
-                      className="grant-btn"
-                      onClick={() => handleRequestPermission(permission.id)}
-                      disabled={checkingPermissions}
+                  <div className="permission-right">
+                    <div 
+                      className="permission-status"
+                      style={{ color: getStatusColor(status) }}
                     >
-                      {status === 'denied' ? '重新请求' : '授予权限'}
-                    </button>
-                  )}
+                      {getStatusIcon(status)} {result?.message || '检查中...'}
+                    </div>
+                    
+                    {status !== 'granted' && (
+                      <button 
+                        className="grant-btn"
+                        onClick={() => handleRequestPermission(permission.id)}
+                        disabled={checkingPermissions}
+                      >
+                        {status === 'denied' ? '重新请求' : '授予权限'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
           </div>
-        </div>
 
-        {/* 帮助信息 - 添加滚动容器 */}
-        <div className="permission-help-container">
+          {/* 帮助信息 */}
           <div className="permission-help">
             <div className="help-section">
-            <h4>🍎 macOS 权限设置路径</h4>
-            <ul>
-              <li><strong>辅助功能</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能</li>
-              <li><strong>麦克风</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 麦克风</li>
-              <li><strong>输入监控</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控</li>
-              <li><strong>文件访问</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 文件和文件夹</li>
-              <li><strong>屏幕录制</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 屏幕录制</li>
-              <li><strong>通知</strong>: 系统偏好设置 → 通知与专注模式 → 通知 → Spokenly</li>
-            </ul>
-          </div>
-          
-          <div className="help-section">
-            <h4>⚠️ 常见问题与解决方案</h4>
-            <ul>
-              <li>• 修改权限后可能需要重启应用才能生效</li>
-              <li>• 某些权限设置需要输入管理员密码</li>
-              <li>• 快捷键功能需要辅助功能和输入监控权限</li>
-              <li>• 首次请求权限时系统会弹出确认对话框</li>
-              <li>• 如果权限被拒绝，需要手动到系统设置中开启</li>
-              <li>• 语音识别功能需要麦克风权限</li>
-              <li>• 文件保存和加载需要文件访问权限</li>
-              <li>• 屏幕共享功能需要屏幕录制权限</li>
-            </ul>
-          </div>
+              <h4>🍎 macOS 权限设置路径</h4>
+              <ul>
+                <li><strong>辅助功能</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能</li>
+                <li><strong>麦克风</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 麦克风</li>
+                <li><strong>输入监控</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控</li>
+                <li><strong>文件访问</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 文件和文件夹</li>
+                <li><strong>屏幕录制</strong>: 系统偏好设置 → 安全性与隐私 → 隐私 → 屏幕录制</li>
+                <li><strong>通知</strong>: 系统偏好设置 → 通知与专注模式 → 通知 → Recording King</li>
+              </ul>
+            </div>
+            
+            <div className="help-section">
+              <h4>⚠️ 常见问题与解决方案</h4>
+              <ul>
+                <li>• 修改权限后可能需要重启应用才能生效</li>
+                <li>• 某些权限设置需要输入管理员密码</li>
+                <li>• 快捷键功能需要辅助功能和输入监控权限</li>
+                <li>• 首次请求权限时系统会弹出确认对话框</li>
+                <li>• 如果权限被拒绝，需要手动到系统设置中开启</li>
+                <li>• 语音识别功能需要麦克风权限</li>
+                <li>• 文件保存和加载需要文件访问权限</li>
+                <li>• 屏幕共享功能需要屏幕录制权限</li>
+              </ul>
+            </div>
           </div>
         </div>
 

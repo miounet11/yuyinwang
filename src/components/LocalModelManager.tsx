@@ -21,7 +21,7 @@ const LocalModelManager: React.FC<LocalModelManagerProps> = ({
     uninstallModel
   } = useModelsStore();
 
-  const [storagePath] = useState('/Users/lu/Library/Caches/Spokenly/Models');
+  const [storagePath] = useState('/Users/lu/Library/Caches/RecordingKing/Models');
   const [storageUsed] = useState(2.3); // GB
   const [storageTotal] = useState(10); // GB
 
@@ -51,7 +51,7 @@ const LocalModelManager: React.FC<LocalModelManagerProps> = ({
       <div className="local-manager-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="manager-header">
           <h2>本地模型管理</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="manager-body">

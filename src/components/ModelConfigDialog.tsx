@@ -83,7 +83,7 @@ const ModelConfigDialog: React.FC<ModelConfigDialogProps> = ({
               <p>{provider.description}</p>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="config-body">

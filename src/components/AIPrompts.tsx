@@ -90,14 +90,14 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
 
   // 可用的Agent类型
   const availableAgents = [
-    { type: 'speech-to-text', name: '语音转文字', icon: '🎙️' },
-    { type: 'text-enhancer', name: '文本增强', icon: '✨' },
-    { type: 'translator', name: '翻译', icon: '🌐' },
-    { type: 'summarizer', name: '摘要生成', icon: '📝' },
-    { type: 'formatter', name: '格式化', icon: '📋' },
-    { type: 'grammer-check', name: '语法检查', icon: '✅' },
-    { type: 'tone-adjuster', name: '语气调整', icon: '🎭' },
-    { type: 'auto-input', name: '自动输入', icon: '⌨️' }
+    { type: 'speech-to-text', name: '语音转文字', icon: 'MIC' },
+    { type: 'text-enhancer', name: '文本增强', icon: 'ENH' },
+    { type: 'translator', name: '翻译', icon: 'TRANS' },
+    { type: 'summarizer', name: '摘要生成', icon: 'SUM' },
+    { type: 'formatter', name: '格式化', icon: 'FMT' },
+    { type: 'grammer-check', name: '语法检查', icon: 'CHK' },
+    { type: 'tone-adjuster', name: '语气调整', icon: 'TONE' },
+    { type: 'auto-input', name: '自动输入', icon: 'TYPE' }
   ];
 
   // 加载保存的提示
@@ -536,7 +536,7 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
             className="edit-prompt-btn"
             onClick={() => setShowPromptEditor(true)}
           >
-            <span className="btn-icon">✏️</span>
+            <span className="btn-icon">EDIT</span>
             编辑主提示
           </button>
           {activePrompt && (
@@ -558,7 +558,7 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
                 className="close-btn"
                 onClick={() => setShowPromptEditor(false)}
               >
-                ✕
+                CLOSE
               </button>
             </div>
 
@@ -610,7 +610,7 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
                             activatePrompt(prompt);
                           }}
                         >
-                          {prompt.is_active ? '✓' : '○'}
+                          {prompt.is_active ? '✓' : 'O'}
                         </button>
                         <button 
                           className="delete-btn"
@@ -619,7 +619,7 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
                             deletePrompt(prompt.id);
                           }}
                         >
-                          🗑️
+                          DEL
                         </button>
                       </div>
                     </div>

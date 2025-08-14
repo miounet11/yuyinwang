@@ -1,7 +1,9 @@
 import { TranscriptionModel, APIProvider } from '../types/models';
+import { whisperModels } from './localModels';
 
-// 预定义的转录模型
+// 合并在线和本地模型
 export const transcriptionModels: TranscriptionModel[] = [
+  ...whisperModels, // 添加所有本地 Whisper 模型
   // 主要在线模型
   {
     id: 'deepgram-nova-3',

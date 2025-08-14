@@ -94,7 +94,7 @@ const FloatingDialog: React.FC<FloatingDialogProps> = ({
             <div className="app-icon">{currentApp.icon}</div>
             <div className="app-details">
               <div className="app-name">{currentApp.name}</div>
-              <div className="spokenly-brand">🎤 Spokenly</div>
+              <div className="spokenly-brand">👑 Recording King</div>
             </div>
           </div>
 

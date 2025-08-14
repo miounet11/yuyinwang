@@ -105,7 +105,7 @@ const ModelTestDialog: React.FC<ModelTestDialogProps> = ({
       <div className="model-test-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="test-header">
           <h2>测试 {modelName} 模型</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="test-tabs">
@@ -113,13 +113,13 @@ const ModelTestDialog: React.FC<ModelTestDialogProps> = ({
             className={`test-tab ${testMode === 'record' ? 'active' : ''}`}
             onClick={() => setTestMode('record')}
           >
-            🎤 录音测试
+            MIC 录音测试
           </button>
           <button 
             className={`test-tab ${testMode === 'text' ? 'active' : ''}`}
             onClick={() => setTestMode('text')}
           >
-            📝 文本测试
+            TEXT 文本测试
           </button>
         </div>
 
@@ -138,7 +138,7 @@ const ModelTestDialog: React.FC<ModelTestDialogProps> = ({
                     onClick={startRecordingTest}
                     disabled={isProcessing}
                   >
-                    <span className="record-icon">🎙️</span>
+                    <span className="record-icon">REC</span>
                     <span>{isProcessing ? '处理中...' : '开始录音'}</span>
                   </button>
                 ) : (
@@ -146,7 +146,7 @@ const ModelTestDialog: React.FC<ModelTestDialogProps> = ({
                     className="record-btn recording"
                     onClick={stopRecordingTest}
                   >
-                    <span className="record-icon pulse">🔴</span>
+                    <span className="record-icon pulse">STOP</span>
                     <span>正在录音...</span>
                   </button>
                 )}
@@ -178,7 +178,7 @@ const ModelTestDialog: React.FC<ModelTestDialogProps> = ({
                 onClick={testTextToSpeech}
                 disabled={isProcessing || !testText.trim()}
               >
-                {isProcessing ? '处理中...' : '🔊 转换为语音'}
+                {isProcessing ? '处理中...' : 'TTS 转换为语音'}
               </button>
 
               {transcriptionResult && (

@@ -91,11 +91,11 @@ const SubscriptionManager: React.FC<SubscriptionManagerProps> = ({
   return (
     <div className="subscription-overlay" onClick={onClose}>
       <div className="subscription-dialog" onClick={(e) => e.stopPropagation()}>
-        {!isFirstLaunch && <button className="close-btn" onClick={onClose}>✕</button>}
+        {!isFirstLaunch && <button className="close-btn" onClick={onClose}>CLOSE</button>}
         {isFirstLaunch && <button className="skip-btn" onClick={onClose}>稍后选择</button>}
         
         <div className="subscription-header">
-          <h2>🚀 升级到 Spokenly Pro</h2>
+          <h2>PRO 升级到 Recording King Pro</h2>
           <p>解锁所有高级功能，享受无限制的语音服务</p>
         </div>
 

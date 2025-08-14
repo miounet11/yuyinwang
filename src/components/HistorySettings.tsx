@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { invoke } from '@tauri-apps/api/tauri';
 import './HistorySettings.css';
 
 interface HistorySettingsProps {
@@ -50,7 +51,7 @@ const HistorySettings: React.FC<HistorySettingsProps> = ({
       >
         <div className="history-settings-header">
           <h2>历史记录设置</h2>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="settings-section">
@@ -183,18 +184,42 @@ const HistorySettings: React.FC<HistorySettingsProps> = ({
           <h3>隐私</h3>
           
           <div className="privacy-actions">
-            <button className="danger-btn" onClick={() => {
+            <button className="danger-btn" onClick={async () => {
               if (window.confirm('确定要清除所有历史记录吗？此操作不可恢复。')) {
-                // 清除历史记录的逻辑
-                console.log('Clearing all history...');
+                try {
+                  await invoke('clear_history');
+                  alert('历史记录已清除');
+                } catch (error) {
+                  console.error('清除历史记录失败:', error);
+                  alert('清除历史记录失败');
+                }
               }
             }}>
               清除所有历史记录
             </button>
             
-            <button className="export-btn" onClick={() => {
-              // 导出历史记录的逻辑
-              console.log('Exporting history...');
+            <button className="export-btn" onClick={async () => {
+              try {
+                const history = await invoke<any[]>('get_transcription_history');
+                if (history.length === 0) {
+                  alert('没有历史记录可导出');
+                  return;
+                }
+                
+                // 导出所有历史记录
+                const exportPromises = history.map(entry => 
+                  invoke('export_transcription', {
+                    entryId: entry.id,
+                    exportFormat: localSettings.exportFormat
+                  })
+                );
+                
+                const results = await Promise.all(exportPromises);
+                alert(`成功导出 ${results.length} 条历史记录到桌面`);
+              } catch (error) {
+                console.error('导出历史记录失败:', error);
+                alert('导出历史记录失败');
+              }
             }}>
               导出历史记录
             </button>

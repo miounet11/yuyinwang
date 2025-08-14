@@ -170,7 +170,7 @@ const ModelConfig: React.FC<ModelConfigProps> = ({ isVisible, model, onClose, on
               <p className="model-provider">配置 {model.provider} 设置</p>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button className="close-btn" onClick={onClose}>CLOSE</button>
         </div>
 
         <div className="config-content">

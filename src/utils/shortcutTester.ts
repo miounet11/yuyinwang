@@ -1,5 +1,5 @@
 /**
- * Spokenly Clone 快捷键测试器
+ * Recording King 快捷键测试器
  * 提供完整的快捷键测试功能实现
  */
 
@@ -460,13 +460,27 @@ export class ShortcutTester {
    * 检查快捷键是否可用（不与系统快捷键冲突）
    */
   isShortcutAvailable(keys: KeyCombination): boolean {
-    // 检查常见的系统快捷键冲突
-    const systemShortcuts = [
-      { meta: true, key: 'Tab' }, // Cmd+Tab (应用切换)
-      { meta: true, key: 'Space' }, // Cmd+Space (Spotlight)
-      { alt: true, key: 'Tab' }, // Alt+Tab
-      { ctrl: true, alt: true, key: 'Delete' } // 强制退出
-    ];
+    const platform = ShortcutTestUtils.getPlatform();
+    
+    // 平台特定的系统快捷键冲突检查
+    let systemShortcuts: any[] = [];
+    
+    if (platform === 'mac') {
+      systemShortcuts = [
+        { meta: true, ctrl: false, alt: false, shift: false, key: 'Tab' }, // Cmd+Tab (应用切换)
+        { meta: true, ctrl: false, alt: false, shift: false, key: 'Space' }, // Cmd+Space (Spotlight)
+        { meta: false, ctrl: false, alt: true, shift: false, key: 'Tab' }, // Alt+Tab
+        { meta: false, ctrl: true, alt: true, shift: false, key: 'Delete' } // 强制退出
+      ];
+    } else if (platform === 'windows') {
+      systemShortcuts = [
+        { meta: false, ctrl: true, alt: false, shift: false, key: 'Escape' }, // Ctrl+Esc (开始菜单)
+        { meta: false, ctrl: false, alt: true, shift: false, key: 'Tab' }, // Alt+Tab (应用切换)
+        { meta: false, ctrl: false, alt: true, shift: false, key: 'F4' }, // Alt+F4 (关闭窗口)
+        { meta: false, ctrl: true, alt: false, shift: true, key: 'Escape' }, // Ctrl+Shift+Esc (任务管理器)
+        { meta: true, ctrl: false, alt: false, shift: false, key: 'L' } // Win+L (锁定)
+      ];
+    }
 
     return !systemShortcuts.some(shortcut => 
       shortcut.meta === keys.metaKey &&

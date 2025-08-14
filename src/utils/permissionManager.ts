@@ -1,11 +1,12 @@
 /**
- * Spokenly Clone 权限管理器
+ * Recording King 权限管理器
  * 处理所有系统权限请求和状态管理
  */
 
 import { invoke } from '@tauri-apps/api/tauri';
 import { open as openUrl } from '@tauri-apps/api/shell';
 import { ask, message } from '@tauri-apps/api/dialog';
+import { platform } from '@tauri-apps/api/os';
 
 export interface Permission {
   id: string;
@@ -26,39 +27,83 @@ export interface PermissionCheckResult {
 export class PermissionManager {
   private permissions: Map<string, Permission> = new Map();
   private listeners: Map<string, Function[]> = new Map();
+  private currentPlatform: string = 'unknown';
 
   constructor() {
+    this.initializePlatform();
     this.initializePermissions();
   }
 
-  private initializePermissions() {
-    // macOS 辅助功能权限（用于全局快捷键）
-    this.addPermission({
-      id: 'accessibility',
-      name: '辅助功能',
-      description: '允许 Spokenly 使用全局快捷键和系统集成功能',
-      status: 'not-determined',
-      required: true,
-      category: 'system',
-      icon: '♿️'
-    });
+  private async initializePlatform() {
+    try {
+      this.currentPlatform = await platform();
+    } catch (error) {
+      console.error('Failed to detect platform:', error);
+      this.currentPlatform = 'unknown';
+    }
+  }
 
-    // 麦克风权限
+  private isWindows(): boolean {
+    return this.currentPlatform === 'win32';
+  }
+
+  private isMacOS(): boolean {
+    return this.currentPlatform === 'darwin';
+  }
+
+  private initializePermissions() {
+    // 跨平台权限：麦克风访问
     this.addPermission({
       id: 'microphone',
       name: '麦克风',
-      description: '允许 Spokenly 录制音频并进行语音转录',
+      description: '允许 Recording King 录制音频并进行语音转录',
       status: 'not-determined',
       required: true,
       category: 'audio',
       icon: '🎤'
     });
 
+    // 平台特定权限
+    if (this.isMacOS()) {
+      // macOS 辅助功能权限（用于全局快捷键）
+      this.addPermission({
+        id: 'accessibility',
+        name: '辅助功能',
+        description: '允许 Recording King 使用全局快捷键和系统集成功能',
+        status: 'not-determined',
+        required: true,
+        category: 'system',
+        icon: '♿️'
+      });
+
+      // macOS 输入监控权限
+      this.addPermission({
+        id: 'input-monitoring',
+        name: '输入监控',
+        description: '允许 Recording King 监听键盘快捷键',
+        status: 'not-determined',
+        required: true,
+        category: 'system',
+        icon: '⌨️'
+      });
+    } else if (this.isWindows()) {
+      // Windows UAC权限（用于全局快捷键）
+      this.addPermission({
+        id: 'uac-bypass',
+        name: '系统访问',
+        description: '允许 Recording King 注册全局快捷键',
+        status: 'not-determined',
+        required: true,
+        category: 'system',
+        icon: '🛡️'
+      });
+    }
+
     // 文件系统访问权限
     this.addPermission({
       id: 'file-system',
       name: '文件访问',
-      description: '允许 Spokenly 读取和保存转录文件',
+      description: '允许 Recording King 读取和保存转录文件',
       status: 'not-determined',
       required: true,
       category: 'file',
@@ -69,7 +114,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'notifications',
       name: '通知',
-      description: '允许 Spokenly 发送转录完成通知',
+      description: '允许 Recording King 发送转录完成通知',
       status: 'not-determined',
       required: false,
       category: 'notification',
@@ -80,7 +125,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'screen-recording',
       name: '屏幕录制',
-      description: '允许 Spokenly 录制屏幕内容（可选功能）',
+      description: '允许 Recording King 录制屏幕内容（可选功能）',
       status: 'not-determined',
       required: false,
       category: 'screen',
@@ -91,7 +136,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'automation',
       name: '自动化',
-      description: '允许 Spokenly 与其他应用程序交互',
+      description: '允许 Recording King 与其他应用程序交互',
       status: 'not-determined',
       required: false,
       category: 'system',
@@ -102,7 +147,7 @@ export class PermissionManager {
     this.addPermission({
       id: 'input-monitoring',
       name: '输入监控',
-      description: '允许 Spokenly 监听键盘快捷键',
+      description: '允许 Recording King 监听键盘快捷键',
       status: 'not-determined',
       required: true,
       category: 'system',
@@ -242,7 +287,7 @@ export class PermissionManager {
       `此权限${permission.required ? '是必需的' : '是可选的'}。\n` +
       `是否前往系统设置授予权限？`,
       {
-        title: 'Spokenly 需要您的授权',
+        title: 'Recording King 需要您的授权',
         type: 'info'
       }
     );
@@ -251,7 +296,7 @@ export class PermissionManager {
   }
 
   /**
-   * 请求辅助功能权限（macOS）
+   * 请求辅助功能权限（跨平台）
    */
   private async requestAccessibilityPermission(): Promise<boolean> {
     try {
@@ -263,7 +308,7 @@ export class PermissionManager {
       // 显示简短提示
       await message(
         '系统设置已打开\n\n' +
-        '请找到 Spokenly 并勾选复选框授予权限',
+        '请找到 Recording King 并勾选复选框授予权限',
         {
           title: '辅助功能权限',
           type: 'info'
@@ -297,33 +342,37 @@ export class PermissionManager {
    */
   private async requestMicrophonePermission(): Promise<boolean> {
     try {
-      // 1) 优先通过 getUserMedia 触发系统权限弹窗（最可靠）
-      if (navigator?.mediaDevices?.getUserMedia) {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-        const result = await this.checkPermission('microphone');
-        return result.status === 'granted';
-      }
-
-      // 2) 回退：调后端原生触发一次输入流，强制系统登记申请
+      // 优先尝试触发系统权限弹窗
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      return true;
+    } catch (getUserMediaError) {
+      console.log('getUserMedia 触发失败，引导到系统设置:', getUserMediaError);
+      
+      // 如果失败，打开系统设置
       try {
-        await invoke('trigger_mic_permission');
-        const result = await this.checkPermission('microphone');
-        if (result.status === 'granted') return true;
-      } catch {}
+        await invoke('open_system_preferences', { 
+          preferencePane: 'microphone' 
+        });
+        
+        await message(
+          '系统设置已打开\n\n' +
+          '请找到 Recording King 并开启麦克风权限',
+          {
+            title: '麦克风权限',
+            type: 'info'
+          }
+        );
 
-      // 3) 最后回退：打开系统设置对应面板
-      await invoke('open_system_preferences', { preferencePane: 'microphone' });
-      await message('系统设置已打开\n\n请找到应用并开启麦克风权限', { title: '麦克风权限', type: 'info' });
-      return true; // 交给用户去开，稍后会由轮询检测到
-    } catch (error) {
-      console.error('请求麦克风权限失败:', error);
-      // 回退方法
-      try {
-        await openUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
         return true;
-      } catch {
-        return false;
+      } catch (error) {
+        console.error('请求麦克风权限失败:', error);
+        // 回退方法
+        try {
+          await openUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
+          return true;
+        } catch {
+          return false;
+        }
       }
     }
   }
@@ -447,7 +496,7 @@ export class PermissionManager {
       
       await message(
         '系统设置已打开\n\n' +
-        '请找到 Spokenly 并开启输入监控权限以使用快捷键',
+        '请找到 Recording King 并开启输入监控权限以使用快捷键',
         {
           title: '输入监控权限',
           type: 'info'

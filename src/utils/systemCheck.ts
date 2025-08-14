@@ -83,7 +83,7 @@ export class SystemChecker {
         '缺少辅助功能权限 - 快捷键功能将无法正常工作'
       );
       result.recommendations.push(
-        '前往 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能，添加 Spokenly'
+        '前往 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能，添加 Recording King'
       );
     }
 
@@ -92,7 +92,7 @@ export class SystemChecker {
         '缺少麦克风权限 - 语音转录功能将无法使用'
       );
       result.recommendations.push(
-        '前往 系统偏好设置 → 安全性与隐私 → 隐私 → 麦克风，允许 Spokenly 访问'
+        '前往 系统偏好设置 → 安全性与隐私 → 隐私 → 麦克风，允许 Recording King 访问'
       );
     }
 
@@ -101,7 +101,7 @@ export class SystemChecker {
         '缺少输入监控权限 - 全局快捷键将无法响应'
       );
       result.recommendations.push(
-        '前往 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控，添加 Spokenly'
+        '前往 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控，添加 Recording King'
       );
     }
 
@@ -109,7 +109,7 @@ export class SystemChecker {
     if (result.platform === 'darwin') {
       if (result.criticalIssues.length > 0) {
         result.recommendations.push(
-          '修改权限后，可能需要重启 Spokenly 应用'
+          '修改权限后，可能需要重启 Recording King 应用'
         );
         result.recommendations.push(
           '某些权限设置需要管理员密码确认'
@@ -161,7 +161,7 @@ export class SystemChecker {
    */
   static generateSystemReport(result: SystemCheckResult): string {
     const report = `
-🖥️ Spokenly 系统检查报告
+🖥️ Recording King 系统检查报告
 ==============================
 
 平台信息: ${result.platform}
@@ -182,7 +182,7 @@ ${result.criticalIssues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}
 ${result.recommendations.map((rec, i) => `${i + 1}. ${rec}`).join('\n')}
 
 ==============================
-生成工具: Spokenly v2.12.10
+生成工具: Recording King v1.0.1
     `;
 
     return report.trim();

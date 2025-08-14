@@ -1,6 +1,6 @@
 [package]
 name = "spokenly-clone"
-version = "1.0.1"
+version = "3.0.1"
 description = "A Tauri App for real-time speech to text"
 authors = ["Your Name"]
 edition = "2021"
@@ -9,7 +9,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [ "fs-read-file", "dialog-open", "fs-remove-file", "dialog-message", "path-all", "fs-remove-dir", "dialog-ask", "fs-exists", "window-all", "dialog-confirm", "global-shortcut-all", "dialog-save", "fs-write-file", "fs-read-dir", "fs-create-dir", "shell-open", "global-shortcut", "system-tray"] }
+tauri = { version = "1.5", features = [ "os-all", "fs-read-file", "dialog-open", "fs-remove-file", "dialog-message", "path-all", "fs-remove-dir", "dialog-ask", "fs-exists", "window-all", "dialog-confirm", "global-shortcut-all", "dialog-save", "fs-write-file", "fs-read-dir", "fs-create-dir", "shell-open", "global-shortcut", "system-tray"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 cpal = "0.15"
@@ -17,13 +17,21 @@ tokio = { version = "1", features = ["full"] }
 ringbuf = "0.3"
 crossbeam-channel = "0.5"
 once_cell = "1.19"
-reqwest = { version = "0.11", features = ["json", "multipart"] }
+reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
 hound = "3.5"
 uuid = { version = "1.0", features = ["v4"] }
 directories = "5.0"
 parking_lot = "0.12"
-objc = "0.2.7"
-block = "0.1.6"
+chrono = "0.4"
+futures-util = "0.3"
+sysinfo = "0.30"
+cocoa = "0.25"
+objc = "0.2"
+whisper-rs = { version = "0.12", features = ["metal"] }
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+notify = "5.0"
+num_cpus = "1.16"
+rdev = "0.5.3"
 
 [features]
 default = ["custom-protocol"]

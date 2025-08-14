@@ -5,11 +5,28 @@ import { unregisterAll } from '@tauri-apps/api/globalShortcut';
 import { open } from '@tauri-apps/api/dialog';
 import './App.css';
 import './styles/micro-interactions.css';
+import { transcriptionModels } from './data/models';
+import logger from './utils/logger';
+
+// 获取模型信息的帮助函数
+const getModelInfo = (modelId: string) => {
+  logger.debug('查找模型ID', modelId);
+  const model = transcriptionModels.find(m => m.id === modelId);
+  logger.debug('找到的模型', model ? `${model.name} (type: ${model.type})` : 'null');
+  const result = {
+    model: modelId,
+    modelType: model?.type || 'online'
+  };
+  logger.debug('返回结果', result);
+  return result;
+};
 
 // Components
 import FloatingDialog from './components/FloatingDialog';
 import AppSelector from './components/AppSelector';
 import ShortcutEditor from './components/ShortcutEditor';
+import ShortcutPage from './components/ShortcutPage';
+import AdvancedShortcutEditor from './components/AdvancedShortcutEditor';
 import HistorySettings from './components/HistorySettings';
 import TranscriptionModelsPage from './components/TranscriptionModelsPage';
 import FeatureTestPanel from './components/FeatureTestPanel';
@@ -18,6 +35,8 @@ import PermissionIndicator from './components/PermissionIndicator';
 import FirstLaunchWizard from './components/FirstLaunchWizard';
 import SubscriptionManager from './components/SubscriptionManager';
 import AIPrompts from './components/AIPrompts';
+import AIPromptsEnhanced from './components/AIPromptsEnhanced';
+import TranscriptionDetailView from './components/TranscriptionDetailView';
 import { shortcutManager } from './utils/shortcutManager';
 import { permissionManager } from './utils/permissionManager';
 // import SystemChecker from './utils/systemCheck';
@@ -67,6 +86,7 @@ interface AppStore {
   mcpConfig: McpConfig;
   showFloatingDialog: boolean;
   aiProcessingActive: boolean;
+  useEnhancedAIPrompts: boolean;
   setRecording: (value: boolean) => void;
   setTranscription: (text: string) => void;
   setDevices: (devices: AudioDevice[]) => void;
@@ -80,9 +100,10 @@ interface AppStore {
   setMcpConfig: (config: McpConfig) => void;
   setShowFloatingDialog: (show: boolean) => void;
   setAiProcessingActive: (active: boolean) => void;
+  setUseEnhancedAIPrompts: (use: boolean) => void;
 }
 
-const useStore = create<AppStore>((set) => ({
+export const useStore = create<AppStore>((set) => ({
   isRecording: false,
   transcriptionText: '',
   audioDevices: [],
@@ -90,16 +111,17 @@ const useStore = create<AppStore>((set) => ({
   language: 'en',
   hotkey: 'CommandOrControl+Shift+Space',
   currentPage: 'general',
-  selectedModel: 'whisper-1', // 默认使用听写模型
+  selectedModel: 'gpt-4o-mini', // 默认使用听写模型
   transcriptionHistory: [],
   mcpConfig: {
     enabled: true,
-    server_url: 'https://ttkk.inping.com/v1', // 使用免费 TTS API
-    api_key: 'sk-vJToQKskNEIaFNM3GjTGh1YrN9kGZ33pw2D1AEZUXL0prLjw',
+    server_url: import.meta.env.VITE_TTS_SERVER_URL || 'https://api.openai.com/v1',
+    api_key: import.meta.env.VITE_TTS_API_KEY || '',
     model: 'whisper-1',
   },
   showFloatingDialog: false,
   aiProcessingActive: false,
+  useEnhancedAIPrompts: false, // 默认使用原版
   setRecording: (value) => set({ isRecording: value }),
   setTranscription: (text) => set({ transcriptionText: text }),
   setDevices: (devices) => set({ audioDevices: devices }),
@@ -115,17 +137,18 @@ const useStore = create<AppStore>((set) => ({
   setMcpConfig: (config) => set({ mcpConfig: config }),
   setShowFloatingDialog: (show) => set({ showFloatingDialog: show }),
   setAiProcessingActive: (active) => set({ aiProcessingActive: active }),
+  setUseEnhancedAIPrompts: (use) => set({ useEnhancedAIPrompts: use }),
 }));
 
 // 导航菜单项
 const navigationItems = [
-  { id: 'general', label: '常规设置', icon: '⚙️' },
-  { id: 'transcription', label: '听写模型', icon: '🎤' },
-  { id: 'files', label: '转录文件', icon: '📁' },
-  { id: 'history', label: '历史记录', icon: '📋' },
-  { id: 'shortcuts', label: '快捷键', icon: '⌨️' },
-  { id: 'ai-prompts', label: 'AI提示', icon: '🤖' },
-  { id: 'contact', label: '联系我们', icon: '📧' },
+  { id: 'general', label: '常规设置', icon: '•' },
+  { id: 'transcription', label: '听写模型', icon: '•' },
+  { id: 'files', label: '转录文件', icon: '•' },
+  { id: 'history', label: '历史记录', icon: '•' },
+  { id: 'shortcuts', label: '快捷键', icon: '•' },
+  { id: 'ai-prompts', label: 'AI提示', icon: '•' },
+  { id: 'contact', label: '联系我们', icon: '•' },
 ];
 
 // AI模型列表
@@ -197,6 +220,7 @@ const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
 // 页面组件
 const PageContent: React.FC<{ 
   page: string;
+  selectedModel?: string;
   setShowShortcutEditor?: (show: boolean) => void;
   setShowAppSelector?: (show: boolean) => void;
   setShowHistorySettings?: (show: boolean) => void;
@@ -205,15 +229,22 @@ const PageContent: React.FC<{
   setShowSubscriptionManager?: (show: boolean) => void;
   onEnhancedTextReady?: (text: string) => void;
   isRecording?: boolean;
-}> = ({ page, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording }) => {
+  useAdvancedShortcuts?: boolean;
+  setUseAdvancedShortcuts?: (value: boolean) => void;
+  useEnhancedAIPrompts?: boolean;
+  setUseEnhancedAIPrompts?: (value: boolean) => void;
+  selectedEntry?: TranscriptionEntry | null;
+  setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
+}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry }) => {
   const {
     transcriptionText,
     transcriptionHistory,
+    selectedModel,
     setTranscription,
     setTranscriptionHistory,
+    setRecording,
   } = useStore();
 
-  const [selectedModel] = useState('gpt-4o-mini');
   const [loginOnStartup, setLoginOnStartup] = useState(false);
   const [showInDock, setShowInDock] = useState(false);
   const [showInStatusBar, setShowInStatusBar] = useState(true);
@@ -222,6 +253,10 @@ const PageContent: React.FC<{
   const [touchBarFeedback, setTouchBarFeedback] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [supportedFormats, setSupportedFormats] = useState<string[]>([]);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<'all' | 'listening' | 'file' | 'journal'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
 
   // 获取支持的文件格式
@@ -250,13 +285,13 @@ const PageContent: React.FC<{
       });
 
       if (selected && typeof selected === 'string') {
-        console.log('选择的文件:', selected);
+        logger.info('选择的文件', selected);
         
         const result = await invoke<string>('upload_file', { 
           filePath: selected 
         });
         
-        console.log('上传结果:', result);
+        logger.info('上传结果', result);
         
         // 显示上传成功消息
         setTranscription(`文件上传成功: ${selected.split('/').pop()}`);
@@ -288,7 +323,7 @@ const PageContent: React.FC<{
         entryId, 
         exportFormat: format 
       });
-      console.log('导出成功:', exportPath);
+      logger.info('导出成功', exportPath);
       setTranscription(`导出成功: ${exportPath}`);
     } catch (error) {
       console.error('导出失败:', error);
@@ -304,13 +339,147 @@ const PageContent: React.FC<{
   // 如果有外部传入的handleSubmitPrompt则使用，否则使用本地的
   // const submitPrompt = handleSubmitPrompt || handleSubmitPromptLocal;
 
+  // 搜索和过滤逻辑
+  const filteredAndSortedHistory = React.useMemo(() => {
+    let filtered = transcriptionHistory;
+
+    // 按类型过滤
+    if (selectedFilter !== 'all') {
+      filtered = filtered.filter(entry => {
+        switch (selectedFilter) {
+          case 'listening':
+            return !entry.audio_file_path; // 实时听写
+          case 'file':
+            return !!entry.audio_file_path; // 文件转录
+          case 'journal':
+            // 这里可以根据特定标记或长度判断是否为日记
+            return entry.text.length > 100; // 假设超过100字符的为日记
+          default:
+            return true;
+        }
+      });
+    }
+
+    // 搜索过滤
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(entry => 
+        entry.text.toLowerCase().includes(query) ||
+        entry.model.toLowerCase().includes(query) ||
+        (entry.audio_file_path && entry.audio_file_path.toLowerCase().includes(query))
+      );
+    }
+
+    // 排序
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return b.timestamp - a.timestamp;
+        case 'oldest':
+          return a.timestamp - b.timestamp;
+        case 'name':
+          return a.text.localeCompare(b.text);
+        default:
+          return b.timestamp - a.timestamp;
+      }
+    });
+
+    return filtered;
+  }, [transcriptionHistory, selectedFilter, searchQuery, sortBy]);
+
   switch (page) {
     case 'general':
       return (
         <div className="page-content">
           <div className="page-header">
             <h1>常规首选项</h1>
-            <p>根据您的工作流程和偏好配置 Spokenly。</p>
+            <p>根据您的工作流程和偏好配置 Recording King。</p>
+          </div>
+
+          <div className="section">
+            <h2>录音测试</h2>
+            <div className="recording-test-container">
+              
+              {/* 当前模型信息 */}
+              <div className="current-model-info">
+                <div className="model-display">
+                  <span className="model-label">当前模型:</span>
+                  <span className="model-name">{selectedModel}</span>
+                  <span className={`model-type ${getModelInfo(selectedModel).modelType}`}>
+                    {getModelInfo(selectedModel).modelType === 'local' ? '本地' : '在线'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 录音控制区 */}
+              <div className="recording-controls">
+                <p className="recording-description">点击按钮测试麦克风录音和转录功能：</p>
+                
+                <button 
+                  className={`recording-button ${isRecording ? 'recording' : 'idle'}`}
+                  onClick={async () => {
+                    if (!isRecording) {
+                      logger.audio('开始录音测试');
+                      try {
+                        await invoke('start_recording');
+                        setRecording(true);
+                        logger.audio('录音已开始');
+                      } catch (error) {
+                        logger.error('开始录音失败', error);
+                        alert('开始录音失败: ' + error);
+                      }
+                    } else {
+                      logger.audio('停止录音测试');
+                      try {
+                        setRecording(false);
+                        setIsTranscribing(true);
+                        setTranscription('正在转录中，请稍候...');
+                        
+                        const currentModelId = selectedModel || 'gpt-4o-mini';
+                        const { model, modelType } = getModelInfo(currentModelId);
+                        const result = await invoke('stop_recording', { 
+                          model: model, 
+                          modelType: modelType 
+                        });
+                        
+                        logger.transcription('录音已停止，转录结果', result);
+                      } catch (error) {
+                        logger.error('停止录音失败', error);
+                        setTranscription(`停止录音失败: ${error}`);
+                        alert('停止录音失败: ' + error);
+                      } finally {
+                        setIsTranscribing(false);
+                      }
+                    }
+                  }}
+                >
+                  <span className="button-icon">
+                    {isRecording ? 'STOP' : 'REC'}
+                  </span>
+                  <span className="button-text">
+                    {isRecording ? '停止录音' : '开始录音'}
+                  </span>
+                </button>
+
+                <div className="recording-status">
+                  <div className={`status-indicator ${isRecording ? 'active' : isTranscribing ? 'processing' : 'inactive'}`}></div>
+                  <span className="status-text">
+                    {isRecording ? '正在录音...' : isTranscribing ? '正在转录...' : '未录音'}
+                  </span>
+                </div>
+              </div>
+
+              {/* 转录结果显示区 */}
+              {transcriptionText && (
+                <div className="transcription-result">
+                  <h3>转录结果</h3>
+                  <div className="result-content">
+                    <p>{transcriptionText}</p>
+                  </div>
+                </div>
+              )}
+              
+            </div>
           </div>
 
           <div className="section">
@@ -335,7 +504,7 @@ const PageContent: React.FC<{
 
             <div className="form-group">
               <label>应用界面语言</label>
-              <select defaultValue="zh" className="select-field" onChange={(e) => console.log('语言切换:', e.target.value)}>
+              <select defaultValue="zh" className="select-field" onChange={(e) => logger.debug('语言切换', e.target.value)}>
                 <option value="system">System Default</option>
                 <option value="en">English</option>
                 <option value="zh">中文</option>
@@ -349,7 +518,7 @@ const PageContent: React.FC<{
               {audioDevices.map((device, index) => (
                 <div key={device.id} className="device-item">
                   <div className="device-info">
-                    <div className="device-icon">🎤</div>
+                    <div className="device-icon">MIC</div>
                     <span>{index + 1}. {device.name}</span>
                   </div>
                   <div className={`device-status ${device.is_available ? 'online' : 'offline'}`}></div>
@@ -390,7 +559,7 @@ const PageContent: React.FC<{
         <div className="page-content">
           <div className="page-header">
             <h1>转录文件</h1>
-            <p>将音频或视频文件转换为文本。Spokenly 将为您进行转录。</p>
+            <p>将音频或视频文件转换为文本。Recording King 将为您进行转录。</p>
           </div>
 
           <div className="file-upload-area">
@@ -400,7 +569,7 @@ const PageContent: React.FC<{
               style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}
             >
               <div className="upload-icon">
-                {isUploading ? '⏳' : '📁'}
+                {isUploading ? 'UPLOADING' : 'SELECT'}
               </div>
               <h3>
                 {isUploading ? '正在上传文件...' : '点击选择文件或将文件拖放到此处'}
@@ -431,6 +600,14 @@ const PageContent: React.FC<{
             
             <div className="model-info">
               <p>当前模型: {selectedModel}</p>
+              <button onClick={() => {
+                logger.debug('当前 selectedModel', selectedModel);
+                logger.debug('所有可用模型', transcriptionModels.map(m => `${m.id} (${m.type})`));
+                const { model, modelType } = getModelInfo(selectedModel);
+                logger.debug('当前模型信息', { model, modelType });
+              }}>
+                调试模型状态
+              </button>
             </div>
 
             <div className="file-actions">
@@ -439,19 +616,19 @@ const PageContent: React.FC<{
                 onClick={handleFileUpload}
                 disabled={isUploading}
               >
-                <span>📁</span>
+                <span>BROWSE</span>
                 {isUploading ? '上传中...' : '选择文件'}
               </button>
               <button className="action-btn" onClick={getSupportedFormats}>
-                <span>🔄</span>
+                <span>REFRESH</span>
                 刷新支持格式
               </button>
               <button className="action-btn" onClick={() => setTranscription('')}>
-                <span>🗑️</span>
+                <span>CLEAR</span>
                 清除状态
               </button>
               <button className="action-btn">
-                <span>⚙️</span>
+                <span>CONFIG</span>
                 转录设置
               </button>
             </div>
@@ -469,10 +646,30 @@ const PageContent: React.FC<{
 
           <div className="history-controls">
             <div className="filter-tabs">
-              <button className="filter-tab active">全部</button>
-              <button className="filter-tab">听写</button>
-              <button className="filter-tab">文件</button>
-              <button className="filter-tab">日记</button>
+              <button 
+                className={`filter-tab ${selectedFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setSelectedFilter('all')}
+              >
+                全部
+              </button>
+              <button 
+                className={`filter-tab ${selectedFilter === 'listening' ? 'active' : ''}`}
+                onClick={() => setSelectedFilter('listening')}
+              >
+                听写
+              </button>
+              <button 
+                className={`filter-tab ${selectedFilter === 'file' ? 'active' : ''}`}
+                onClick={() => setSelectedFilter('file')}
+              >
+                文件
+              </button>
+              <button 
+                className={`filter-tab ${selectedFilter === 'journal' ? 'active' : ''}`}
+                onClick={() => setSelectedFilter('journal')}
+              >
+                日记
+              </button>
             </div>
             <div className="history-actions">
               <button className="action-btn" onClick={() => setShowAppSelector?.(true)}>选择</button>
@@ -481,23 +678,76 @@ const PageContent: React.FC<{
           </div>
 
           <div className="search-bar">
-            <input type="text" placeholder="搜索" className="search-input" />
-            <select className="sort-select">
-              <option>最新的在前</option>
-              <option>最旧的在前</option>
-              <option>按名称排序</option>
+            <div className="search-input-container">
+              <input 
+                type="text" 
+                placeholder="搜索转录内容、模型名称或文件名..." 
+                className="search-input"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button 
+                  className="clear-search-btn"
+                  onClick={() => setSearchQuery('')}
+                  title="清除搜索"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <select 
+              className="sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'newest' | 'oldest' | 'name')}
+            >
+              <option value="newest">最新的在前</option>
+              <option value="oldest">最旧的在前</option>
+              <option value="name">按内容排序</option>
             </select>
           </div>
 
+          {/* 搜索结果统计 */}
+          {(searchQuery || selectedFilter !== 'all') && (
+            <div className="search-results-info">
+              <span>
+                找到 {filteredAndSortedHistory.length} 条记录
+                {searchQuery && ` (搜索: "${searchQuery}")`}
+                {selectedFilter !== 'all' && ` (筛选: ${selectedFilter})`}
+              </span>
+              {(searchQuery || selectedFilter !== 'all') && (
+                <button 
+                  className="clear-filters-btn"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedFilter('all');
+                  }}
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
+          )}
+
           <div className="history-list">
-            {transcriptionHistory.length === 0 ? (
+            {filteredAndSortedHistory.length === 0 ? (
               <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <h3>暂无转录记录</h3>
-                <p>开始录音后，转录记录将显示在这里</p>
+                <div className="empty-icon">EMPTY</div>
+                <h3>
+                  {transcriptionHistory.length === 0 
+                    ? '暂无转录记录' 
+                    : '未找到匹配的记录'
+                  }
+                </h3>
+                <p>
+                  {transcriptionHistory.length === 0 
+                    ? '开始录音后，转录记录将显示在这里' 
+                    : '尝试调整搜索关键词或筛选条件'
+                  }
+                </p>
               </div>
             ) : (
-              transcriptionHistory.map((entry) => {
+              filteredAndSortedHistory.map((entry) => {
                 const timeAgo = Math.floor((Date.now() - entry.timestamp * 1000) / 1000);
                 const timeLabel = timeAgo < 60 ? `${timeAgo}s ago` : 
                                  timeAgo < 3600 ? `${Math.floor(timeAgo / 60)}m ago` : 
@@ -506,9 +756,14 @@ const PageContent: React.FC<{
                 return (
                   <div key={entry.id} className="history-item">
                     <div className="history-icon">
-                      {entry.audio_file_path ? '📁' : '🎤'}
+                      {entry.audio_file_path ? 'FILE' : 'LIVE'}
                     </div>
-                    <div className="history-content">
+                    <div 
+                      className="history-content"
+                      onClick={() => setSelectedEntry?.(entry)}
+                      style={{ cursor: 'pointer' }}
+                      title="点击查看详情"
+                    >
                       <div className="history-text">
                         {entry.text}
                       </div>
@@ -525,24 +780,43 @@ const PageContent: React.FC<{
                     <div className="history-actions">
                       <button 
                         className="action-btn small"
-                        onClick={() => handleExportEntry(entry.id, 'txt')}
-                        title="导出为TXT"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEntry?.(entry);
+                        }}
+                        title="查看详情"
                       >
-                        📄
+                        VIEW
                       </button>
                       <button 
                         className="action-btn small"
-                        onClick={() => handleExportEntry(entry.id, 'json')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportEntry(entry.id, 'txt');
+                        }}
+                        title="导出为TXT"
+                      >
+                        COPY
+                      </button>
+                      <button 
+                        className="action-btn small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleExportEntry(entry.id, 'json');
+                        }}
                         title="导出为JSON"
                       >
-                        📋
+                        COPY
                       </button>
                       <button 
                         className="action-btn small danger"
-                        onClick={() => handleDeleteEntry(entry.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteEntry(entry.id);
+                        }}
                         title="删除记录"
                       >
-                        🗑️
+                        DEL
                       </button>
                     </div>
                   </div>
@@ -554,82 +828,71 @@ const PageContent: React.FC<{
       );
 
     case 'shortcuts':
-      return (
-        <div className="page-content">
-          <div className="page-header">
-            <h1>快捷键</h1>
-            <p>选择您喜欢的键盘修饰键来启动 Spokenly。仅按这些修饰键即可开始录音。</p>
-          </div>
-
-          <div className="section">
-            <h2>录音快捷键</h2>
-            <button className="add-shortcut" onClick={() => setShowShortcutEditor?.(true)}>+</button>
-            
-            <div className="shortcut-item">
-              <div className="shortcut-display">
-                <span className="shortcut-key">快捷键</span>
-                <div className="shortcut-combo">
-                  <select className="key-select">
-                    <option>按住或切换</option>
-                    <option>单击</option>
-                    <option>双击</option>
-                  </select>
-                  <select className="key-select">
-                    <option>Fn</option>
-                    <option>Cmd</option>
-                    <option>Ctrl</option>
-                    <option>Alt</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <p className="shortcut-description">
-              配置快捷键及其激活方式：按住或切换（自动停止）、切换（点击开始/停止），按住（按下时录音）或双击（快速按两次）。
-            </p>
-          </div>
-
-          <div className="section">
-            <h2>提示</h2>
-            <div className="warning-box">
-              <div className="warning-icon">⚠️</div>
-              <div className="warning-content">
-                <h3>使用 Fn 键</h3>
-                <p>要单独使用 Fn 键：</p>
-                <ul>
-                  <li>• 打开系统设置 → 键盘</li>
-                  <li>• 点击"按下 🌐 键以"下拉菜单</li>
-                  <li>• 选择"无操作"</li>
-                  <li>• 这允许 Spokenly 检测 Fn 键按下</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          <div className="section">
-            <h2>测试您的快捷键</h2>
-            <div className="test-area">
-              <div className="test-instruction">
-                🎤 首先点击下方的文本框。
-              </div>
-              <div className="test-input">
-                <textarea 
-                  placeholder="在此处测试快捷键..."
-                  className="test-textarea"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      );
+      return <ShortcutPage />;
 
     case 'ai-prompts':
       return (
-        <AIPrompts 
-          onEnhancedTextReady={onEnhancedTextReady}
-          transcriptionText={transcriptionText}
-          isRecording={isRecording}
-        />
+        <div className="page-content">
+          <div className="page-header">
+            <h1>AI 提示管理</h1>
+            <p>选择和配置AI提示处理模式</p>
+          </div>
+
+          <div className="section">
+            <h2>模式选择</h2>
+            <div className="mode-selector">
+              <div className="mode-toggle">
+                <label className="toggle-option">
+                  <input
+                    type="radio"
+                    name="aiPromptsMode"
+                    checked={!useEnhancedAIPrompts}
+                    onChange={() => setUseEnhancedAIPrompts?.(false)}
+                  />
+                  <span className="toggle-label">
+                    <span className="toggle-icon">BASIC</span>
+                    <div className="toggle-info">
+                      <span className="toggle-name">基础模式</span>
+                      <span className="toggle-desc">简单易用的Agent链配置</span>
+                    </div>
+                  </span>
+                </label>
+                
+                <label className="toggle-option">
+                  <input
+                    type="radio"
+                    name="aiPromptsMode"
+                    checked={useEnhancedAIPrompts}
+                    onChange={() => setUseEnhancedAIPrompts?.(true)}
+                  />
+                  <span className="toggle-label">
+                    <span className="toggle-icon">PRO</span>
+                    <div className="toggle-info">
+                      <span className="toggle-name">增强模式</span>
+                      <span className="toggle-desc">支持多种LLM模型和快捷键</span>
+                    </div>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-prompts-wrapper">
+            {useEnhancedAIPrompts ? (
+              <AIPromptsEnhanced
+                onEnhancedTextReady={onEnhancedTextReady}
+                transcriptionText={transcriptionText}
+                isRecording={isRecording}
+              />
+            ) : (
+              <AIPrompts 
+                onEnhancedTextReady={onEnhancedTextReady}
+                transcriptionText={transcriptionText}
+                isRecording={isRecording}
+              />
+            )}
+          </div>
+        </div>
       );
 
     case 'contact':
@@ -642,7 +905,7 @@ const PageContent: React.FC<{
 
           <div className="contact-info">
             <div className="contact-item">
-              <div className="contact-icon">📧</div>
+              <div className="contact-icon">EMAIL</div>
               <div className="contact-details">
                 <h3>技术支持</h3>
                 <p>support@spokenly.com</p>
@@ -650,7 +913,7 @@ const PageContent: React.FC<{
             </div>
             
             <div className="contact-item">
-              <div className="contact-icon">🌐</div>
+              <div className="contact-icon">WEB</div>
               <div className="contact-details">
                 <h3>官方网站</h3>
                 <p>https://spokenly.com</p>
@@ -671,8 +934,10 @@ function App() {
     currentPage,
     isRecording,
     transcriptionText,
+    selectedModel,
     showFloatingDialog,
     audioDevices,
+    useEnhancedAIPrompts,
     setDevices,
     setCurrentPage,
     setTranscriptionHistory,
@@ -680,17 +945,20 @@ function App() {
     addTranscriptionEntry,
     setRecording,
     setShowFloatingDialog,
+    setUseEnhancedAIPrompts,
   } = useStore();
 
   // 新增的状态管理
   const [showAppSelector, setShowAppSelector] = useState(false);
   const [showShortcutEditor, setShowShortcutEditor] = useState(false);
+  const [useAdvancedShortcuts, setUseAdvancedShortcuts] = useState(false); // 默认使用精简版快捷键编辑器
   const [showHistorySettings, setShowHistorySettings] = useState(false);
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [showPermissionSettings, setShowPermissionSettings] = useState(false);
   const [showFirstLaunchWizard, setShowFirstLaunchWizard] = useState(false);
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [trialInfo, setTrialInfo] = useState<any>(null);
+  const [selectedEntry, setSelectedEntry] = useState<TranscriptionEntry | null>(null);
   // const [aiPromptsRef, setAiPromptsRef] = useState<any>(null);
   const [shortcuts, setShortcuts] = useState<any[]>([
     {
@@ -725,8 +993,8 @@ function App() {
 
         // 获取支持的文件格式
         const formats = await invoke<string[]>('get_supported_formats');
-        console.log('✅ 应用初始化完成');
-        console.log('支持的文件格式:', formats);
+        logger.info('应用初始化完成');
+        logger.info('支持的文件格式', formats);
 
         // 初始化快捷键管理器
         await initializeShortcuts();
@@ -760,10 +1028,13 @@ function App() {
     // 监听转录结果
     const setupListeners = async () => {
       try {
+        // 监听录音转录结果（从 stop_recording 命令发出）
         const unlisten1 = await listen<TranscriptionEntry>('transcription_result', (event) => {
           const entry = event.payload;
+          logger.transcription('收到录音转录结果', entry);
           setTranscription(entry.text);
           addTranscriptionEntry(entry);
+          // setIsTranscribing(false); // 转录完成，清除进度状态
           
           // 如果AI处理处于激活状态且在AI提示页面，处理语音转录
           // if (currentPage === 'ai-prompts' && aiPromptsRef?.processWithAgents) {
@@ -772,9 +1043,10 @@ function App() {
           // }
         });
 
-        const unlisten2 = await listen<TranscriptionEntry>('file_transcription_result', (event) => {
+        // 监听文件转录结果
+        const unlisten2b = await listen<TranscriptionEntry>('file_transcription_result', (event) => {
           const entry = event.payload;
-          console.log('收到文件转录结果:', entry);
+          logger.transcription('收到文件转录结果', entry);
           setTranscription(`文件转录完成: ${entry.text}`);
           addTranscriptionEntry(entry);
         });
@@ -787,17 +1059,21 @@ function App() {
 
         // 监听全局快捷键事件
         const unlisten4 = await listen('global_shortcut_triggered', (event: any) => {
-          console.log('全局快捷键触发:', event);
+          logger.debug('全局快捷键触发', event);
           // 打开AI助手对话框
           setShowFloatingDialog(true);
         });
 
         // 监听 Fn 键或其他特殊快捷键
         const unlisten5 = await listen('shortcut_pressed', (event: any) => {
-          console.log('快捷键按下:', event.payload);
-          const { shortcut } = event.payload || {};
+          console.log('🚨🚨🚨 前端收到快捷键事件!', event.payload);
+          alert('🚨 收到快捷键事件: ' + JSON.stringify(event.payload));
+          logger.debug('快捷键按下', event.payload);
+          const { shortcut, action } = event.payload || {};
           
-          if (shortcut === 'Fn' || shortcut === 'CommandOrControl+Shift+Space') {
+          if (shortcut === 'Fn' || shortcut === 'CommandOrControl+Shift+Space' || shortcut === 'CommandOrControl+Shift+R') {
+            console.log('🎯 触发录音切换!');
+            alert('🎯 触发录音切换!');
             // 切换录音状态
             handleFloatingDialogToggleRecording();
           }
@@ -805,23 +1081,23 @@ function App() {
 
         // 监听系统托盘事件
         const unlisten6 = await listen('tray_toggle_recording', () => {
-          console.log('托盘录音切换');
+          logger.debug('托盘录音切换');
           handleFloatingDialogToggleRecording();
         });
 
         const unlisten7 = await listen<string>('tray_navigate_to', (event) => {
-          console.log('托盘导航到:', event.payload);
+          logger.debug('托盘导航到', event.payload);
           setCurrentPage(event.payload);
         });
 
         const unlisten8 = await listen('tray_show_permissions', () => {
-          console.log('托盘权限设置');
+          logger.debug('托盘权限设置');
           setShowPermissionSettings(true);
         });
 
         return () => {
           unlisten1();
-          unlisten2();
+          unlisten2b();
           unlisten3();
           unlisten4();
           unlisten5();
@@ -847,15 +1123,15 @@ function App() {
   // 处理悬浮对话框的录音切换
   // 检查首次启动
   const checkFirstLaunch = () => {
-    const hasCompletedSetup = localStorage.getItem('spokenly_setup_completed');
-    const hasSeenWizard = localStorage.getItem('spokenly_wizard_seen');
-    const hasSeenSubscription = localStorage.getItem('spokenly_subscription_seen');
+    // 暂时跳过向导，直接进入主界面
+    const hasCompletedSetup = true; // localStorage.getItem('spokenly_setup_completed');
+    const hasSeenWizard = true; // localStorage.getItem('spokenly_wizard_seen');
+    const hasSeenSubscription = true; // localStorage.getItem('spokenly_subscription_seen');
     
-    console.log('检查首次启动:', {
-      hasCompletedSetup,
-      hasSeenWizard,
-      hasSeenSubscription
-    });
+    logger.info('跳过向导，直接进入主界面');
+    setShowFirstLaunchWizard(false);
+    setShowSubscriptionManager(false);
+    return;
     
     // 开发模式下的快捷重置功能 (Shift+Cmd+R+E+S+E+T)
     const setupDevKeyListener = () => {
@@ -866,7 +1142,7 @@ function App() {
         if (e.shiftKey && e.metaKey) {
           keySequence += e.key.toUpperCase();
           if (keySequence.includes(targetSequence)) {
-            console.log('🔄 开发者重置：清除首次启动状态');
+            logger.debug('开发者重置：清除首次启动状态');
             localStorage.removeItem('spokenly_setup_completed');
             localStorage.removeItem('spokenly_wizard_seen');
             localStorage.removeItem('spokenly_subscription_seen');
@@ -888,19 +1164,19 @@ function App() {
     try {
       setupDevKeyListener();
     } catch (error) {
-      console.log('开发者重置功能初始化失败:', error);
+      logger.error('开发者重置功能初始化失败', error);
     }
     
     // 如果从未完成设置向导，显示首次启动向导
     if (!hasCompletedSetup && !hasSeenWizard) {
-      console.log('🎯 首次启动，显示向导');
+      logger.info('首次启动，显示向导');
       localStorage.setItem('spokenly_wizard_seen', 'true');
       setTimeout(() => {
         setShowFirstLaunchWizard(true);
       }, 1500);
     } else if (hasCompletedSetup && !hasSeenSubscription) {
       // 如果已完成向导但还没看到订阅选项，显示订阅管理器
-      console.log('💎 显示订阅选项');
+      logger.info('显示订阅选项');
       localStorage.setItem('spokenly_subscription_seen', 'true');
       setTimeout(() => {
         setShowSubscriptionManager(true);
@@ -912,7 +1188,7 @@ function App() {
   const checkPermissions = async () => {
     const missingPermissions = await permissionManager.getMissingRequiredPermissions();
     if (missingPermissions.length > 0) {
-      console.log('⚠️ 发现缺失的必需权限:', missingPermissions.map(p => p.name).join(', '));
+      logger.warn('发现缺失的必需权限', missingPermissions.map(p => p.name).join(', '));
       
       // 如果不是首次启动且缺少关键权限，显示权限设置
       const hasCompletedSetup = localStorage.getItem('spokenly_setup_completed');
@@ -932,14 +1208,35 @@ function App() {
     });
 
     shortcutManager.on('quick-transcribe', async () => {
+      logger.debug('快速转录快捷键触发', { isRecording });
       if (!isRecording) {
-        await invoke('start_recording');
-        setRecording(true);
-        // 3秒后自动停止
-        setTimeout(async () => {
-          await invoke('stop_recording');
-          setRecording(false);
-        }, 3000);
+        try {
+          logger.audio('开始快速转录');
+          await invoke('start_recording');
+          setRecording(true);
+          logger.audio('录音已开始');
+          
+          // 3秒后自动停止
+          setTimeout(async () => {
+            try {
+              logger.audio('自动停止录音');
+              const currentModelId = selectedModel || 'gpt-4o-mini';
+              const { model, modelType } = getModelInfo(currentModelId);
+              await invoke('stop_recording', { 
+                model: model, 
+                modelType: modelType 
+              });
+              setRecording(false);
+              logger.audio('录音已停止');
+            } catch (error) {
+              logger.error('停止录音失败', error);
+            }
+          }, 3000);
+        } catch (error) {
+          logger.error('开始录音失败', error);
+        }
+      } else {
+        logger.warn('已经在录音中，忽略快捷键');
       }
     });
 
@@ -966,13 +1263,13 @@ function App() {
 
     shortcutManager.on('suggest-permission-check', () => {
       // 温和的权限检查提醒
-      console.log('💡 建议用户检查权限设置');
+      logger.warn('建议用户检查权限设置');
     });
 
     shortcutManager.on('copy-transcription', async () => {
       if (transcriptionText) {
         await navigator.clipboard.writeText(transcriptionText);
-        console.log('✅ 已复制转录文本');
+        logger.info('已复制转录文本');
       }
     });
 
@@ -987,15 +1284,27 @@ function App() {
       }
     });
 
-    // 注册所有快捷键
-    await shortcutManager.registerAllShortcuts();
-    console.log('✅ 快捷键系统已初始化');
+    // 处理快捷键冲突检测
+    shortcutManager.on('shortcut-conflicts-detected', (failedShortcuts: string[]) => {
+      logger.warn('检测到快捷键冲突', failedShortcuts);
+      // 可以在这里显示提示或打开快捷键设置页面
+      setTimeout(() => {
+        setCurrentPage('shortcuts');
+      }, 1000);
+    });
+
+    // 不在应用启动时自动注册全局快捷键，改为在快捷键编辑器中点击“应用更改”时注册
+    logger.info('快捷键事件监听已就绪');
   };
 
   const handleFloatingDialogToggleRecording = async () => {
     if (isRecording) {
       try {
-        await invoke('stop_recording');
+        const { model, modelType } = getModelInfo(selectedModel || 'gpt-4o-mini');
+        await invoke('stop_recording', { 
+          model: model, 
+          modelType: modelType 
+        });
         setRecording(false);
         // 更新托盘图标为非录音状态
         await invoke('set_tray_icon_recording', { isRecording: false });
@@ -1026,7 +1335,7 @@ function App() {
       // 重置AI处理状态
       // setAiProcessingActive(false);
       
-      console.log('✅ AI增强文本已处理完成:', enhancedText);
+      logger.ai('AI增强文本已处理完成', enhancedText);
     } catch (error) {
       console.error('处理增强文本失败:', error);
       // setAiProcessingActive(false);
@@ -1039,8 +1348,8 @@ function App() {
       <div className="sidebar">
         <div className="sidebar-header">
           <div className="app-logo">
-            <span className="logo-icon">🎤</span>
-            <span className="logo-text">Spokenly</span>
+            <span className="logo-icon">●</span>
+            <span className="logo-text">Recording King</span>
           </div>
         </div>
 
@@ -1076,6 +1385,7 @@ function App() {
       <div className="main-content">
         <PageContent 
           page={currentPage} 
+          selectedModel={selectedModel}
           setShowShortcutEditor={setShowShortcutEditor}
           setShowAppSelector={setShowAppSelector}
           setShowHistorySettings={setShowHistorySettings}
@@ -1084,6 +1394,11 @@ function App() {
           setShowSubscriptionManager={setShowSubscriptionManager}
           onEnhancedTextReady={handleEnhancedTextReady}
           isRecording={isRecording}
+          useAdvancedShortcuts={useAdvancedShortcuts}
+          setUseAdvancedShortcuts={setUseAdvancedShortcuts}
+          useEnhancedAIPrompts={useEnhancedAIPrompts}
+          setUseEnhancedAIPrompts={setUseEnhancedAIPrompts}
+          setSelectedEntry={setSelectedEntry}
         />
       </div>
 
@@ -1095,7 +1410,7 @@ function App() {
         onClose={() => setShowFloatingDialog(false)}
         onToggleRecording={handleFloatingDialogToggleRecording}
         onSubmitPrompt={(prompt) => {
-          console.log('AI助手提示:', prompt);
+          logger.ai('AI助手提示', prompt);
           setTranscription(`AI助手处理: ${prompt}`);
           setTimeout(() => {
             setTranscription(`AI助手回复: 已收到您的指令"${prompt}"，正在处理...`);
@@ -1109,30 +1424,37 @@ function App() {
         isVisible={showAppSelector}
         onClose={() => setShowAppSelector(false)}
         onSelectApp={(app) => {
-          console.log('选择的应用:', app);
+          logger.debug('选择的应用', app);
         }}
       />
 
-      {/* 快捷键编辑器对话框 */}
-      <ShortcutEditor
-        isVisible={showShortcutEditor}
-        onClose={() => setShowShortcutEditor(false)}
-        shortcuts={shortcuts}
-        onUpdateShortcut={(shortcut) => {
-          setShortcuts(shortcuts.map(s => s.id === shortcut.id ? shortcut : s));
-        }}
-        onAddShortcut={() => {
-          const newShortcut = {
-            id: `${shortcuts.length + 1}`,
+      {/* 快捷键编辑器对话框 - 根据设置选择标准或高级版本 */}
+      {useAdvancedShortcuts ? (
+        <AdvancedShortcutEditor
+          isVisible={showShortcutEditor}
+          onClose={() => setShowShortcutEditor(false)}
+        />
+      ) : (
+        <ShortcutEditor
+          isVisible={showShortcutEditor}
+          onClose={() => setShowShortcutEditor(false)}
+          shortcuts={shortcuts}
+            onUpdateShortcut={(shortcut) => {
+            setShortcuts(shortcuts.map(s => s.id === shortcut.id ? shortcut : s));
+          }}
+          onAddShortcut={() => {
+            const newShortcut = {
+              id: `${shortcuts.length + 1}`,
             name: '新快捷键',
             key: '未指定',
             modifiers: [],
             mode: 'toggle' as const,
             assigned: false
           };
-          setShortcuts([...shortcuts, newShortcut]);
-        }}
-      />
+            setShortcuts([...shortcuts, newShortcut]);
+          }}
+        />
+      )}
 
       {/* 历史记录设置对话框 */}
       <HistorySettings
@@ -1141,7 +1463,7 @@ function App() {
         settings={historySettings}
         onUpdateSettings={(settings) => {
           setHistorySettings(settings);
-          console.log('更新历史记录设置:', settings);
+          logger.debug('更新历史记录设置', settings);
         }}
       />
 
@@ -1156,7 +1478,7 @@ function App() {
         isVisible={showPermissionSettings}
         onClose={() => setShowPermissionSettings(false)}
         onPermissionsConfigured={() => {
-          console.log('✅ 权限已配置');
+          logger.info('权限已配置');
           // 重新注册快捷键
           shortcutManager.registerAllShortcuts();
         }}
@@ -1167,7 +1489,7 @@ function App() {
         isVisible={showFirstLaunchWizard}
         onComplete={() => {
           setShowFirstLaunchWizard(false);
-          console.log('✅ 首次设置完成');
+          logger.info('首次设置完成');
           // 重新注册快捷键
           shortcutManager.registerAllShortcuts();
         }}
@@ -1183,6 +1505,13 @@ function App() {
           const info = ttsService.getTrialInfo();
           setTrialInfo(info);
         }}
+      />
+
+      {/* 转录详情查看器 */}
+      <TranscriptionDetailView
+        entry={selectedEntry}
+        isVisible={!!selectedEntry}
+        onClose={() => setSelectedEntry(null)}
       />
 
       {/* 试用状态提示 - 已移除以避免过度商业化 */}
