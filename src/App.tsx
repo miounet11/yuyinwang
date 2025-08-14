@@ -111,7 +111,7 @@ export const useStore = create<AppStore>((set) => ({
   language: 'en',
   hotkey: 'CommandOrControl+Shift+Space',
   currentPage: 'general',
-  selectedModel: 'gpt-4o-mini', // 默认使用听写模型
+  selectedModel: 'luyingwang-online', // 默认使用鲁音网在线模型
   transcriptionHistory: [],
   mcpConfig: {
     enabled: true,

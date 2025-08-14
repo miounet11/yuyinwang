@@ -31,10 +31,17 @@ yarn-error.log*
 *.tmp
 *.temp
 
-# Environment variables
+# Environment variables - 安全敏感文件
 .env
 .env.local
 .env.*.local
+.env.production
+*.key
+*.pem
+*.p12
+*.pfx
+config/secrets.json
+secrets/
 
 # OS generated files
 Thumbs.db

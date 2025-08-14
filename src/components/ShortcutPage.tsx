@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
 import { shortcutManager } from '../utils/shortcutManager';
 
 const ShortcutPage: React.FC = () => {
@@ -8,6 +10,70 @@ const ShortcutPage: React.FC = () => {
   
   const [recording, setRecording] = useState<string | null>(null);
   const [testMessage, setTestMessage] = useState<string>('');
+  const [isRecording, setIsRecording] = useState<boolean>(false);
+  const [transcribedText, setTranscribedText] = useState<string>('');
+  const [lastEntryId, setLastEntryId] = useState<string>('');
+
+  // 监听转录事件，更新测试区文本
+  useEffect(() => {
+    let unlisten1: (() => void) | undefined;
+    let unlisten2: (() => void) | undefined;
+
+    const setup = async () => {
+      try {
+        unlisten1 = await listen<any>('transcription_result', (event) => {
+          const entry = event.payload as { id?: string; text?: string };
+          if (entry && entry.text && entry.id && entry.id !== lastEntryId) {
+            setLastEntryId(entry.id);
+            setTranscribedText(entry.text);
+            setTestMessage('✅ 转写完成');
+          }
+        });
+        unlisten2 = await listen<any>('file_transcription_result', (event) => {
+          const entry = event.payload as { id?: string; text?: string };
+          if (entry && entry.text && entry.id && entry.id !== lastEntryId) {
+            setLastEntryId(entry.id);
+            setTranscribedText(entry.text);
+            setTestMessage('✅ 文件转写完成');
+          }
+        });
+      } catch (e) {
+        // 忽略
+      }
+    };
+
+    setup();
+    return () => {
+      try { unlisten1 && unlisten1(); } catch {}
+      try { unlisten2 && unlisten2(); } catch {}
+    };
+  }, [lastEntryId]);
+
+  // 按住开始录音，松开停止并转写
+  const startHoldToRecord = async () => {
+    if (isRecording) return;
+    try {
+      setTestMessage('🎤 正在录音…按住按钮说话');
+      setTranscribedText('');
+      setLastEntryId('');
+      await invoke('start_recording');
+      setIsRecording(true);
+    } catch (error) {
+      setTestMessage('❌ 开始录音失败');
+    }
+  };
+
+  const stopHoldToRecord = async () => {
+    if (!isRecording) return;
+    try {
+      setTestMessage('⏳ 正在转写，请稍候…');
+      await invoke('stop_recording');
+    } catch (error) {
+      setTestMessage('❌ 停止录音失败');
+    } finally {
+      setIsRecording(false);
+    }
+  };
   
   // 获取录音快捷键
   const recordingShortcuts = currentShortcuts.filter(s => s.category === 'recording');
@@ -213,10 +279,23 @@ const ShortcutPage: React.FC = () => {
 
       <div className="section">
         <div className="test-section">
-          <h2>测试您的快捷键</h2>
+          <h2>测试您的快捷键 / 按住说话</h2>
           <div className="test-area">
-            <div className="test-btn" onClick={testShortcut}>
-              🎛️ 按住Fn键话，松开停止录音。
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                className={`test-btn ${isRecording ? 'recording' : ''}`}
+                onMouseDown={startHoldToRecord}
+                onMouseUp={stopHoldToRecord}
+                onMouseLeave={() => { if (isRecording) stopHoldToRecord(); }}
+                onTouchStart={startHoldToRecord}
+                onTouchEnd={stopHoldToRecord}
+                title="按住开始录音，松开后自动转文字"
+              >
+                {isRecording ? '松开停止并转写' : '按住开始说话'}
+              </button>
+              <button className="test-btn" onClick={testShortcut} title="验证快捷键是否被注册">
+                测试快捷键是否触发
+              </button>
             </div>
             {testMessage && (
               <div className="test-message">
@@ -224,10 +303,12 @@ const ShortcutPage: React.FC = () => {
               </div>
             )}
             <div className="test-textarea-container">
-              <textarea 
-                placeholder="在这里测试快捷键是否工作..."
+              <textarea
+                placeholder="在这里查看转写结果，或聚焦后按快捷键测试…"
                 className="test-textarea"
-                onFocus={() => setTestMessage('✨ 聚焦到这里，然后按快捷键测试')}
+                value={transcribedText}
+                readOnly
+                onFocus={() => setTestMessage('✨ 聚焦后按快捷键或按住按钮说话')}
               />
             </div>
           </div>

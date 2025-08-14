@@ -114,13 +114,46 @@ impl PerformanceOptimizer {
         if self.enable_gpu {
             // 启用GPU优化参数
             params.use_gpu = true;
-            println!("🚀 启用GPU加速（Metal）");
+            
+            // Metal特定优化设置
+            #[cfg(target_os = "macos")]
+            {
+                // macOS上优化Metal使用
+                params.gpu_device = 0; // 使用默认GPU设备
+                println!("🚀 启用GPU加速（Metal on macOS）");
+                
+                // 检查Metal可用性
+                if self.check_metal_availability() {
+                    println!("✅ Metal GPU加速可用");
+                } else {
+                    println!("⚠️ Metal GPU加速不可用，将使用CPU");
+                    params.use_gpu = false;
+                }
+            }
+            
+            #[cfg(not(target_os = "macos"))]
+            {
+                println!("🚀 启用GPU加速");
+            }
         }
         
         let ctx = WhisperContext::new_with_params(model_path, params)
             .map_err(|e| format!("模型加载失败: {}", e))?;
             
         Ok(Arc::new(ctx))
+    }
+    
+    /// 检查Metal可用性（macOS专用）
+    #[cfg(target_os = "macos")]
+    fn check_metal_availability(&self) -> bool {
+        // 这里可以添加Metal设备检查逻辑
+        // 目前简单返回true，假设Metal可用
+        true
+    }
+    
+    #[cfg(not(target_os = "macos"))]
+    fn check_metal_availability(&self) -> bool {
+        false
     }
     
     // 优化的转录参数

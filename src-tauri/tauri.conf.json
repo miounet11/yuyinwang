@@ -7,7 +7,7 @@
   },
     "package": {
       "productName": "LuYinWang",
-      "version": "1.0.1"
+      "version": "3.0.1"
     },
   "tauri": {
     "allowlist": {
@@ -33,7 +33,7 @@
         "removeDir": true,
         "removeFile": true,
         "exists": true,
-        "scope": ["$AUDIO", "$DOWNLOAD", "$DOCUMENT", "$DESKTOP", "$HOME"]
+        "scope": ["$AUDIO", "$DOWNLOAD", "$DOCUMENT", "$DESKTOP", "$HOME/Library/Application Support/spokenly-clone"]
       },
       "path": {
         "all": true
@@ -85,7 +85,7 @@
       }
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src 'self' https://api.openai.com https://api.deepgram.com https://ly.gl173.com https://ttkk.inping.com; media-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
     },
     "updater": {
       "active": false

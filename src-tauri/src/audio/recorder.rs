@@ -1,175 +1,336 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Device, StreamConfig, SampleFormat};
-use hound::{WavWriter, WavSpec};
+use cpal::{Sample, SampleFormat};
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::Arc;
-use parking_lot::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use crate::errors::{AppError, AppResult};
+use crate::types::RecordingConfig;
+use ringbuf::HeapRb;
+use crossbeam_channel;
+use std::time::{Duration, Instant};
 
+#[derive(Debug)]
 pub struct AudioRecorder {
-    device: Option<Device>,
-    stream_config: Option<StreamConfig>,
-    is_recording: Arc<Mutex<bool>>,
+    is_recording: Arc<AtomicBool>,
     audio_data: Arc<Mutex<Vec<f32>>>,
+    sample_rate: Arc<Mutex<u32>>,
+    config: RecordingConfig,
+    // 新增：实时音频流支持
+    realtime_buffer: Arc<Mutex<ringbuf::HeapRb<f32>>>,
+    stream_listeners: Arc<Mutex<Vec<crossbeam_channel::Sender<Vec<f32>>>>>,
 }
 
 impl AudioRecorder {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let host = cpal::default_host();
-        let device = host.default_input_device()
-            .ok_or("No input device available")?;
+    pub fn new(config: RecordingConfig) -> Self {
+        // 动态缓冲区大小：根据采样率和需求计算，默认3秒缓冲
+        let buffer_duration_seconds = config.buffer_duration.unwrap_or(3.0);
+        let realtime_buffer_size = (config.sample_rate as f32 * buffer_duration_seconds) as usize;
         
-        let config = device.default_input_config()?;
-        println!("🎤 Default input config: {:?}", config);
-        
-        Ok(AudioRecorder {
-            device: Some(device),
-            stream_config: Some(config.into()),
-            is_recording: Arc::new(Mutex::new(false)),
+        Self {
+            is_recording: Arc::new(AtomicBool::new(false)),
             audio_data: Arc::new(Mutex::new(Vec::new())),
-        })
+            sample_rate: Arc::new(Mutex::new(config.sample_rate)),
+            realtime_buffer: Arc::new(Mutex::new(HeapRb::new(realtime_buffer_size))),
+            stream_listeners: Arc::new(Mutex::new(Vec::new())),
+            config,
+        }
+    }
+    
+    /// 添加实时音频流监听器
+    pub fn add_stream_listener(&self) -> crossbeam_channel::Receiver<Vec<f32>> {
+        let (sender, receiver) = crossbeam_channel::unbounded();
+        self.stream_listeners.lock().push(sender);
+        receiver
+    }
+    
+    /// 动态调整缓冲区大小
+    pub fn resize_buffer(&self, new_duration: f32) {
+        let sample_rate = *self.sample_rate.lock();
+        let new_size = (sample_rate as f32 * new_duration) as usize;
+        
+        // 只有在新大小明显不同时才调整（避免频繁调整）
+        let current_capacity = self.realtime_buffer.lock().capacity();
+        if (new_size as f32 - current_capacity as f32).abs() > current_capacity as f32 * 0.2 {
+            *self.realtime_buffer.lock() = HeapRb::new(new_size);
+        }
+    }
+    
+    /// 获取当前缓冲区使用情况
+    pub fn get_buffer_stats(&self) -> (usize, usize, f32) {
+        let buffer = self.realtime_buffer.lock();
+        let used = buffer.len();
+        let capacity = buffer.capacity();
+        let usage_percent = if capacity > 0 { used as f32 / capacity as f32 * 100.0 } else { 0.0 };
+        (used, capacity, usage_percent)
     }
 
-    pub fn start_recording(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let device = self.device.as_ref()
-            .ok_or("No device available")?;
+    /// 获取最新的音频数据（非阻塞）
+    pub fn get_latest_audio_data(&self, samples_count: usize) -> Vec<f32> {
+        let mut buffer = self.realtime_buffer.lock();
+        let available = buffer.len();
+        let to_read = samples_count.min(available);
         
-        let config = self.stream_config.as_ref()
-            .ok_or("No stream config available")?;
-
-        let is_recording = Arc::clone(&self.is_recording);
-        let audio_data = Arc::clone(&self.audio_data);
+        let mut data = Vec::with_capacity(to_read);
+        for _ in 0..to_read {
+            if let Some(sample) = buffer.pop() {
+                data.push(sample);
+            }
+        }
         
-        *is_recording.lock() = true;
-        audio_data.lock().clear();
+        data
+    }
+    
+    /// 获取实时缓冲区使用情况
+    pub fn get_buffer_status(&self) -> (usize, usize) {
+        let buffer = self.realtime_buffer.lock();
+        (buffer.len(), buffer.capacity())
+    }
+    
+    /// 清空实时缓冲区
+    pub fn clear_realtime_buffer(&self) {
+        self.realtime_buffer.lock().clear();
+    }
 
-        println!("🔴 开始录音...");
+    pub fn start_recording(&mut self) -> AppResult<()> {
+        if self.is_recording.load(Ordering::Relaxed) {
+            return Err(AppError::AudioRecordingError("已经在录音中".to_string()));
+        }
 
-        let stream = match SampleFormat::F32 {
-            SampleFormat::F32 => {
-                device.build_input_stream(
-                    config,
-                    move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                        if *is_recording.lock() {
-                            let mut buffer = audio_data.lock();
-                            buffer.extend_from_slice(data);
-                        }
-                    },
-                    |err| eprintln!("录音错误: {}", err),
-                    None,
-                )?
-            },
-            SampleFormat::I16 => {
-                device.build_input_stream(
-                    config,
-                    move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                        if *is_recording.lock() {
-                            let mut buffer = audio_data.lock();
-                            // 转换 i16 到 f32
-                            for sample in data {
-                                buffer.push(*sample as f32 / i16::MAX as f32);
-                            }
-                        }
-                    },
-                    |err| eprintln!("录音错误: {}", err),
-                    None,
-                )?
-            },
-            SampleFormat::U16 => {
-                device.build_input_stream(
-                    config,
-                    move |data: &[u16], _: &cpal::InputCallbackInfo| {
-                        if *is_recording.lock() {
-                            let mut buffer = audio_data.lock();
-                            // 转换 u16 到 f32
-                            for sample in data {
-                                buffer.push((*sample as f32 - 32768.0) / 32768.0);
-                            }
-                        }
-                    },
-                    |err| eprintln!("录音错误: {}", err),
-                    None,
-                )?
-            },
-            _ => return Err("Unsupported sample format".into()),
-        };
-
-        stream.play()?;
+        // 清空之前的音频数据
+        self.audio_data.lock().clear();
         
-        // 这里需要保持stream存活，在实际应用中需要更好的生命周期管理
-        std::mem::forget(stream);
+        let is_recording = self.is_recording.clone();
+        let audio_data = self.audio_data.clone();
+        let sample_rate = self.sample_rate.clone();
+        let realtime_buffer = self.realtime_buffer.clone();
+        let stream_listeners = self.stream_listeners.clone();
+        let device_id = self.config.device_id.clone();
+        let channels = self.config.channels;
+        let duration = self.config.duration_seconds;
+        
+        // 在新线程中处理音频流，避免 Send 问题
+        std::thread::spawn(move || {
+            // 获取音频输入设备
+            let host = cpal::default_host();
+            let device = if let Some(device_id) = device_id {
+                // 使用指定设备（需要实现设备查找逻辑）
+                host.default_input_device()
+                    .ok_or_else(|| "指定的音频设备不可用")
+            } else {
+                host.default_input_device()
+                    .ok_or_else(|| "没有可用的音频输入设备")
+            };
+
+            let device = match device {
+                Ok(d) => d,
+                Err(e) => {
+                    eprintln!("音频设备错误: {}", e);
+                    return;
+                }
+            };
+
+            // 获取配置
+            let mut config = match device.default_input_config() {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("获取默认输入配置失败: {}", e);
+                    return;
+                }
+            };
+
+            // 更新采样率
+            *sample_rate.lock() = config.sample_rate().0;
+            is_recording.store(true, Ordering::Relaxed);
+            
+            // 创建音频流
+            let stream = match config.sample_format() {
+                SampleFormat::F32 => build_input_stream::<f32>(
+                    &device, 
+                    &config.into(), 
+                    audio_data.clone(), 
+                    realtime_buffer.clone(),
+                    stream_listeners.clone(),
+                    is_recording.clone()
+                ),
+                SampleFormat::I16 => build_input_stream::<i16>(
+                    &device, 
+                    &config.into(), 
+                    audio_data.clone(),
+                    realtime_buffer.clone(),
+                    stream_listeners.clone(), 
+                    is_recording.clone()
+                ),
+                SampleFormat::U16 => build_input_stream::<u16>(
+                    &device, 
+                    &config.into(), 
+                    audio_data.clone(),
+                    realtime_buffer.clone(),
+                    stream_listeners.clone(),
+                    is_recording.clone()
+                ),
+                _ => {
+                    eprintln!("不支持的采样格式");
+                    is_recording.store(false, Ordering::Relaxed);
+                    return;
+                }
+            };
+
+            let stream = match stream {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("创建音频流失败: {}", e);
+                    is_recording.store(false, Ordering::Relaxed);
+                    return;
+                }
+            };
+
+            if let Err(e) = stream.play() {
+                eprintln!("播放音频流失败: {}", e);
+                is_recording.store(false, Ordering::Relaxed);
+                return;
+            }
+
+            println!("🎤 开始录音，采样率: {} Hz", sample_rate.lock());
+
+            // 处理限时录音
+            let start_time = std::time::Instant::now();
+
+            // 保持流活跃直到停止录音或达到时间限制
+            while is_recording.load(Ordering::Relaxed) {
+                if let Some(duration_sec) = duration {
+                    if start_time.elapsed().as_secs() >= duration_sec {
+                        is_recording.store(false, Ordering::Relaxed);
+                        break;
+                    }
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+
+            drop(stream);
+            println!("⏹️ 录音线程已停止");
+        });
+
+        // 等待线程启动
+        std::thread::sleep(std::time::Duration::from_millis(100));
         
         Ok(())
     }
 
-    pub fn stop_recording(&mut self) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-        *self.is_recording.lock() = false;
-        println!("⏹️ 停止录音...");
+    pub fn stop_recording(&mut self) -> AppResult<Vec<f32>> {
+        if !self.is_recording.load(Ordering::Relaxed) {
+            return Err(AppError::AudioRecordingError("当前没有在录音".to_string()));
+        }
+
+        self.is_recording.store(false, Ordering::Relaxed);
         
+        // 等待录音线程结束
+        std::thread::sleep(std::time::Duration::from_millis(200));
+
+        // 获取录制的音频数据
         let audio_data = self.audio_data.lock().clone();
-        println!("📊 录制了 {} 个音频样本", audio_data.len());
         
+        println!("⏹️ 录音已停止。捕获了 {} 个采样点", audio_data.len());
         Ok(audio_data)
     }
 
-    pub fn save_to_wav(&self, audio_data: &[f32], file_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let config = self.stream_config.as_ref()
-            .ok_or("No stream config available")?;
-
-        let spec = WavSpec {
-            channels: config.channels,
-            sample_rate: config.sample_rate.0,
-            bits_per_sample: 16,
-            sample_format: hound::SampleFormat::Int,
-        };
-
-        let mut writer = WavWriter::create(file_path, spec)?;
-        
-        for sample in audio_data {
-            let sample_i16 = (*sample * i16::MAX as f32) as i16;
-            writer.write_sample(sample_i16)?;
-        }
-        
-        writer.finalize()?;
-        println!("💾 音频已保存到: {:?}", file_path);
-        
-        Ok(())
-    }
-
     pub fn is_recording(&self) -> bool {
-        *self.is_recording.lock()
+        self.is_recording.load(Ordering::Relaxed)
     }
 
-    pub fn get_available_devices() -> Result<Vec<(String, String)>, Box<dyn std::error::Error>> {
-        let host = cpal::default_host();
-        let mut devices = Vec::new();
-        
-        // 添加默认设备
-        if let Some(default_device) = host.default_input_device() {
-            if let Ok(name) = default_device.name() {
-                devices.push((format!("Default: {}", name), "default".to_string()));
-            }
-        }
-        
-        // 添加所有输入设备
-        if let Ok(input_devices) = host.input_devices() {
-            for (i, device) in input_devices.enumerate() {
-                if let Ok(name) = device.name() {
-                    devices.push((name, format!("device_{}", i)));
-                }
-            }
-        }
-        
-        Ok(devices)
+    pub fn get_sample_rate(&self) -> u32 {
+        *self.sample_rate.lock()
     }
 }
 
-impl Default for AudioRecorder {
-    fn default() -> Self {
-        Self::new().unwrap_or_else(|_| AudioRecorder {
-            device: None,
-            stream_config: None,
-            is_recording: Arc::new(Mutex::new(false)),
-            audio_data: Arc::new(Mutex::new(Vec::new())),
-        })
-    }
+// 辅助函数：构建输入流
+fn build_input_stream<T>(
+    device: &cpal::Device,
+    config: &cpal::StreamConfig,
+    audio_data: Arc<Mutex<Vec<f32>>>,
+    realtime_buffer: Arc<Mutex<HeapRb<f32>>>,
+    stream_listeners: Arc<Mutex<Vec<crossbeam_channel::Sender<Vec<f32>>>>>,
+    is_recording: Arc<AtomicBool>,
+) -> Result<cpal::Stream, cpal::BuildStreamError>
+where
+    T: Sample + cpal::SizedSample + Into<f32>,
+{
+    // 将状态放到Arc<Mutex>中以便在闭包间共享
+    let chunk_buffer = Arc::new(Mutex::new(Vec::new()));
+    let last_notify = Arc::new(Mutex::new(Instant::now()));
+    const NOTIFY_INTERVAL: Duration = Duration::from_millis(100); // 每100ms通知一次
+    
+    let chunk_buffer_clone = chunk_buffer.clone();
+    let last_notify_clone = last_notify.clone();
+    
+    device.build_input_stream(
+        config,
+        move |data: &[T], _: &cpal::InputCallbackInfo| {
+            if is_recording.load(Ordering::Relaxed) {
+                // 转换为f32并存储
+                let samples: Vec<f32> = data.iter().map(|&sample| sample.into()).collect();
+                
+                // 更新完整的音频数据
+                {
+                    let mut audio_data_lock = audio_data.lock();
+                    audio_data_lock.extend_from_slice(&samples);
+                }
+                
+                // 更新实时缓冲区
+                {
+                    let mut buffer = realtime_buffer.lock();
+                    for &sample in &samples {
+                        // 如果缓冲区满了，丢弃旧数据
+                        if buffer.is_full() {
+                            buffer.pop();
+                        }
+                        let _ = buffer.push(sample);
+                    }
+                }
+                
+                // 积累样本用于块通知
+                {
+                    let mut chunk_buf = chunk_buffer_clone.lock();
+                    chunk_buf.extend_from_slice(&samples);
+                }
+                
+                // 定期通知监听器
+                let now = Instant::now();
+                let should_notify = {
+                    let mut last_notify_lock = last_notify_clone.lock();
+                    if now.duration_since(*last_notify_lock) >= NOTIFY_INTERVAL {
+                        *last_notify_lock = now;
+                        true
+                    } else {
+                        false
+                    }
+                };
+                
+                if should_notify {
+                    let chunk_data = {
+                        let mut chunk_buf = chunk_buffer_clone.lock();
+                        if !chunk_buf.is_empty() {
+                            let data = chunk_buf.clone();
+                            chunk_buf.clear();
+                            Some(data)
+                        } else {
+                            None
+                        }
+                    };
+                    
+                    if let Some(data) = chunk_data {
+                        // 通知所有监听器
+                        let mut listeners = stream_listeners.lock();
+                        listeners.retain(|sender| {
+                            sender.try_send(data.clone()).is_ok()
+                        });
+                    }
+                }
+            }
+        },
+        move |err| {
+            eprintln!("音频流发生错误: {}", err);
+        },
+        None
+    )
 }

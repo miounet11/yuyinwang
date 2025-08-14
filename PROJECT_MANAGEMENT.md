@@ -13,7 +13,7 @@
 **项目名称**: Recording King (Spokenly Clone)  
 **技术栈**: React + TypeScript + Zustand + Rust + Tauri  
 **当前版本**: v3.0.1  
-**开发状态**: 80% 完成度  
+**开发状态**: 85% 完成度 (架构重构完成，代码质量显著提升)  
 **最后更新**: 2025-08-14
 
 ---
@@ -101,17 +101,69 @@
 - Vite 构建工具
 - CSS Modules
 
-### 后端架构  
-- Rust + Tauri
-- 音频处理：cpal, symphonia
-- 本地模型：candle-whisper
-- API 集成：reqwest
+### 后端架构 (重构后模块化设计)
+- **核心框架**: Rust + Tauri
+- **架构原则**: 模块化、统一错误处理、清晰的关注点分离
+
+#### 模块结构：
+```
+src-tauri/src/
+├── main.rs                 # 应用启动和Tauri命令注册
+├── errors.rs               # 统一错误处理 (AppError, AppResult)
+├── types.rs                # 共享数据类型定义
+├── config/                 # 配置管理
+│   ├── mod.rs
+│   └── settings.rs         # AppSettings配置加载/保存
+├── audio/                  # 音频处理模块
+│   ├── mod.rs
+│   ├── recorder.rs         # 音频录制 (AudioRecorder)
+│   ├── processor.rs        # 音频处理 (AudioProcessor)
+│   └── devices.rs          # 设备管理 (AudioDeviceManager)
+├── transcription/          # 转录服务模块
+│   ├── mod.rs
+│   ├── whisper.rs          # 本地Whisper转录 (WhisperTranscriber)
+│   ├── api_client.rs       # API转录客户端 (TranscriptionApiClient)
+│   └── service.rs          # 转录服务整合 (TranscriptionService)
+├── ai_agent/               # AI代理模块
+│   ├── mod.rs
+│   ├── types.rs            # AI代理类型定义
+│   ├── processors.rs       # AI处理器 (AIProcessor)
+│   ├── service.rs          # AI代理服务 (AIAgentService)
+│   └── presets.rs          # 预设工作流
+├── database/               # 数据库模块
+│   ├── mod.rs
+│   ├── manager.rs          # 数据库管理器 (DatabaseManager)
+│   ├── models.rs           # 数据模型定义
+│   └── migrations.rs       # 数据库迁移
+└── security/               # 安全模块 (保留原有)
+    ├── mod.rs
+    ├── command_executor.rs
+    ├── path_validator.rs
+    └── secure_client.rs
+```
+
+#### 核心改进：
+1. **统一错误处理**: 所有模块使用`AppError`和`AppResult<T>`
+2. **模块化设计**: 每个功能模块独立，职责明确
+3. **异步架构**: 充分利用Rust异步特性
+4. **类型安全**: 强类型化配置和数据传递
+5. **可维护性**: 代码行数从2436行减少到385行(main.rs)
 
 ---
 
 ## 📝 开发日志
 
-### 2025-08-14
+### 2025-08-14 (架构重构)
+- ✅ **重大架构重构完成**: 将2436行的main.rs重构为模块化架构
+- ✅ **统一错误处理**: 实现AppError/AppResult统一错误类型系统
+- ✅ **模块化设计**: 创建audio/、transcription/、ai_agent/、database/、config/模块
+- ✅ **简化main.rs**: 仅保留应用启动逻辑和Tauri命令注册(385行)
+- ✅ **类型安全**: 实现强类型配置管理和数据传递
+- ✅ **异步优化**: 重构异步处理架构，解决Send trait问题
+- ✅ **编译通过**: 重构后代码成功编译，仅有少量警告
+- 📋 **代码质量**: 关注点分离，可维护性大幅提升
+
+### 2025-08-14 (早期)
 - ✅ 项目结构整理和版本统一
 - ✅ 生成 v3.0.1 版本安装包
 - 🔧 解决重复项目版本问题
@@ -134,6 +186,13 @@
 1. **核心功能优先**: 录音转录基础功能必须稳定
 2. **用户体验优先**: 权限和界面交互流畅性很重要  
 3. **扩展功能**: AI 功能作为差异化竞争点
+
+### 架构重构决策 (2025-08-14)
+1. **模块化分离**: 将单一2436行文件拆分为功能模块，提高可维护性
+2. **统一错误处理**: 实现AppError枚举替代String错误，增强类型安全
+3. **服务层抽象**: 每个功能领域都有对应的Service层进行业务逻辑整合
+4. **配置管理**: 统一配置加载/保存机制，支持类型化配置
+5. **异步架构**: 优化异步处理流程，解决Rust Send trait限制
 
 ---
 
@@ -165,5 +224,6 @@
 
 ---
 
-**最后更新时间**: 2025-08-14 19:51  
-**更新人**: Claude Code Assistant
+**最后更新时间**: 2025-08-14 21:30  
+**更新人**: Claude Code Assistant  
+**重构完成**: ✅ 架构重构完成，main.rs从2436行优化至385行

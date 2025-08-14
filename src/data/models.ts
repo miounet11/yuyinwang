@@ -23,6 +23,22 @@ export const transcriptionModels: TranscriptionModel[] = [
     features: ['最快', '准确度 •••••', '速度 •••••', '实时']
   },
   {
+    id: 'luyingwang-online',
+    name: 'Online LuYinWang Transcribe',
+    provider: 'Miaoda Video',
+    description: '由miaoda video驱动 - 卓越准确性和快速处理。比Whisper或Nova模型更准确。使用我们的自有文档作为语料，默认免费可用。',
+    icon: 'LW',
+    type: 'online',
+    category: ['all', 'online', 'api', 'accurate'],
+    accuracy: 5,
+    speed: 4,
+    languages: ['多语言'],
+    realtime: false,
+    recommended: true,
+    requiresApiKey: false,
+    features: ['最准确', '准确度 •••••', '速度 ••••', '默认模型']
+  },
+  {
     id: 'gpt-4o-mini',
     name: 'Online GPT-4o mini Transcribe',
     provider: 'OpenAI GPT-4o mini',
