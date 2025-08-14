@@ -50,11 +50,11 @@ impl TranscriptionService {
             .part("file", reqwest::multipart::Part::bytes(audio_data)
                 .file_name(file_name.to_string())
                 .mime_str("audio/wav")?)
-            .text("model", "whisper-1")
+            .text("model", "gpt-4o-mini")
             .text("response_format", "verbose_json");
 
         let response = self.client
-            .post("https://api.openai.com/v1/audio/transcriptions")
+            .post("https://ttkk.inping.com/v1/audio/transcriptions")
             .header("Authorization", format!("Bearer {}", api_key))
             .multipart(form)
             .send()

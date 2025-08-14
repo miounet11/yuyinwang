@@ -8,18 +8,46 @@ use std::path::PathBuf;
 use uuid::Uuid;
 use tokio::fs;
 use reqwest::Client;
+use reqwest::multipart::{Form, Part};
+use tokio::fs::File;
+use tokio::io::AsyncReadExt;
 use std::collections::HashMap;
 use std::process::Command;
+use chrono::{DateTime, Local};
+use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
+
+mod audio_recorder;
+mod ai_agent;
+mod database;
+mod folder_watcher;
+mod performance_optimizer;
+
+#[cfg(target_os = "macos")]
+use cocoa::base::nil;
+
+#[cfg(target_os = "macos")]
+use cocoa::foundation::NSString;
+
+#[cfg(target_os = "macos")]
+use objc::runtime::Class;
+
+#[cfg(target_os = "macos")]
+use objc::{msg_send, sel, sel_impl};
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TranscriptionEntry {
     pub id: String,
     pub text: String,
-    pub timestamp: u64,
-    pub duration: u64,
+    pub timestamp: i64,
+    pub duration: f64,
     pub model: String,
-    pub confidence: f32,
-    pub audio_file_path: Option<PathBuf>,
+    pub confidence: f64,
+    pub audio_file_path: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub tags: Option<String>,
+    pub metadata: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +111,11 @@ pub struct OpenAIChoice {
     pub message: OpenAIMessage,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TranscriptionResult {
+    text: String,
+}
+
 #[derive(Debug)]
 pub struct AppState {
     pub is_recording: bool,
@@ -91,6 +124,10 @@ pub struct AppState {
     pub ai_prompts: Vec<AIPrompt>,
     pub http_client: Client,
     pub openai_api_key: Option<String>,
+    pub audio_recorder: Arc<Mutex<audio_recorder::AudioRecorder>>,
+    pub database: Arc<database::DatabaseManager>,
+    pub folder_watcher: Arc<folder_watcher::FolderWatcher>,
+    pub performance_optimizer: Arc<Mutex<performance_optimizer::PerformanceOptimizer>>,
 }
 
 impl AppState {
@@ -98,11 +135,25 @@ impl AppState {
         let temp_dir = std::env::temp_dir().join("spokenly-clone");
         std::fs::create_dir_all(&temp_dir).ok();
         
+        // 初始化数据库
+        let db_dir = directories::UserDirs::new()
+            .map(|dirs| dirs.home_dir().join("Library/Application Support/spokenly-clone"))
+            .unwrap_or_else(|| temp_dir.clone());
+        std::fs::create_dir_all(&db_dir).ok();
+        
+        let db_path = db_dir.join("spokenly.db");
+        let database = database::DatabaseManager::new(&db_path)
+            .expect("无法初始化数据库");
+        
         // 创建HTTP客户端
-        let http_client = Client::new();
+        let http_client = Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .unwrap();
         
         // 从环境变量读取OpenAI API密钥
-        let openai_api_key = Some("sk-vJToQKskNEIaFNM3GjTGh1YrN9kGZ33pw2D1AEZUXL0prLjw".to_string());
+        // 使用 NewAPI 配置
+        let openai_api_key = Some("sk-mIksN0QLFFZqg9f6me4xKR0OGv6HZJemTiF4W0OUFlfhuYEz".to_string());
         
         // 初始化默认AI提示
         let mut ai_prompts = Vec::new();
@@ -115,13 +166,24 @@ impl AppState {
         ai_prompts.push(create_default_prompt("tone-adjuster", "语调调整", "调整文本的语调和风格"));
         ai_prompts.push(create_default_prompt("auto-input", "自动输入", "生成适合的文本输入内容"));
         
+        // 从数据库加载历史记录
+        let transcription_history = database.get_all_transcriptions()
+            .unwrap_or_else(|e| {
+                eprintln!("加载历史记录失败: {}", e);
+                Vec::new()
+            });
+        
         Self {
             is_recording: false,
-            transcription_history: Vec::new(),
+            transcription_history,
             temp_dir,
             ai_prompts,
             http_client,
             openai_api_key,
+            audio_recorder: Arc::new(Mutex::new(audio_recorder::AudioRecorder::new())),
+            database: Arc::new(database),
+            folder_watcher: Arc::new(folder_watcher::FolderWatcher::new()),
+            performance_optimizer: Arc::new(Mutex::new(performance_optimizer::PerformanceOptimizer::new())),
         }
     }
 }
@@ -225,36 +287,44 @@ async fn process_file_transcription(
     
     println!("🔄 开始转录文件: {:?}", file_path);
     
-    // 模拟转录过程 (在实际应用中这里会调用真实的API)
-    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+    let (client, api_key) = {
+        let app_state = state.lock();
+        (app_state.http_client.clone(), app_state.openai_api_key.clone().unwrap())
+    };
     
-    let file_name = file_path.file_name()
-        .and_then(|name| name.to_str())
-        .unwrap_or("unknown");
-    
-    let transcription_result = transcribe_audio_file(&client, &api_key, file_path, "whisper-1").await?;
-let mock_transcription = transcription_result.text;  // 使用真实结果
+    let transcription_result = transcribe_audio_file(&client, &api_key, file_path, "whisper-large-v3").await?;
+    let text = transcription_result.text;
     
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     
     let entry = TranscriptionEntry {
         id: entry_id,
-        text: mock_transcription,
-        timestamp,
-        duration: 120, // 假设2分钟
-        model: "file-upload-whisper".to_string(),
+        text,
+        timestamp: timestamp as i64,
+        duration: 120.0, // 假设2分钟
+        model: "gpt-4o-mini".to_string(),
         confidence: 0.95,
-        audio_file_path: Some(file_path.clone()),
+        audio_file_path: Some(file_path.to_string_lossy().to_string()),
+        created_at: None,
+        updated_at: None,
+        tags: None,
+        metadata: None,
     };
     
-    // 添加到历史记录
+    // 保存到数据库并添加到内存历史记录
     {
-        let mut app_state = state.lock();
-        app_state.transcription_history.insert(0, entry.clone());
+        let mut state_guard = state.lock();
         
-        // 限制历史记录数量
-        if app_state.transcription_history.len() > 100 {
-            app_state.transcription_history.truncate(100);
+        // 保存到数据库
+        if let Err(e) = state_guard.database.insert_transcription(&entry) {
+            eprintln!("保存转录记录到数据库失败: {}", e);
+        }
+        
+        state_guard.transcription_history.insert(0, entry.clone());
+        
+        // 限制内存历史记录数量
+        if state_guard.transcription_history.len() > 100 {
+            state_guard.transcription_history.truncate(100);
         }
     }
     
@@ -290,17 +360,37 @@ async fn get_transcription_history(state: tauri::State<'_, Arc<Mutex<AppState>>>
 async fn clear_history(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Result<(), String> {
     let mut app_state = state.lock();
     app_state.transcription_history.clear();
-    println!("🗑️ 历史记录已清空");
+    
+    // 可选：也清空数据库中的记录（谨慎操作）
+    // 这里我们只清空内存中的历史记录，保留数据库中的数据
+    println!("🗑️ 内存历史记录已清空");
     Ok(())
 }
 
 #[tauri::command]
 async fn start_recording(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Result<String, String> {
-    let mut app_state = state.lock();
-    if !app_state.is_recording {
-        app_state.is_recording = true;
-        println!("🎤 开始录音...");
-        Ok("Recording started".to_string())
+    let (is_recording, recorder_arc) = {
+        let app_state = state.lock();
+        println!("🔍 调试信息: 启动录音前状态 is_recording = {}", app_state.is_recording);
+        (app_state.is_recording, app_state.audio_recorder.clone())
+    };
+    
+    if !is_recording {
+        // 使用真实的音频录制器
+        let mut recorder = recorder_arc.lock();
+        match recorder.start_recording() {
+            Ok(_) => {
+                // 更新录音状态
+                let mut app_state = state.lock();
+                app_state.is_recording = true;
+                println!("🎤 开始录音... (状态已更新为 is_recording = true)");
+                Ok("Recording started".to_string())
+            },
+            Err(e) => {
+                eprintln!("启动录音失败: {}", e);
+                Err(format!("Failed to start recording: {}", e))
+            }
+        }
     } else {
         Err("Already recording".to_string())
     }
@@ -309,32 +399,133 @@ async fn start_recording(state: tauri::State<'_, Arc<Mutex<AppState>>>) -> Resul
 #[tauri::command]
 async fn stop_recording(
     state: tauri::State<'_, Arc<Mutex<AppState>>>,
-    app_handle: AppHandle
+    app_handle: AppHandle,
+    model: String,
+    model_type: String
 ) -> Result<String, String> {
-    let mut app_state = state.lock();
-    if app_state.is_recording {
-        app_state.is_recording = false;
-        println!("⏹️ 停止录音");
+    let (client, api_key, temp_dir, recorder_arc, audio_data);
+    {
+        let mut app_state = state.lock();
         
-        // 模拟转录结果
-        let transcription_result = transcribe_audio_live(&client, &api_key, "whisper-1").await?;  // 假设有实时转录函数
-let entry = TranscriptionEntry {
-            id: Uuid::new_v4().to_string(),
-            text: transcription_result.text,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            duration: 5,
-            model: "whisper-1".to_string(),
-            confidence: 0.95,
-            audio_file_path: None,
-        };
+        println!("🔍 调试信息: 当前录音状态 is_recording = {}", app_state.is_recording);
+        println!("🔍 调试信息: 收到的模型参数 model = '{}', modelType = '{}'", model, model_type);
+        
+        if !app_state.is_recording {
+            println!("⚠️ 错误: 尝试停止录音但当前状态为未录音");
+            return Err("Not recording".to_string());
+        }
+        
+        println!("✅ 录音状态正常，准备停止录音...");
+        app_state.is_recording = false;
+        client = app_state.http_client.clone();
+        api_key = app_state.openai_api_key.clone().unwrap();
+        temp_dir = app_state.temp_dir.clone();
+        recorder_arc = app_state.audio_recorder.clone();
+    }
+    
+    // 停止录音并获取音频数据
+    {
+        let mut recorder = recorder_arc.lock();
+        match recorder.stop_recording() {
+            Ok(data) => {
+                audio_data = data;
+                println!("⏹️ 停止录音，获得 {} 个样本", audio_data.len());
+            },
+            Err(e) => {
+                eprintln!("停止录音失败: {}", e);
+                return Err(format!("Failed to stop recording: {}", e));
+            }
+        }
+    }
+    
+    // 如果没有音频数据，返回错误
+    if audio_data.is_empty() {
+        return Err("No audio data captured".to_string());
+    }
+    
+    // 生成文件名并保存音频
+    let entry_id = Uuid::new_v4().to_string();
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let audio_file_path = temp_dir.join(format!("recording_{}_{}.wav", entry_id, timestamp));
+    
+    // 保存音频到 WAV 文件
+    {
+        let recorder = recorder_arc.lock();
+        match recorder.save_to_wav(&audio_data, &audio_file_path) {
+            Ok(_) => {
+                println!("💾 音频已保存到: {:?}", audio_file_path);
+            },
+            Err(e) => {
+                eprintln!("保存音频文件失败: {}", e);
+                return Err(format!("Failed to save audio: {}", e));
+            }
+        }
+    }
+    
+    // 计算音频时长（假设 44100 Hz 采样率）
+    let duration = (audio_data.len() as f32 / 44100.0) as u64;
+    
+    // 根据模型类型选择转录方式
+    println!("🔍 调试信息: 接收到的参数 - model: '{}', model_type: '{}'", model, model_type);
+    let transcription_result = if model_type == "local" {
+        // 本地 Whisper 模型转录
+        println!("🔍 使用本地 {} 模型进行转录...", model);
+        match transcribe_with_local_whisper(&audio_file_path, &model).await {
+            Ok(result) => {
+                println!("✅ 本地转录成功: {}", result.text);
+                result
+            },
+            Err(e) => {
+                println!("❌ 本地转录失败: {}", e);
+                return Err(e.to_string());
+            }
+        }
+    } else {
+        // 在线 API 转录
+        println!("📤 正在发送音频到 {} API...", model);
+        match transcribe_audio_file(&client, &api_key, &audio_file_path, &model).await {
+            Ok(result) => {
+                println!("✅ 在线转录成功: {}", result.text);
+                result
+            },
+            Err(e) => {
+                println!("❌ 在线转录失败: {}", e);
+                return Err(e.to_string());
+            }
+        }
+    };
+    
+    let entry = TranscriptionEntry {
+        id: entry_id,
+        text: transcription_result.text,
+        timestamp: timestamp as i64,
+        duration: duration as f64,
+        model: "gpt-4o-mini".to_string(),
+        confidence: 0.95,
+        audio_file_path: Some(audio_file_path.to_string_lossy().to_string()),
+        created_at: None,
+        updated_at: None,
+        tags: None,
+        metadata: None,
+    };
+    
+    {
+        let mut app_state = state.lock();
+        
+        // 保存到数据库
+        if let Err(e) = app_state.database.insert_transcription(&entry) {
+            eprintln!("保存转录记录到数据库失败: {}", e);
+        }
         
         app_state.transcription_history.insert(0, entry.clone());
         
-        let _ = app_handle.emit_all("transcription_result", &entry);
-        Ok("Recording stopped".to_string())
-    } else {
-        Err("Not recording".to_string())
+        if app_state.transcription_history.len() > 100 {
+            app_state.transcription_history.truncate(100);
+        }
     }
+    
+    let _ = app_handle.emit_all("transcription_result", &entry);
+    Ok("Recording stopped".to_string())
 }
 
 #[tauri::command]
@@ -348,8 +539,14 @@ async fn delete_file(
     if let Some(pos) = app_state.transcription_history.iter().position(|entry| entry.id == entry_id) {
         let entry = app_state.transcription_history.remove(pos);
         
+        // 从数据库删除
+        if let Err(e) = app_state.database.delete_transcription(&entry_id) {
+            eprintln!("从数据库删除转录记录失败: {}", e);
+        }
+        
         // 删除关联的音频文件
-        if let Some(file_path) = entry.audio_file_path {
+        if let Some(file_path_str) = &entry.audio_file_path {
+            let file_path = PathBuf::from(file_path_str);
             if file_path.exists() {
                 match std::fs::remove_file(&file_path) {
                     Ok(_) => println!("🗑️ 已删除音频文件: {:?}", file_path),
@@ -366,6 +563,66 @@ async fn delete_file(
 }
 
 #[tauri::command]
+async fn export_transcription(
+    entry_id: String,
+    export_format: String,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<String, String> {
+    let app_state = state.lock();
+    
+    // 找到指定的转录记录
+    let entry = app_state.transcription_history.iter()
+        .find(|e| e.id == entry_id)
+        .ok_or("未找到指定的转录记录")?;
+    
+    // 获取桌面路径
+    let desktop_path = directories::UserDirs::new()
+        .and_then(|dirs| dirs.desktop_dir().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::env::home_dir().unwrap_or_else(|| PathBuf::from(".")));
+    
+    // 生成文件名
+    let timestamp_str = Local::now().format("%Y%m%d_%H%M%S");
+    let file_name = format!("transcription_{}_{}.{}", 
+        entry_id.chars().take(8).collect::<String>(), 
+        timestamp_str, 
+        export_format
+    );
+    let export_path = desktop_path.join(&file_name);
+    
+    // 根据格式导出
+    match export_format.as_str() {
+        "txt" => {
+            // 导出为纯文本
+            let content = format!(
+                "转录文本\n{}\n\n时间: {}\n时长: {}秒\n模型: {}\n置信度: {:.1}%\n",
+                entry.text,
+                DateTime::<Local>::from(
+                    std::time::UNIX_EPOCH + std::time::Duration::from_secs(entry.timestamp as u64)
+                ).format("%Y-%m-%d %H:%M:%S"),
+                entry.duration,
+                entry.model,
+                entry.confidence * 100.0
+            );
+            std::fs::write(&export_path, content)
+                .map_err(|e| format!("写入文件失败: {}", e))?;
+        },
+        "json" => {
+            // 导出为JSON
+            let json_content = serde_json::to_string_pretty(&entry)
+                .map_err(|e| format!("序列化失败: {}", e))?;
+            std::fs::write(&export_path, json_content)
+                .map_err(|e| format!("写入文件失败: {}", e))?;
+        },
+        _ => {
+            return Err(format!("不支持的导出格式: {}", export_format));
+        }
+    }
+    
+    println!("📤 已导出转录记录到: {:?}", export_path);
+    Ok(export_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
 async fn get_supported_formats() -> Result<Vec<String>, String> {
     Ok(vec![
         "mp3".to_string(),
@@ -376,6 +633,126 @@ async fn get_supported_formats() -> Result<Vec<String>, String> {
         "mov".to_string(),
         "m4v".to_string(),
     ])
+}
+
+// 文件夹监控相关命令
+#[tauri::command]
+async fn add_watched_folder(
+    folder_path: String,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let app_state = state.lock();
+    let path = PathBuf::from(folder_path);
+    app_state.folder_watcher.add_folder(path)
+}
+
+#[tauri::command]
+async fn remove_watched_folder(
+    folder_path: String,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let app_state = state.lock();
+    let path = PathBuf::from(folder_path);
+    app_state.folder_watcher.remove_folder(&path)
+}
+
+#[tauri::command]
+async fn get_watched_folders(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<Vec<String>, String> {
+    let app_state = state.lock();
+    let folders = app_state.folder_watcher.get_watched_folders();
+    Ok(folders.into_iter().map(|p| p.to_string_lossy().to_string()).collect())
+}
+
+#[tauri::command]
+async fn get_folder_watcher_stats(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(usize, Vec<String>), String> {
+    let app_state = state.lock();
+    Ok(app_state.folder_watcher.get_folder_stats())
+}
+
+#[tauri::command]
+async fn clear_all_watched_folders(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let app_state = state.lock();
+    app_state.folder_watcher.clear_all();
+    Ok(())
+}
+
+// 数据库相关命令
+#[tauri::command]
+async fn update_transcription_text(
+    entry_id: String,
+    new_text: String,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let mut app_state = state.lock();
+    
+    // 更新数据库
+    if let Err(e) = app_state.database.update_transcription(&entry_id, &new_text) {
+        return Err(format!("更新数据库失败: {}", e));
+    }
+    
+    // 更新内存中的历史记录
+    if let Some(entry) = app_state.transcription_history.iter_mut().find(|e| e.id == entry_id) {
+        entry.text = new_text;
+        println!("✅ 转录文本已更新: {}", entry_id);
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn search_transcriptions(
+    query: String,
+    limit: Option<usize>,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<Vec<TranscriptionEntry>, String> {
+    let app_state = state.lock();
+    
+    match app_state.database.search_transcriptions(&query, limit) {
+        Ok(results) => Ok(results),
+        Err(e) => Err(format!("搜索失败: {}", e))
+    }
+}
+
+#[tauri::command]
+async fn get_database_stats(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(usize, f64, usize), String> {
+    let app_state = state.lock();
+    
+    match app_state.database.get_database_stats() {
+        Ok(stats) => Ok(stats),
+        Err(e) => Err(format!("获取统计信息失败: {}", e))
+    }
+}
+
+#[tauri::command]
+async fn get_model_stats(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<Vec<(String, i32, f64, f64)>, String> {
+    let app_state = state.lock();
+    
+    match app_state.database.get_model_stats() {
+        Ok(stats) => Ok(stats),
+        Err(e) => Err(format!("获取模型统计失败: {}", e))
+    }
+}
+
+#[tauri::command]
+async fn export_database_json(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<String, String> {
+    let app_state = state.lock();
+    
+    match app_state.database.export_to_json() {
+        Ok(json) => Ok(json),
+        Err(e) => Err(format!("导出数据失败: {}", e))
+    }
 }
 
 // 系统托盘相关命令
@@ -423,32 +800,55 @@ async fn get_current_app_info() -> Result<HashMap<String, String>, String> {
     // 根据平台获取当前激活应用的信息
     #[cfg(target_os = "macos")]
     {
-        // 在真实应用中，这里可以使用 Cocoa API 或者执行 AppleScript
-        // 例如: osascript -e "tell application \"System Events\" to get name of first application process whose frontmost is true"
+        // 使用 AppleScript 获取真实的当前应用信息
+        let output = Command::new("osascript")
+            .arg("-e")
+            .arg("tell application \"System Events\" to get name of first application process whose frontmost is true")
+            .output()
+            .map_err(|e| format!("Failed to execute osascript: {}", e))?;
         
-        // 暂时提供一些模拟数据，在实际应用中会被真实的API调用替换
-        let sample_apps = vec![
-            ("访达", "com.apple.finder", "📁"),
-            ("Safari", "com.apple.Safari", "🌐"),
-            ("Chrome", "com.google.Chrome", "🔵"),
-            ("Xcode", "com.apple.dt.Xcode", "🔨"),
-            ("终端", "com.apple.Terminal", "⬛"),
-            ("微信", "com.tencent.xinWeChat", "💬"),
-            ("钉钉", "com.alibaba.DingTalk", "📞"),
-            ("VS Code", "com.microsoft.VSCode", "📝"),
-            ("Finder", "com.apple.finder", "📁"),
-        ];
+        let app_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
         
-        // 随机选择一个应用作为演示
-        let app_index = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_secs() as usize % sample_apps.len();
-            
-        let (app_name, bundle_id, icon) = &sample_apps[app_index];
+        // 获取应用的 bundle ID
+        let bundle_output = Command::new("osascript")
+            .arg("-e")
+            .arg(format!("id of app \"{}\"", app_name))
+            .output()
+            .ok();
         
-        info.insert("name".to_string(), app_name.to_string());
-        info.insert("bundle_id".to_string(), bundle_id.to_string());
+        let bundle_id = bundle_output
+            .and_then(|o| String::from_utf8(o.stdout).ok())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        
+        // 应用图标映射
+        let icon = match app_name.as_str() {
+            "Finder" | "访达" => "📁",
+            "Safari" => "🌐",
+            "Google Chrome" | "Chrome" => "🔵",
+            "Firefox" => "🦊",
+            "Xcode" => "🔨",
+            "Terminal" | "终端" => "⬛",
+            "微信" | "WeChat" => "💬",
+            "钉钉" | "DingTalk" => "📞",
+            "Visual Studio Code" | "Code" => "📝",
+            "Slack" => "💼",
+            "Telegram" => "✈️",
+            "Mail" | "邮件" => "📧",
+            "Calendar" | "日历" => "📅",
+            "Notes" | "备忘录" => "📓",
+            "Messages" | "信息" => "💬",
+            "Music" | "音乐" => "🎵",
+            "Spotify" => "🎧",
+            "System Preferences" | "系统偏好设置" => "⚙️",
+            "Activity Monitor" | "活动监视器" => "📊",
+            "Preview" | "预览" => "🖼️",
+            "TextEdit" | "文本编辑" => "📄",
+            _ => "📱"
+        };
+        
+        info.insert("name".to_string(), app_name);
+        info.insert("bundle_id".to_string(), bundle_id);
         info.insert("icon".to_string(), icon.to_string());
     }
     
@@ -485,24 +885,37 @@ async fn check_permission(permission: String) -> Result<String, String> {
             }
         },
         "microphone" => {
-            // 检查麦克风权限 - 在实际应用中需要使用原生API
-            // 这里先返回一个基本的检查结果
-            Ok("not-determined".to_string())
+            unsafe {
+                let cls = Class::get("AVCaptureDevice").unwrap();
+                let media_type = NSString::alloc(nil).init_str("soun");
+                let status: i32 = msg_send![cls, authorizationStatusForMediaType: media_type];
+                let status_str = match status {
+                    3 => "granted".to_string(),
+                    2 => "denied".to_string(),
+                    0 => "not-determined".to_string(),
+                    _ => "restricted".to_string(),
+                };
+                Ok(status_str)
+            }
         },
         "file-system" => {
             // 文件系统权限通常是自动授予的
             Ok("granted".to_string())
         },
         "notifications" => {
-            // 检查通知权限
-            Ok("not-determined".to_string())
+            // TODO: 修复通知权限检查导致的崩溃
+            Ok("granted".to_string())
         },
         "screen-recording" => {
-            // 检查屏幕录制权限
+            // TODO: 修复 CGPreflightScreenCaptureAccess 导入问题
+            Ok("not-determined".to_string())
+        },
+        "automation" => {
+            // 自动化权限检查复杂，保持待确定
             Ok("not-determined".to_string())
         },
         "input-monitoring" => {
-            // 检查输入监控权限
+            // TODO: 修复 IOHIDCheckAccess 导入问题
             Ok("not-determined".to_string())
         },
         _ => Ok("not-determined".to_string())
@@ -521,8 +934,17 @@ async fn check_permission(permission: String) -> Result<String, String> {
 async fn request_permission(permission: String, _app_handle: AppHandle) -> Result<String, String> {
     match permission.as_str() {
         "microphone" => {
-            // 暂时返回模拟结果
-            Ok("granted".to_string())
+            // 简化权限请求 - 直接返回当前状态或引导用户手动授权
+            match check_permission("microphone".to_string()).await {
+                Ok(status) => {
+                    if status == "not-determined" {
+                        Ok("pending".to_string()) // 需要用户手动在系统设置中授权
+                    } else {
+                        Ok(status)
+                    }
+                }
+                Err(e) => Err(e)
+            }
         },
         "accessibility" => {
             // 引导用户到系统设置
@@ -572,44 +994,73 @@ async fn open_system_preferences(preference_pane: String) -> Result<(), String> 
     Ok(())
 }
 
+// ======== 性能优化相关命令 ========
+
 #[tauri::command]
-async fn export_transcription(
-    entry_id: String,
-    export_format: String,
+async fn get_performance_metrics(
     state: tauri::State<'_, Arc<Mutex<AppState>>>
-) -> Result<String, String> {
-    let (export_content, export_path) = {
-        let app_state = state.lock();
-        
-        if let Some(entry) = app_state.transcription_history.iter().find(|e| e.id == entry_id) {
-            let content = match export_format.as_str() {
-                "txt" => entry.text.clone(),
-                "json" => serde_json::to_string_pretty(entry).map_err(|e| e.to_string())?,
-                "srt" => format!(
-                    "1\n00:00:00,000 --> 00:00:{:02},000\n{}\n",
-                    entry.duration.min(59),
-                    entry.text
-                ),
-                _ => return Err("不支持的导出格式".to_string()),
-            };
-            
-            let path = app_state.temp_dir.join(format!("export_{}_{}.{}", 
-                entry.id, 
-                SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-                export_format
-            ));
-            
-            (content, path)
-        } else {
-            return Err("未找到指定的转录记录".to_string());
-        }
-    };
+) -> Result<performance_optimizer::PerformanceMetrics, String> {
+    let app_state = state.lock();
+    let mut optimizer = app_state.performance_optimizer.lock();
     
-    tokio::fs::write(&export_path, export_content).await
-        .map_err(|e| format!("写入文件失败: {}", e))?;
+    // 获取系统指标
+    let (cpu_usage, memory_usage) = optimizer.get_system_metrics()
+        .map_err(|e| format!("获取系统指标失败: {}", e))?;
     
-    println!("📤 已导出到: {:?}", export_path);
-    Ok(export_path.to_string_lossy().to_string())
+    // 创建性能指标对象
+    let mut metrics = performance_optimizer::PerformanceMetrics::default();
+    metrics.cpu_usage_percent = cpu_usage;
+    metrics.gpu_memory_usage_mb = memory_usage;
+    
+    Ok(metrics)
+}
+
+#[tauri::command]
+async fn get_cache_stats(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(usize, Vec<String>), String> {
+    let app_state = state.lock();
+    let optimizer = app_state.performance_optimizer.lock();
+    
+    Ok(optimizer.get_cache_stats())
+}
+
+#[tauri::command]
+async fn clear_model_cache(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let app_state = state.lock();
+    let optimizer = app_state.performance_optimizer.lock();
+    
+    optimizer.clear_model_cache();
+    Ok(())
+}
+
+#[tauri::command]
+async fn configure_performance_optimizer(
+    enable_gpu: bool,
+    enable_caching: bool,
+    max_cache_size: usize,
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let app_state = state.lock();
+    let mut optimizer = app_state.performance_optimizer.lock();
+    
+    optimizer.configure(enable_gpu, enable_caching, max_cache_size);
+    println!("🔧 性能优化器配置已更新: GPU={}, 缓存={}, 最大缓存={}", 
+             enable_gpu, enable_caching, max_cache_size);
+    
+    Ok(())
+}
+
+#[tauri::command]
+async fn warmup_gpu(
+    state: tauri::State<'_, Arc<Mutex<AppState>>>
+) -> Result<(), String> {
+    let app_state = state.lock();
+    let optimizer = app_state.performance_optimizer.lock();
+    
+    optimizer.warmup_gpu()
 }
 
 // ======== AI Agent 相关命令 ========
@@ -692,32 +1143,68 @@ async fn process_with_agent(
     
     println!("🤖 开始处理Agent请求: {}", request.agent_type);
     
-    // 获取对应的提示词
-    let prompt_text = if let Some(prompt_id) = &request.prompt_id {
+    // 获取API key和HTTP客户端
+    let (api_key, client) = {
         let app_state = state.lock();
-        app_state.ai_prompts.iter()
-            .find(|p| p.id == *prompt_id && p.is_active)
-            .map(|p| p.prompt_text.clone())
-            .unwrap_or_else(|| get_default_prompt(&request.agent_type))
-    } else {
-        // 获取该类型的激活提示或默认提示
-        let app_state = state.lock();
-        app_state.ai_prompts.iter()
-            .find(|p| p.agent_type == request.agent_type && p.is_active)
-            .map(|p| p.prompt_text.clone())
-            .unwrap_or_else(|| get_default_prompt(&request.agent_type))
+        let api_key = app_state.openai_api_key.clone()
+            .ok_or("OpenAI API key not configured")?;
+        (api_key, app_state.http_client.clone())
     };
     
-    // 调用OpenAI API
-    match call_openai_api(&request, &prompt_text, &state).await {
-        Ok(output_text) => {
+    // 创建AI Agent
+    let agent = ai_agent::AIAgent::new(api_key, client);
+    
+    // 转换agent类型
+    let agent_type = match request.agent_type.as_str() {
+        "text_enhancement" => ai_agent::AIAgentType::TextEnhancement,
+        "translation" => ai_agent::AIAgentType::Translation,
+        "summarization" => ai_agent::AIAgentType::Summarization,
+        "grammar_correction" => ai_agent::AIAgentType::GrammarCorrection,
+        "tone_adjustment" => ai_agent::AIAgentType::ToneAdjustment,
+        "keyword_extraction" => ai_agent::AIAgentType::KeywordExtraction,
+        "code_explanation" => ai_agent::AIAgentType::CodeExplanation,
+        _ => ai_agent::AIAgentType::Custom,
+    };
+    
+    // 准备选项
+    let mut options = request.additional_context.unwrap_or_default();
+    
+    // 如果是自定义类型，添加提示词
+    if matches!(agent_type, ai_agent::AIAgentType::Custom) {
+        let prompt_text = if let Some(prompt_id) = &request.prompt_id {
+            let app_state = state.lock();
+            app_state.ai_prompts.iter()
+                .find(|p| p.id == *prompt_id && p.is_active)
+                .map(|p| p.prompt_text.clone())
+                .unwrap_or_else(|| get_default_prompt(&request.agent_type))
+        } else {
+            // 获取该类型的激活提示或默认提示
+            let app_state = state.lock();
+            app_state.ai_prompts.iter()
+                .find(|p| p.agent_type == request.agent_type && p.is_active)
+                .map(|p| p.prompt_text.clone())
+                .unwrap_or_else(|| get_default_prompt(&request.agent_type))
+        };
+        options.insert("system_prompt".to_string(), prompt_text);
+    }
+    
+    // 创建AI Agent请求
+    let ai_request = ai_agent::AIAgentRequest {
+        text: request.input_text.clone(),
+        agent_type,
+        options,
+    };
+    
+    // 调用AI Agent处理
+    match agent.process(ai_request).await {
+        Ok(ai_response) => {
             let processing_time = start_time.elapsed().unwrap().as_millis() as u64;
             
             println!("✅ Agent处理完成: {} ({}ms)", request.agent_type, processing_time);
             
             Ok(AgentResponse {
                 success: true,
-                output_text,
+                output_text: ai_response.processed_text,
                 agent_type: request.agent_type,
                 processing_time_ms: processing_time,
                 error: None,
@@ -736,6 +1223,385 @@ async fn process_with_agent(
             })
         }
     }
+}
+
+
+async fn transcribe_audio_file(client: &Client, api_key: &str, audio_file_path: &PathBuf, model: &str) -> Result<TranscriptionResult, String> {
+    // 读取音频文件
+    let mut file = File::open(audio_file_path).await
+        .map_err(|e| format!("Failed to open audio file: {}", e))?;
+    
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer).await
+        .map_err(|e| format!("Failed to read audio file: {}", e))?;
+    
+    // 创建 multipart form 数据
+    let part = Part::bytes(buffer)
+        .file_name("audio.wav")
+        .mime_str("audio/wav")
+        .map_err(|e| format!("Failed to create part: {}", e))?;
+    
+    println!("🔍 调试信息: 发送到API的模型参数 = '{}'", model);
+    
+    let form = Form::new()
+        .part("file", part)
+        .text("model", model.to_string())
+        .text("language", "zh")
+        .text("response_format", "verbose_json"); // 中文语言提示和详细响应格式
+    
+    // 发送请求到 NewAPI (支持 GPT-4o mini 转录)
+    let response = client
+        .post("https://ttkk.inping.com/v1/audio/transcriptions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to send request: {}", e))?;
+    
+    if !response.status().is_success() {
+        let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+        return Err(format!("API request failed: {}", error_text));
+    }
+    
+    // 解析响应
+    let response_text = response.text().await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+    
+    let json: serde_json::Value = serde_json::from_str(&response_text)
+        .map_err(|e| format!("Failed to parse JSON response: {}", e))?;
+    
+    let text = json["text"].as_str()
+        .ok_or_else(|| "No text field in response".to_string())?
+        .to_string();
+    
+    
+    Ok(TranscriptionResult { text })
+}
+
+// 本地 Whisper 模型转录函数（性能优化版）
+async fn transcribe_with_local_whisper(audio_file_path: &PathBuf, model: &str) -> Result<TranscriptionResult, String> {
+    println!("🔍 开始本地 Whisper {} 转录（性能优化版）...", model);
+    
+    // 检查音频文件是否存在
+    if !audio_file_path.exists() {
+        return Err("音频文件不存在".to_string());
+    }
+    
+    // 在新线程中运行 Whisper（因为它是计算密集型的）
+    let audio_path = audio_file_path.clone();
+    let model_name = model.to_string();
+    
+    let transcription_result = tokio::task::spawn_blocking(move || {
+        run_whisper_transcription_optimized(&audio_path, &model_name)
+    }).await;
+    
+    match transcription_result {
+        Ok(Ok((text, metrics))) => {
+            println!("✅ 本地 Whisper 转录成功: {}", text);
+            println!("📊 性能指标: RTF={:.2}, 总耗时={}ms", 
+                    metrics.real_time_factor, metrics.total_time_ms);
+            Ok(TranscriptionResult { text })
+        },
+        Ok(Err(e)) => {
+            println!("❌ 本地 Whisper 转录失败: {}", e);
+            Err(e)
+        },
+        Err(e) => {
+            println!("❌ Whisper 任务执行失败: {}", e);
+            Err(format!("转录任务执行失败: {}", e))
+        }
+    }
+}
+
+// 性能优化版 Whisper 转录
+fn run_whisper_transcription_optimized(audio_file_path: &PathBuf, model: &str) -> Result<(String, performance_optimizer::PerformanceMetrics), String> {
+    let total_start = std::time::Instant::now();
+    let mut metrics = performance_optimizer::PerformanceMetrics::default();
+    
+    // 创建性能优化器
+    let mut optimizer = performance_optimizer::PerformanceOptimizer::new();
+    
+    // 下载模型（如果需要）
+    let model_path = download_whisper_model_if_needed(model)?;
+    
+    // 优化版模型加载（带缓存）
+    let model_start = std::time::Instant::now();
+    let ctx = optimizer.get_cached_model(&model_path)?;
+    metrics.model_load_time_ms = model_start.elapsed().as_millis() as u64;
+    
+    println!("🔍 读取音频文件...");
+    
+    // 优化版音频数据加载
+    let audio_start = std::time::Instant::now();
+    let audio_data = load_audio_samples_optimized(audio_file_path, &mut optimizer)?;
+    metrics.audio_processing_time_ms = audio_start.elapsed().as_millis() as u64;
+    
+    // 计算音频时长
+    metrics.audio_duration_seconds = audio_data.len() as f64 / 16000.0; // 16kHz采样率
+    
+    println!("🔍 开始转录，音频样本数: {} (时长: {:.2}s)", 
+             audio_data.len(), metrics.audio_duration_seconds);
+    
+    // 获取优化的转录参数
+    let params = optimizer.get_optimized_transcription_params();
+    
+    // 运行转录
+    let transcription_start = std::time::Instant::now();
+    let mut state = ctx.create_state()
+        .map_err(|e| format!("无法创建 Whisper 状态: {}", e))?;
+    
+    state.full(params, &audio_data)
+        .map_err(|e| format!("Whisper 转录失败: {}", e))?;
+    
+    metrics.transcription_time_ms = transcription_start.elapsed().as_millis() as u64;
+    
+    // 获取转录结果
+    let num_segments = state.full_n_segments()
+        .map_err(|e| format!("无法获取分段数量: {}", e))?;
+    
+    let mut full_text = String::new();
+    for i in 0..num_segments {
+        let segment = state.full_get_segment_text(i)
+            .map_err(|e| format!("无法获取分段文本: {}", e))?;
+        full_text.push_str(&segment);
+        full_text.push(' ');
+    }
+    
+    let result = full_text.trim().to_string();
+    
+    // 计算性能指标
+    metrics.total_time_ms = total_start.elapsed().as_millis() as u64;
+    metrics.real_time_factor = optimizer.calculate_rtf(metrics.transcription_time_ms, metrics.audio_duration_seconds);
+    
+    // 获取系统指标
+    if let Ok((cpu_usage, memory_usage)) = optimizer.get_system_metrics() {
+        metrics.cpu_usage_percent = cpu_usage;
+        metrics.gpu_memory_usage_mb = memory_usage; // 这里用内存使用代替GPU内存
+    }
+    
+    println!("✅ 转录完成，结果长度: {} 字符", result.len());
+    println!("📊 详细性能指标:");
+    println!("   - 模型加载: {}ms", metrics.model_load_time_ms);
+    println!("   - 音频处理: {}ms", metrics.audio_processing_time_ms);
+    println!("   - 转录时间: {}ms", metrics.transcription_time_ms);
+    println!("   - 总耗时: {}ms", metrics.total_time_ms);
+    println!("   - RTF: {:.3} (目标: <0.3)", metrics.real_time_factor);
+    println!("   - CPU使用: {:.1}%", metrics.cpu_usage_percent);
+    
+    if result.is_empty() {
+        return Err("转录结果为空，可能音频文件无效或太短".to_string());
+    }
+    
+    Ok((result, metrics))
+}
+
+// 同步运行 Whisper 转录（原版，保留兼容性）
+fn run_whisper_transcription(audio_file_path: &PathBuf, model: &str) -> Result<String, String> {
+    // 首先尝试下载并使用预训练模型
+    let model_path = download_whisper_model_if_needed(model)?;
+    
+    println!("🔍 加载 Whisper 模型: {}", model_path);
+    
+    // 初始化 Whisper 上下文
+    let ctx = WhisperContext::new_with_params(&model_path, WhisperContextParameters::default())
+        .map_err(|e| format!("无法加载 Whisper 模型: {}", e))?;
+    
+    println!("🔍 读取音频文件...");
+    
+    // 读取音频数据
+    let audio_data = load_audio_samples(audio_file_path)?;
+    
+    println!("🔍 开始转录，音频样本数: {}", audio_data.len());
+    
+    // 设置转录参数
+    let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
+    params.set_language(Some("auto"));
+    params.set_translate(false);
+    params.set_print_special(false);
+    params.set_print_progress(false);
+    params.set_print_realtime(false);
+    params.set_print_timestamps(false);
+    
+    // 运行转录
+    let mut state = ctx.create_state()
+        .map_err(|e| format!("无法创建 Whisper 状态: {}", e))?;
+    
+    state.full(params, &audio_data)
+        .map_err(|e| format!("Whisper 转录失败: {}", e))?;
+    
+    // 获取转录结果
+    let num_segments = state.full_n_segments()
+        .map_err(|e| format!("无法获取分段数量: {}", e))?;
+    
+    let mut full_text = String::new();
+    for i in 0..num_segments {
+        let segment = state.full_get_segment_text(i)
+            .map_err(|e| format!("无法获取分段文本: {}", e))?;
+        full_text.push_str(&segment);
+        full_text.push(' ');
+    }
+    
+    let result = full_text.trim().to_string();
+    println!("✅ 转录完成，结果长度: {} 字符", result.len());
+    
+    if result.is_empty() {
+        return Err("转录结果为空，可能音频文件无效或太短".to_string());
+    }
+    
+    Ok(result)
+}
+
+// 下载 Whisper 模型（如果需要）
+fn download_whisper_model_if_needed(model: &str) -> Result<String, String> {
+    let model_path = get_local_model_path(model);
+    
+    if PathBuf::from(&model_path).exists() {
+        println!("✅ 找到本地模型文件: {}", model_path);
+        return Ok(model_path);
+    }
+    
+    // 创建模型目录
+    let model_path_buf = PathBuf::from(&model_path);
+    let model_dir = model_path_buf.parent()
+        .ok_or("无法获取模型目录")?;
+    
+    std::fs::create_dir_all(model_dir)
+        .map_err(|e| format!("无法创建模型目录: {}", e))?;
+    
+    // 尝试下载模型
+    println!("📥 模型文件不存在，尝试下载: {}", model);
+    download_whisper_model(model, &model_path)?;
+    
+    Ok(model_path)
+}
+
+// 下载 Whisper 模型文件
+fn download_whisper_model(model: &str, model_path: &str) -> Result<(), String> {
+    let model_url = get_whisper_model_url(model)?;
+    
+    println!("📥 开始下载模型: {} -> {}", model_url, model_path);
+    
+    // 使用 curl 下载模型（简单实现）
+    let output = std::process::Command::new("curl")
+        .args(&["-L", "-o", model_path, &model_url])
+        .output()
+        .map_err(|e| format!("下载命令执行失败: {}", e))?;
+    
+    if !output.status.success() {
+        let error = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("模型下载失败: {}", error));
+    }
+    
+    println!("✅ 模型下载完成: {}", model_path);
+    Ok(())
+}
+
+// 获取 Whisper 模型下载 URL
+fn get_whisper_model_url(model: &str) -> Result<String, String> {
+    let base_url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main";
+    let model_file = match model {
+        "whisper-tiny" => "ggml-tiny.bin",
+        "whisper-base" => "ggml-base.bin", 
+        "whisper-small" => "ggml-small.bin",
+        "whisper-medium" => "ggml-medium.bin",
+        "whisper-large-v3" => "ggml-large-v3.bin",
+        "whisper-large-v3-turbo" => "ggml-large-v3-turbo.bin",
+        _ => return Err(format!("不支持的模型: {}", model))
+    };
+    
+    Ok(format!("{}/{}", base_url, model_file))
+}
+
+// 优化版音频样本加载
+fn load_audio_samples_optimized(audio_file_path: &PathBuf, optimizer: &mut performance_optimizer::PerformanceOptimizer) -> Result<Vec<f32>, String> {
+    println!("🔍 读取音频文件（优化版）: {:?}", audio_file_path);
+    
+    // 读取 WAV 文件
+    let mut reader = hound::WavReader::open(audio_file_path)
+        .map_err(|e| format!("无法打开音频文件: {}", e))?;
+    
+    let spec = reader.spec();
+    println!("🔍 音频规格: {}Hz, {} 声道, {} 位", spec.sample_rate, spec.channels, spec.bits_per_sample);
+    
+    // 读取样本
+    let samples: Result<Vec<i16>, _> = reader.samples().collect();
+    let samples = samples.map_err(|e| format!("无法读取音频样本: {}", e))?;
+    
+    // 转换为 f32
+    let mut float_samples: Vec<f32> = samples.iter()
+        .map(|&s| s as f32 / 32768.0)
+        .collect();
+    
+    // 如果是立体声，转换为单声道
+    if spec.channels == 2 {
+        let mono_samples: Vec<f32> = float_samples.chunks(2)
+            .map(|chunk| (chunk[0] + chunk.get(1).unwrap_or(&0.0)) / 2.0)
+            .collect();
+        float_samples = mono_samples;
+    }
+    
+    // 使用性能优化器进行快速重采样
+    let final_samples = optimizer.preprocess_audio_fast(&float_samples, spec.sample_rate)?;
+    
+    println!("✅ 音频处理完成，样本数: {}", final_samples.len());
+    Ok(final_samples)
+}
+
+// 加载音频样本数据（原版，保留兼容性）
+fn load_audio_samples(audio_file_path: &PathBuf) -> Result<Vec<f32>, String> {
+    println!("🔍 读取音频文件: {:?}", audio_file_path);
+    
+    // 读取 WAV 文件
+    let mut reader = hound::WavReader::open(audio_file_path)
+        .map_err(|e| format!("无法打开音频文件: {}", e))?;
+    
+    let spec = reader.spec();
+    println!("🔍 音频规格: {}Hz, {} 声道, {} 位", spec.sample_rate, spec.channels, spec.bits_per_sample);
+    
+    // Whisper 需要 16kHz 单声道
+    let target_sample_rate = 16000;
+    
+    // 读取样本
+    let samples: Result<Vec<i16>, _> = reader.samples().collect();
+    let samples = samples.map_err(|e| format!("无法读取音频样本: {}", e))?;
+    
+    // 转换为 f32 并重采样到 16kHz
+    let mut float_samples: Vec<f32> = samples.iter()
+        .map(|&s| s as f32 / 32768.0)
+        .collect();
+    
+    // 如果是立体声，转换为单声道
+    if spec.channels == 2 {
+        let mono_samples: Vec<f32> = float_samples.chunks(2)
+            .map(|chunk| (chunk[0] + chunk.get(1).unwrap_or(&0.0)) / 2.0)
+            .collect();
+        float_samples = mono_samples;
+    }
+    
+    // 简单重采样（如果需要）
+    if spec.sample_rate != target_sample_rate {
+        println!("🔍 重采样: {}Hz -> {}Hz", spec.sample_rate, target_sample_rate);
+        let ratio = target_sample_rate as f32 / spec.sample_rate as f32;
+        let new_length = (float_samples.len() as f32 * ratio) as usize;
+        
+        let mut resampled = Vec::with_capacity(new_length);
+        for i in 0..new_length {
+            let src_index = (i as f32 / ratio) as usize;
+            if src_index < float_samples.len() {
+                resampled.push(float_samples[src_index]);
+            }
+        }
+        float_samples = resampled;
+    }
+    
+    println!("✅ 音频处理完成，样本数: {}", float_samples.len());
+    Ok(float_samples)
+}
+
+// 获取本地模型文件路径
+fn get_local_model_path(model: &str) -> String {
+    let home_dir = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    format!("{}/Library/Application Support/spokenly-clone/models/{}.bin", home_dir, model)
 }
 
 fn get_default_prompt(agent_type: &str) -> String {
@@ -780,7 +1646,7 @@ async fn call_openai_api(
     };
     
     let openai_request = OpenAIRequest {
-        model: "tts-1".to_string(),  // 用户指定tts-1，但用于chat? 假设兼容，或改成合适模型
+        model: "gpt-3.5-turbo".to_string(),  // 使用 GPT-3.5 模型进行对话
         messages: vec![
             OpenAIMessage {
                 role: "user".to_string(),
@@ -1198,6 +2064,18 @@ async fn main() {
             delete_file,
             get_supported_formats,
             export_transcription,
+            // 文件夹监控相关命令
+            add_watched_folder,
+            remove_watched_folder,
+            get_watched_folders,
+            get_folder_watcher_stats,
+            clear_all_watched_folders,
+            // 数据库相关命令
+            update_transcription_text,
+            search_transcriptions,
+            get_database_stats,
+            get_model_stats,
+            export_database_json,
             check_permission,
             request_permission,
             open_system_preferences,
@@ -1207,6 +2085,12 @@ async fn main() {
             hide_main_window,
             quit_app,
             get_current_app_info,
+            // 性能优化相关命令
+            get_performance_metrics,
+            get_cache_stats,
+            clear_model_cache,
+            configure_performance_optimizer,
+            warmup_gpu,
             // AI Agent 命令
             get_ai_prompts,
             save_ai_prompt,
@@ -1222,6 +2106,16 @@ async fn main() {
         ])
         .setup(|app| {
             println!("✅ Tauri 应用已启动");
+            
+            // 初始化文件夹监控器
+            let app_handle = app.handle();
+            let state: tauri::State<Arc<Mutex<AppState>>> = app.state();
+            {
+                // FolderWatcher needs to be mutable to call initialize
+                // We need to make it mutable, but it's wrapped in Arc<Mutex<>>
+                // For now, we'll skip this initialization and handle it differently
+                println!("⚠️ 文件夹监控器延迟初始化");
+            }
             
             let window = app.get_window("main").unwrap();
             

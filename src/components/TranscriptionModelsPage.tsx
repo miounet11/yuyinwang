@@ -5,6 +5,9 @@ import ModelConfigDialog from './ModelConfigDialog';
 import LocalModelManager from './LocalModelManager';
 import './TranscriptionModelsPage.css';
 
+// 导入主应用的 store
+import { useStore } from '../App';
+
 const TranscriptionModelsPage: React.FC = () => {
   const {
     models,
@@ -12,12 +15,15 @@ const TranscriptionModelsPage: React.FC = () => {
     selectedCategory,
     searchQuery,
     downloadTasks,
-    setSelectedModel,
+    setSelectedModel: setModelStoreModel,
     setSelectedCategory,
     setSearchQuery,
     startDownload,
     getFilteredModels
   } = useModelsStore();
+  
+  // 获取主应用的 store
+  const { setSelectedModel: setMainAppModel } = useStore();
 
   const [showConfigDialog, setShowConfigDialog] = useState(false);
   const [configModelId, setConfigModelId] = useState<string | null>(null);
@@ -43,8 +49,10 @@ const TranscriptionModelsPage: React.FC = () => {
       setConfigModelId(modelId);
       setShowConfigDialog(true);
     } else {
-      // 直接选择模型
-      setSelectedModel(modelId);
+      // 直接选择模型 - 同时更新两个 store
+      setModelStoreModel(modelId);
+      setMainAppModel(modelId);
+      console.log('🔍 模型选择页面: 已选择模型', modelId);
     }
   };
 

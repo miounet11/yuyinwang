@@ -342,29 +342,37 @@ export class PermissionManager {
    */
   private async requestMicrophonePermission(): Promise<boolean> {
     try {
-      // 使用后端命令打开系统设置
-      await invoke('open_system_preferences', { 
-        preferencePane: 'microphone' 
-      });
-      
-      await message(
-        '系统设置已打开\n\n' +
-        '请找到 Recording King 并开启麦克风权限',
-        {
-          title: '麦克风权限',
-          type: 'info'
-        }
-      );
-
+      // 优先尝试触发系统权限弹窗
+      await navigator.mediaDevices.getUserMedia({ audio: true });
       return true;
-    } catch (error) {
-      console.error('请求麦克风权限失败:', error);
-      // 回退方法
+    } catch (getUserMediaError) {
+      console.log('getUserMedia 触发失败，引导到系统设置:', getUserMediaError);
+      
+      // 如果失败，打开系统设置
       try {
-        await openUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
+        await invoke('open_system_preferences', { 
+          preferencePane: 'microphone' 
+        });
+        
+        await message(
+          '系统设置已打开\n\n' +
+          '请找到 Recording King 并开启麦克风权限',
+          {
+            title: '麦克风权限',
+            type: 'info'
+          }
+        );
+
         return true;
-      } catch {
-        return false;
+      } catch (error) {
+        console.error('请求麦克风权限失败:', error);
+        // 回退方法
+        try {
+          await openUrl('x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone');
+          return true;
+        } catch {
+          return false;
+        }
       }
     }
   }

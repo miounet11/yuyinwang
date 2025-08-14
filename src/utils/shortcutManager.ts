@@ -25,6 +25,9 @@ export class ShortcutManager {
 
   constructor() {
     this.initializeDefaultShortcuts();
+    this.loadCustomShortcuts();
+    this.unregisterAllShortcuts();
+    this.registerAllShortcuts();
   }
 
   private initializeDefaultShortcuts() {
@@ -194,6 +197,34 @@ export class ShortcutManager {
       enabled: true
     });
 
+    // macOS 特殊快捷键
+    this.addShortcut({
+      id: 'fn-key-recording',
+      name: 'Fn键录音',
+      description: '使用Fn键进行录音（需要系统设置支持）',
+      key: 'Fn', // 注意：这需要特殊处理
+      action: async () => {
+        await this.emit('toggle-recording');
+        console.log('🎤 Fn键录音切换');
+      },
+      category: 'recording',
+      enabled: false // 默认禁用，用户需要手动启用
+    });
+
+    // 媒体键支持（作为备选方案）
+    this.addShortcut({
+      id: 'media-key-recording',
+      name: '播放/暂停键录音',
+      description: '使用媒体播放/暂停键进行录音',
+      key: 'MediaPlayPause',
+      action: async () => {
+        await this.emit('toggle-recording');
+        console.log('⏯️ 媒体键录音切换');
+      },
+      category: 'recording',
+      enabled: false // 默认禁用
+    });
+
     this.addShortcut({
       id: 'reload-app',
       name: '重新加载应用',
@@ -207,12 +238,12 @@ export class ShortcutManager {
       enabled: true
     });
 
-    // 特殊功能键
+    // Fn键录音 - 使用媒体键实现
     this.addShortcut({
       id: 'fn-key-recording',
       name: 'Fn键录音',
-      description: '使用Fn键进行录音（需要系统设置）',
-      key: 'Fn',
+      description: '使用Fn键进行录音（按住Fn键激活）',
+      key: 'MediaPlayPause', // 使用媒体暂停/播放键，通常是Fn+F8
       action: async () => {
         await this.emit('fn-key-recording');
         console.log('🎙️ Fn键录音');
@@ -221,14 +252,41 @@ export class ShortcutManager {
       enabled: false // 默认禁用，需要用户手动启用
     });
 
+    // 媒体键录音选项
     this.addShortcut({
-      id: 'double-tap-recording',
-      name: '双击录音',
-      description: '双击Option键开始录音',
-      key: 'Alt+Alt', // 双击Alt/Option键
+      id: 'media-next-recording',
+      name: '下一首键录音',
+      description: '使用媒体下一首键进行录音',
+      key: 'MediaNextTrack',
       action: async () => {
-        await this.emit('double-tap-recording');
-        console.log('🎤 双击录音');
+        await this.emit('media-next-recording');
+        console.log('🎙️ 媒体键录音');
+      },
+      category: 'recording',
+      enabled: false
+    });
+
+    this.addShortcut({
+      id: 'media-prev-recording',
+      name: '上一首键录音',
+      description: '使用媒体上一首键进行录音',
+      key: 'MediaPreviousTrack',
+      action: async () => {
+        await this.emit('media-prev-recording');
+        console.log('🎙️ 媒体键录音');
+      },
+      category: 'recording',
+      enabled: false
+    });
+
+    this.addShortcut({
+      id: 'media-stop-recording',
+      name: '媒体停止键录音',
+      description: '使用媒体停止键进行录音',
+      key: 'MediaStop',
+      action: async () => {
+        await this.emit('media-stop-recording');
+        console.log('🎙️ 媒体停止键录音');
       },
       category: 'recording',
       enabled: false
@@ -252,6 +310,7 @@ export class ShortcutManager {
 
       // 注册新快捷键
       await register(shortcut.key, () => {
+        console.log(`🔑 快捷键触发: ${shortcut.name} (${shortcut.key})`);
         shortcut.action();
       });
 
@@ -292,6 +351,15 @@ export class ShortcutManager {
     
     let successCount = 0;
     let failureCount = 0;
+    const failedShortcuts: string[] = [];
+    
+    // 先进行快速权限检查
+    const hasBasicPermissions = await this.checkBasicPermissions();
+    if (!hasBasicPermissions) {
+      console.log('⚠️ 缺少基本权限，建议用户检查权限设置');
+      this.emit('suggest-permission-check');
+      // 仍然尝试注册，以防权限检查有误
+    }
     
     for (const [id, shortcut] of this.shortcuts) {
       if (shortcut.enabled) {
@@ -300,6 +368,7 @@ export class ShortcutManager {
           successCount++;
         } else {
           failureCount++;
+          failedShortcuts.push(shortcut.name);
         }
       }
     }
@@ -307,21 +376,132 @@ export class ShortcutManager {
     console.log(`✅ 已注册 ${successCount} 个快捷键`);
     
     if (failureCount > 0) {
-      console.warn(`⚠️ ${failureCount} 个快捷键注册失败`);
+      console.warn(`⚠️ ${failureCount} 个快捷键注册失败:`, failedShortcuts);
       
-      // 优雅地触发首次启动向导，而不是显示错误弹窗
-      const isFirstLaunch = !localStorage.getItem('spokenly_setup_completed');
+      // 记录失败的快捷键以供调试
+      localStorage.setItem('spokenly_failed_shortcuts', JSON.stringify(failedShortcuts));
       
-      if (isFirstLaunch) {
-        // 首次使用，启动向导
-        console.log('🚀 启动首次设置向导');
-        this.emit('show-first-launch-wizard');
-      } else {
-        // 非首次使用，温和提醒
-        console.log('💡 建议检查权限设置');
+      // 智能处理失败情况
+      await this.handleShortcutFailures(failureCount, failedShortcuts);
+    } else {
+      // 如果所有快捷键都成功注册，清除之前的失败记录
+      localStorage.removeItem('spokenly_failed_shortcuts');
+    }
+  }
+
+  private async checkBasicPermissions(): Promise<boolean> {
+    try {
+      // 检查是否能访问系统API
+      // 这是一个简单的检查，不会触发权限弹窗
+      const hasAccessibility = await this.checkAccessibilityPermission();
+      const hasInputMonitoring = await this.checkInputMonitoringPermission();
+      
+      return hasAccessibility && hasInputMonitoring;
+    } catch (error) {
+      console.log('权限检查异常:', error);
+      return false; // 发生错误时假设没有权限
+    }
+  }
+
+  private async checkAccessibilityPermission(): Promise<boolean> {
+    // 这里应该调用后端API检查辅助功能权限
+    // 暂时返回true，避免阻塞
+    return true;
+  }
+
+  private async checkInputMonitoringPermission(): Promise<boolean> {
+    // 这里应该调用后端API检查输入监控权限
+    // 暂时返回true，避免阻塞
+    return true;
+  }
+
+  private async handleShortcutFailures(failureCount: number, failedShortcuts: string[]) {
+    const isFirstLaunch = !localStorage.getItem('spokenly_setup_completed');
+    
+    if (isFirstLaunch) {
+      // 首次使用，启动向导
+      console.log('🚀 启动首次设置向导');
+      this.emit('show-first-launch-wizard');
+    } else {
+      // 检查失败模式
+      const totalShortcuts = this.shortcuts.size;
+      const failureRate = failureCount / totalShortcuts;
+      
+      if (failureRate > 0.5) {
+        // 超过50%失败，可能是权限问题
+        console.log('💡 大量快捷键失败，建议检查权限设置');
         this.emit('suggest-permission-check');
+      } else {
+        // 少量失败，可能是快捷键冲突
+        console.log('⚠️ 部分快捷键失败，可能存在冲突');
+        await this.detectAndResolveConflicts(failedShortcuts);
+        this.emit('shortcut-conflicts-detected', failedShortcuts);
       }
     }
+  }
+
+  private async detectAndResolveConflicts(failedShortcuts: string[]) {
+    console.log('🔍 检测快捷键冲突...');
+    
+    // 获取系统快捷键列表（如果可能）
+    // const systemShortcuts = await this.getSystemShortcuts();
+    
+    // 建议替代快捷键
+    const suggestions = this.generateAlternativeShortcuts(failedShortcuts);
+    
+    console.log('💡 建议的替代快捷键:', suggestions);
+    
+    // 将建议保存到localStorage，供用户界面显示
+    localStorage.setItem('spokenly_shortcut_suggestions', JSON.stringify(suggestions));
+  }
+
+  private generateAlternativeShortcuts(failedShortcuts: string[]): {[key: string]: string} {
+    const suggestions: {[key: string]: string} = {};
+    
+    // 为失败的快捷键生成替代方案
+    for (const shortcutName of failedShortcuts) {
+      const shortcut = Array.from(this.shortcuts.values()).find(s => s.name === shortcutName);
+      if (shortcut) {
+        suggestions[shortcutName] = this.generateAlternativeKey(shortcut.key);
+      }
+    }
+    
+    return suggestions;
+  }
+
+  private generateAlternativeKey(originalKey: string): string {
+    // 简单的替代方案生成逻辑
+    if (originalKey.includes('CommandOrControl+Shift+')) {
+      // 尝试使用Alt替代
+      return originalKey.replace('CommandOrControl+Shift+', 'CommandOrControl+Alt+');
+    } else if (originalKey.includes('CommandOrControl+')) {
+      // 尝试添加Shift
+      return originalKey.replace('CommandOrControl+', 'CommandOrControl+Shift+');
+    } else {
+      // 添加修饰键
+      return `CommandOrControl+${originalKey}`;
+    }
+  }
+
+  // 提供快捷键状态检查方法
+  getShortcutStatus(): {registered: number, failed: number, total: number} {
+    const total = this.shortcuts.size;
+    const registered = this.registeredShortcuts.size;
+    const failed = total - registered;
+    
+    return { registered, failed, total };
+  }
+
+  // 获取失败的快捷键列表
+  getFailedShortcuts(): string[] {
+    const stored = localStorage.getItem('spokenly_failed_shortcuts');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  // 获取快捷键建议
+  getShortcutSuggestions(): {[key: string]: string} {
+    const stored = localStorage.getItem('spokenly_shortcut_suggestions');
+    return stored ? JSON.parse(stored) : {};
   }
 
   async unregisterAllShortcuts(): Promise<void> {
@@ -349,6 +529,9 @@ export class ShortcutManager {
       this.registerShortcut(shortcutId);
     }
 
+    // 保存配置
+    this.saveCustomShortcuts();
+
     return true;
   }
 
@@ -363,6 +546,9 @@ export class ShortcutManager {
     } else {
       this.unregisterShortcut(shortcutId);
     }
+
+    // 保存配置
+    this.saveCustomShortcuts();
 
     return shortcut.enabled;
   }
@@ -410,6 +596,7 @@ export class ShortcutManager {
   detectKeyCombo(event: KeyboardEvent): string {
     const keys: string[] = [];
     
+    // macOS 使用 metaKey (⌘)，Windows/Linux 使用 ctrlKey
     if (event.metaKey || event.ctrlKey) {
       keys.push('CommandOrControl');
     }
@@ -421,15 +608,41 @@ export class ShortcutManager {
     }
     
     // 添加主键
-    if (event.key && !['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
+    if (event.key && !['Control', 'Shift', 'Alt', 'Meta', 'Command'].includes(event.key)) {
       // 转换特殊键
       let key = event.key;
-      if (key === ' ') key = 'Space';
-      if (key === 'ArrowUp') key = 'Up';
-      if (key === 'ArrowDown') key = 'Down';
-      if (key === 'ArrowLeft') key = 'Left';
-      if (key === 'ArrowRight') key = 'Right';
-      if (key.length === 1) key = key.toUpperCase();
+      
+      // 特殊键映射
+      const keyMap: { [key: string]: string } = {
+        ' ': 'Space',
+        'ArrowUp': 'Up',
+        'ArrowDown': 'Down',
+        'ArrowLeft': 'Left',
+        'ArrowRight': 'Right',
+        'Enter': 'Return',
+        'Backspace': 'Backspace',
+        'Delete': 'Delete',
+        'Escape': 'Escape',
+        'Tab': 'Tab',
+        ',': 'Comma',
+        '.': 'Period',
+        '/': 'Slash',
+        ';': 'Semicolon',
+        "'": 'Quote',
+        '[': 'BracketLeft',
+        ']': 'BracketRight',
+        '\\': 'Backslash',
+        '-': 'Minus',
+        '=': 'Equal',
+        '`': 'Backquote'
+      };
+      
+      // 使用映射或转换为大写
+      if (keyMap[key]) {
+        key = keyMap[key];
+      } else if (key.length === 1) {
+        key = key.toUpperCase();
+      }
       
       keys.push(key);
     }
@@ -439,7 +652,7 @@ export class ShortcutManager {
 
   // 验证快捷键是否有效
   isValidShortcut(key: string): boolean {
-    // 检查是否包含至少一个修饰键和一个主键
+    // 检查是否包含至少一个修饰键和一个主键，或者是特殊单键
     const parts = key.split('+');
     const hasModifier = parts.some(p => 
       ['CommandOrControl', 'Shift', 'Alt', 'Ctrl', 'Meta'].includes(p)
@@ -448,7 +661,14 @@ export class ShortcutManager {
       !['CommandOrControl', 'Shift', 'Alt', 'Ctrl', 'Meta'].includes(p)
     );
     
-    return hasModifier && hasMainKey && parts.length >= 2;
+    // 允许特殊单键（媒体键、F键等）
+    const specialSingleKeys = [
+      'MediaPlayPause', 'MediaNextTrack', 'MediaPreviousTrack', 'MediaStop',
+      'F13', 'F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'CapsLock'
+    ];
+    const isSingleSpecialKey = parts.length === 1 && specialSingleKeys.includes(parts[0]);
+    
+    return (hasModifier && hasMainKey && parts.length >= 2) || isSingleSpecialKey;
   }
 
   // 检查快捷键是否已被使用
@@ -474,6 +694,55 @@ export class ShortcutManager {
         type: 'error'
       }
     );
+  }
+
+  // 保存自定义快捷键到本地存储
+  private saveCustomShortcuts(): void {
+    try {
+      const customShortcuts: { [key: string]: { key: string; enabled: boolean } } = {};
+      
+      this.shortcuts.forEach((shortcut, id) => {
+        customShortcuts[id] = {
+          key: shortcut.key,
+          enabled: shortcut.enabled
+        };
+      });
+      
+      localStorage.setItem('custom_shortcuts', JSON.stringify(customShortcuts));
+      console.log('✅ 快捷键配置已保存');
+    } catch (error) {
+      console.error('❌ 保存快捷键配置失败:', error);
+    }
+  }
+
+  // 从本地存储加载自定义快捷键
+  private loadCustomShortcuts(): void {
+    try {
+      const stored = localStorage.getItem('custom_shortcuts');
+      if (stored) {
+        const customShortcuts = JSON.parse(stored);
+        
+        Object.entries(customShortcuts).forEach(([id, config]: [string, any]) => {
+          const shortcut = this.shortcuts.get(id);
+          if (shortcut) {
+            shortcut.key = config.key;
+            shortcut.enabled = config.enabled;
+          }
+        });
+        
+        console.log('✅ 已加载自定义快捷键配置');
+      }
+    } catch (error) {
+      console.error('❌ 加载快捷键配置失败:', error);
+    }
+  }
+
+  // 重置所有快捷键到默认值
+  resetAllShortcuts(): void {
+    this.shortcuts.clear();
+    this.initializeDefaultShortcuts();
+    localStorage.removeItem('custom_shortcuts');
+    console.log('✅ 所有快捷键已重置为默认值');
   }
 }
 

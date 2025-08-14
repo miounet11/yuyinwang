@@ -74,22 +74,33 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
         // 检查是否已被使用
         if (shortcutManager.isShortcutInUse(currentKeyCombo, editingId || undefined)) {
           alert('此快捷键组合已被使用！');
+          // 重置状态但不更新
+          setRecordingKeys(false);
+          setCurrentKeyCombo('');
+          setEditingId(null);
         } else if (editingId) {
           // 更新快捷键
-          shortcutManager.updateShortcut(editingId, currentKeyCombo);
+          const success = shortcutManager.updateShortcut(editingId, currentKeyCombo);
           
-          // 更新显示
-          const updatedShortcuts = shortcutManager.getShortcuts();
-          setAllShortcuts(updatedShortcuts);
+          if (success) {
+            // 更新显示
+            const updatedShortcuts = shortcutManager.getShortcuts();
+            setAllShortcuts(updatedShortcuts);
+            console.log(`✅ 快捷键已更新: ${editingId} -> ${currentKeyCombo}`);
+          }
+          
+          // 重置状态
+          setRecordingKeys(false);
+          setCurrentKeyCombo('');
+          setEditingId(null);
         }
       } else {
         alert('请使用有效的快捷键组合（需要包含修饰键）');
+        // 重置状态
+        setRecordingKeys(false);
+        setCurrentKeyCombo('');
+        setEditingId(null);
       }
-      
-      // 重置状态
-      setRecordingKeys(false);
-      setCurrentKeyCombo('');
-      setEditingId(null);
     }
   };
 
@@ -105,13 +116,19 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
     }
   }, [recordingKeys, currentKeyCombo, editingId]);
 
-  const handleRecordShortcut = (shortcutId: string) => {
+  const handleRecordShortcut = (shortcutId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     setEditingId(shortcutId);
     setRecordingKeys(true);
     setCurrentKeyCombo('');
   };
 
-  const handleToggleShortcut = async (shortcutId: string) => {
+  const handleToggleShortcut = async (shortcutId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const isEnabled = shortcutManager.toggleShortcut(shortcutId);
     
     // 更新显示
@@ -121,7 +138,10 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
     console.log(`快捷键 ${shortcutId} 已${isEnabled ? '启用' : '禁用'}`);
   };
 
-  const handleResetShortcut = (shortcutId: string) => {
+  const handleResetShortcut = (shortcutId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     // 重置为默认值
     const defaultShortcuts: { [key: string]: string } = {
       'toggle-recording': 'CommandOrControl+Shift+R',
@@ -147,15 +167,27 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
   };
 
   const handleTestMode = async () => {
-    setTestMode(!testMode);
+    const newTestMode = !testMode;
+    setTestMode(newTestMode);
     
-    if (!testMode) {
+    if (newTestMode) {
       // 注册所有快捷键以进行测试
-      await shortcutManager.registerAllShortcuts();
-      alert('测试模式已启用！按下快捷键查看效果。');
+      try {
+        await shortcutManager.registerAllShortcuts();
+        console.log('✅ 测试模式已启用');
+        
+        // 不显示 alert，使用更优雅的提示
+        setLastTriggered('test-mode-enabled');
+        setTimeout(() => setLastTriggered(''), 2000);
+      } catch (error) {
+        console.error('❌ 启用测试模式失败:', error);
+        setTestMode(false);
+        alert('无法启用测试模式，请检查权限设置');
+      }
     } else {
       // 注销快捷键
       await shortcutManager.unregisterAllShortcuts();
+      console.log('✅ 测试模式已关闭');
     }
   };
 
@@ -270,7 +302,7 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
                   <div className="action-buttons">
                     <button 
                       className="toggle-btn"
-                      onClick={() => handleToggleShortcut(shortcut.id)}
+                      onClick={(e) => handleToggleShortcut(shortcut.id, e)}
                       title={shortcut.enabled ? '禁用' : '启用'}
                     >
                       {shortcut.enabled ? '✅' : '❌'}
@@ -278,7 +310,7 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
                     
                     <button 
                       className="edit-btn"
-                      onClick={() => handleRecordShortcut(shortcut.id)}
+                      onClick={(e) => handleRecordShortcut(shortcut.id, e)}
                       disabled={!shortcut.enabled}
                       title="编辑快捷键"
                     >
@@ -287,7 +319,7 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
                     
                     <button 
                       className="reset-btn"
-                      onClick={() => handleResetShortcut(shortcut.id)}
+                      onClick={(e) => handleResetShortcut(shortcut.id, e)}
                       title="重置为默认"
                     >
                       🔄
@@ -344,12 +376,12 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
           <div className="tip-card">
             <div className="tip-icon">⚠️</div>
             <div className="tip-content">
-              <h4>macOS Fn 键设置</h4>
+              <h4>Fn键和媒体键录音</h4>
               <ul>
-                <li>• 系统设置 → 键盘</li>
-                <li>• 点击"按下 🌐 键以"</li>
-                <li>• 选择"无操作"</li>
-                <li>• 启用 Fn 键快捷键功能</li>
+                <li>• <kbd>Fn键录音</kbd> - 通过媒体播放/暂停键实现</li>
+                <li>• <kbd>媒体键</kbd> - 下一首、上一首、停止键都可用</li>
+                <li>• 在录音分类中启用对应的媒体键选项</li>
+                <li>• 这些键通常对应MacBook的Fn+F7, F8, F9等</li>
               </ul>
             </div>
           </div>
@@ -360,9 +392,21 @@ const ShortcutEditor: React.FC<ShortcutEditorProps> = ({
             已启用: {allShortcuts.filter(s => s.enabled).length} / {allShortcuts.length}
           </div>
           <div className="footer-actions">
-            <button className="apply-btn" onClick={async () => {
-              await shortcutManager.registerAllShortcuts();
-              alert('快捷键已应用！');
+            <button className="apply-btn" onClick={async (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              
+              try {
+                await shortcutManager.registerAllShortcuts();
+                console.log('✅ 快捷键已应用');
+                
+                // 显示成功提示
+                setLastTriggered('shortcuts-applied');
+                setTimeout(() => setLastTriggered(''), 2000);
+              } catch (error) {
+                console.error('❌ 应用快捷键失败:', error);
+                alert('部分快捷键应用失败，请检查权限设置');
+              }
             }}>
               应用更改
             </button>
