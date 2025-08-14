@@ -68,7 +68,7 @@ impl SubtitleSynchronizer {
                 end_time,
                 text: segment.clone(),
                 speaker: None,
-                confidence: Some(entry.confidence),
+                confidence: Some(entry.confidence as f32),
             });
         }
         

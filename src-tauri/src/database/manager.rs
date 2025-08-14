@@ -158,6 +158,36 @@ impl DatabaseManager {
         Ok(())
     }
 
+    pub fn get_transcription_by_id(&self, id: &str) -> AppResult<Option<TranscriptionEntry>> {
+        let conn = self.conn.lock()
+            .map_err(|e| AppError::DatabaseError(format!("无法获取数据库连接锁: {}", e)))?;
+        
+        let mut stmt = conn.prepare(
+            "SELECT id, text, timestamp, duration, model, confidence, 
+             audio_file_path, created_at, updated_at, tags, metadata 
+             FROM transcriptions WHERE id = ?1"
+        ).map_err(|e| AppError::DatabaseError(format!("准备查询失败: {}", e)))?;
+        
+        let result = stmt.query_row(params![id], |row| {
+            Ok(TranscriptionEntry {
+                id: row.get(0)?,
+                text: row.get(1)?,
+                timestamp: row.get(2)?,
+                duration: row.get(3)?,
+                model: row.get(4)?,
+                confidence: row.get(5)?,
+                audio_file_path: row.get(6)?,
+                created_at: row.get(7)?,
+                updated_at: row.get(8)?,
+                tags: row.get(9)?,
+                metadata: row.get(10)?,
+            })
+        }).optional()
+        .map_err(|e| AppError::DatabaseError(format!("查询转录记录失败: {}", e)))?;
+        
+        Ok(result)
+    }
+
     pub fn delete_transcription(&self, id: &str) -> AppResult<()> {
         let conn = self.conn.lock()
             .map_err(|e| AppError::DatabaseError(format!("无法获取数据库连接锁: {}", e)))?;

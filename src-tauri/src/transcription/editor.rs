@@ -222,6 +222,8 @@ impl TranscriptionEditor {
             speakers: HashMap::new(),
         };
 
+        let paragraph_count = metadata.paragraph_count;
+        
         let document = TranscriptionDocument {
             entry_id: entry.id.clone(),
             title: format!("转录文档 - {}", 
@@ -239,7 +241,7 @@ impl TranscriptionEditor {
         self.documents.lock().insert(document_id.clone(), document);
         self.save_to_undo_stack(&document_id);
 
-        println!("📄 创建文档: {} ({} 个段落)", document_id, metadata.paragraph_count);
+        println!("📄 创建文档: {} ({} 个段落)", document_id, paragraph_count);
         Ok(document_id)
     }
 
@@ -458,15 +460,18 @@ impl TranscriptionEditor {
             .position(|p| p.id == paragraph_id)
             .ok_or_else(|| AppError::ValidationError("段落不存在".to_string()))?;
         
-        let original_paragraph = &document.paragraphs[paragraph_index];
+        // 先获取原始段落信息，避免借用冲突
+        let original_content = document.paragraphs[paragraph_index].content.clone();
+        let original_end_timestamp = document.paragraphs[paragraph_index].end_timestamp;
+        let original_confidence = document.paragraphs[paragraph_index].confidence;
+        let original_speaker_id = document.paragraphs[paragraph_index].speaker_id.clone();
         
-        if split_position >= original_paragraph.content.len() {
+        if split_position >= original_content.len() {
             return Err(AppError::ValidationError("分割位置超出段落范围".to_string()));
         }
         
-        let content = &original_paragraph.content;
-        let first_part = content[..split_position].trim().to_string();
-        let second_part = content[split_position..].trim().to_string();
+        let first_part = original_content[..split_position].trim().to_string();
+        let second_part = original_content[split_position..].trim().to_string();
         
         if first_part.is_empty() || second_part.is_empty() {
             return Err(AppError::ValidationError("分割后的段落不能为空".to_string()));
@@ -479,7 +484,7 @@ impl TranscriptionEditor {
         let edit_op = EditOperation {
             operation_type: EditOperationType::Split,
             timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            old_content: Some(original_paragraph.content.clone()),
+            old_content: Some(original_content),
             new_content: None,
             paragraph_ids: vec![paragraph_id.to_string(), new_paragraph_id.clone()],
             user_note: Some(format!("在位置 {} 分割段落", split_position)),
@@ -494,10 +499,10 @@ impl TranscriptionEditor {
         let second_paragraph = TextParagraph {
             id: new_paragraph_id.clone(),
             content: second_part,
-            start_timestamp: original_paragraph.end_timestamp,
-            end_timestamp: original_paragraph.end_timestamp,
-            confidence: original_paragraph.confidence,
-            speaker_id: original_paragraph.speaker_id.clone(),
+            start_timestamp: original_end_timestamp,
+            end_timestamp: original_end_timestamp,
+            confidence: original_confidence,
+            speaker_id: original_speaker_id,
             is_edited: true,
             edit_history: vec![edit_op],
         };
@@ -753,17 +758,17 @@ impl TranscriptionEditor {
             } else if options.whole_word {
                 // 整词替换
                 let words: Vec<&str> = paragraph.content.split_whitespace().collect();
-                let mut new_words = Vec::new();
+                let mut new_words: Vec<String> = Vec::new();
                 let mut changed = false;
                 
                 for word in words {
                     let check_word = if options.case_sensitive { word } else { &word.to_lowercase() };
                     if check_word == find_text {
-                        new_words.push(&options.replace_text);
+                        new_words.push(options.replace_text.clone());
                         changed = true;
                         replacements_count += 1;
                     } else {
-                        new_words.push(word);
+                        new_words.push(word.to_string());
                     }
                 }
                 

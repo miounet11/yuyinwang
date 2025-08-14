@@ -6,11 +6,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::errors::{AppError, AppResult};
 use crate::types::RecordingConfig;
-use ringbuf::HeapRb;
+use ringbuf::{HeapRb, Rb, ring_buffer::RbBase};
 use crossbeam_channel;
 use std::time::{Duration, Instant};
 
-#[derive(Debug)]
 pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
     audio_data: Arc<Mutex<Vec<f32>>>,

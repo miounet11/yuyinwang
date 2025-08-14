@@ -15,7 +15,6 @@ use sha2::{Sha256, Digest};
 use std::fs::File;
 use std::io::{BufReader, Write, Read};
 
-#[derive(Debug)]
 pub struct WhisperTranscriber {
     optimizer: Arc<Mutex<PerformanceOptimizer>>,
     model_cache: Arc<Mutex<std::collections::HashMap<String, WhisperContext>>>,
@@ -267,7 +266,12 @@ impl WhisperTranscriber {
                 println!("✅ 本地 Whisper 转录成功: {}", text);
                 println!("📊 性能指标: RTF={:.2}, 总耗时={}ms", 
                         metrics.real_time_factor, metrics.total_time_ms);
-                Ok(TranscriptionResult { text })
+                Ok(TranscriptionResult { 
+                    text, 
+                    confidence: None, 
+                    duration: None, 
+                    language: None 
+                })
             },
             Ok(Err(e)) => {
                 println!("❌ 本地 Whisper 转录失败: {}", e);
@@ -734,9 +738,12 @@ impl WhisperTranscriber {
             // 解码音频包
             match decoder.decode(&packet) {
                 Ok(decoded) => {
+                    // 保存spec信息以便后续使用
+                    let spec = *decoded.spec();
+                    let channels = spec.channels.count();
+                    
                     // 初始化采样缓冲区
                     if sample_buffer.is_none() {
-                        let spec = *decoded.spec();
                         let duration = decoded.capacity() as u64;
                         sample_buffer = Some(SampleBuffer::<f32>::new(duration, spec));
                     }
@@ -749,8 +756,7 @@ impl WhisperTranscriber {
                         let audio_samples = buf.samples();
                         
                         // 如果是多声道，转换为单声道（取平均值）
-                        if buf.spec().channels.count() > 1 {
-                            let channels = buf.spec().channels.count();
+                        if channels > 1 {
                             for chunk in audio_samples.chunks(channels) {
                                 let mono_sample: f32 = chunk.iter().sum::<f32>() / channels as f32;
                                 samples.push(mono_sample);

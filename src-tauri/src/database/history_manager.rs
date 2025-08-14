@@ -453,7 +453,7 @@ impl HistoryManager {
         match format {
             ExportFormat::Json => {
                 let json_data = serde_json::to_string_pretty(&entries)
-                    .map_err(|e| AppError::SerializationError(format!("JSON序列化失败: {}", e)))?;
+                    .map_err(|e| AppError::DataSerializationError(format!("JSON序列化失败: {}", e)))?;
                 std::fs::write(output_path, json_data)
                     .map_err(|e| AppError::FileSystemError(format!("写入文件失败: {}", e)))?;
             }

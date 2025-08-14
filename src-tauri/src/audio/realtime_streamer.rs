@@ -5,7 +5,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use parking_lot::Mutex;
-use ringbuf::{HeapRb, Producer, Consumer};
+use ringbuf::{HeapRb, Producer, Consumer, Rb};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use crate::errors::{AppError, AppResult};
@@ -54,7 +54,6 @@ pub enum RealtimeEvent {
 }
 
 /// 实时音频流处理器
-#[derive(Debug)]
 pub struct RealtimeAudioStreamer {
     // 核心组件
     audio_recorder: Arc<Mutex<AudioRecorder>>,
@@ -91,6 +90,7 @@ impl RealtimeAudioStreamer {
             channels: 1,
             device_id: None,
             duration_seconds: None,
+            buffer_duration: Some(3.0),
         };
         
         let audio_recorder = Arc::new(Mutex::new(AudioRecorder::new(recording_config)));
@@ -216,7 +216,7 @@ impl RealtimeAudioStreamer {
                 interval.tick().await;
                 
                 // 从录音器获取新的音频数据
-                if let Ok(recorder) = audio_recorder.try_lock() {
+                if let Some(recorder) = audio_recorder.try_lock() {
                     if recorder.is_recording() {
                         // 这里需要修改AudioRecorder以支持获取实时数据
                         // 目前的实现不支持，需要重构
@@ -273,10 +273,11 @@ impl RealtimeAudioStreamer {
                                     let config = config.clone();
                                     let sender = event_sender.clone();
                                     let processing_times = processing_times.clone();
+                                    let chunk_processor_clone = chunk_processor.clone();
                                     
                                     tokio::spawn(async move {
                                         // 创建临时音频文件
-                                        match chunk_processor.save_chunk_to_file(&processed_audio).await {
+                                        match chunk_processor_clone.save_chunk_to_file(&processed_audio).await {
                                             Ok(temp_file_path) => {
                                                 // 转录音频块
                                                 match transcription_service.transcribe_audio(&temp_file_path, &config).await {
@@ -350,7 +351,7 @@ impl RealtimeAudioStreamer {
                 let _ = event_sender.send(RealtimeEvent::BufferStatus {
                     used_samples: buffer_manager.used_samples(),
                     capacity_samples: buffer_manager.capacity(),
-                    processing_chunks: *chunk_counter.lock(),
+                    processing_chunks: *chunk_counter.lock() as usize,
                 });
             }
         });
@@ -369,7 +370,6 @@ pub struct ProcessingStats {
 }
 
 /// 缓冲区管理器
-#[derive(Debug)]
 pub struct LocalBufferManager {
     ring_buffer: Mutex<HeapRb<f32>>,
     capacity: usize,
@@ -441,7 +441,6 @@ impl LocalBufferManager {
 }
 
 /// 音频块处理器
-#[derive(Debug)]
 pub struct LocalAudioChunkProcessor {
     sample_rate: u32,
     temp_dir: std::path::PathBuf,

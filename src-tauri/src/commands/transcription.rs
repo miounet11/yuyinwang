@@ -62,7 +62,11 @@ pub async fn get_transcription_document(
     editor: State<'_, Arc<TranscriptionEditor>>,
     document_id: String,
 ) -> Result<Option<TranscriptionDocument>, String> {
-    editor.get_document(&document_id).map_err(|e| e.to_string())
+    match editor.get_document(&document_id) {
+        Ok(document) => Ok(Some(document)),
+        Err(crate::errors::AppError::ValidationError(_)) => Ok(None), // 文档不存在
+        Err(e) => Err(e.to_string())
+    }
 }
 
 /// 智能分割文本为段落

@@ -2,7 +2,6 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use crate::errors::{AppError, AppResult};
 use crate::types::AudioDevice;
 
-#[derive(Debug)]
 pub struct AudioDeviceManager {
     host: cpal::Host,
 }

@@ -52,7 +52,6 @@ fn check_accessibility_permission() -> bool {
 }
 
 // 应用状态管理
-#[derive(Debug)]
 pub struct AppState {
     pub settings: Arc<Mutex<AppSettings>>,
     pub is_recording: Arc<Mutex<bool>>,

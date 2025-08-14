@@ -8,7 +8,6 @@ use super::{WhisperTranscriber, TranscriptionApiClient};
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[derive(Debug)]
 pub struct TranscriptionService {
     whisper_transcriber: Arc<WhisperTranscriber>,
     api_client: Arc<TranscriptionApiClient>,

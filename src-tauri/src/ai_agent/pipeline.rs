@@ -118,7 +118,7 @@ pub struct PerformanceStats {
 }
 
 /// Pipeline执行上下文
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExecutionContext {
     pub pipeline_id: String,
     pub start_time: Instant,
@@ -260,7 +260,7 @@ impl AgentPipelineManager {
                 let dependencies_satisfied = task.dependencies
                     .iter()
                     .all(|dep_id| {
-                        sorted_tasks.iter().any(|t| &t.id == dep_id)
+                        sorted_tasks.iter().any(|t: &AgentTask| &t.id == dep_id)
                     });
                 
                 if dependencies_satisfied {
@@ -357,12 +357,12 @@ impl AgentPipelineManager {
         
         // 启动所有任务
         for task in tasks {
-            let context = context;
+            let context_clone = context.clone();
             let tx = tx.clone();
             let self_clone = self.clone();
             
             let handle = tokio::spawn(async move {
-                let result = self_clone.execute_single_task(context, &task).await;
+                let result = self_clone.execute_single_task(&context_clone, &task).await;
                 let _ = tx.send(result);
             });
             

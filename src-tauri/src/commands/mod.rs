@@ -154,6 +154,7 @@ pub async fn start_recording(
         sample_rate: 16000,
         channels: 1,
         duration_seconds: None,
+        buffer_duration: Some(3.0), // 默认3秒缓冲区
     };
     
     // 这里需要实际的录音实现

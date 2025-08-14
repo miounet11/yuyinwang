@@ -318,7 +318,8 @@ impl TextInjector {
             .map_err(|e| AppError::SystemIntegrationError(format!("检查权限失败: {}", e)))?;
         
         if output.status.success() {
-            let result = String::from_utf8_lossy(&output.stdout).trim();
+            let result_string = String::from_utf8_lossy(&output.stdout);
+            let result = result_string.trim();
             Ok(result == "true")
         } else {
             Ok(false)
@@ -347,7 +348,8 @@ impl TextInjector {
             .map_err(|e| AppError::SystemIntegrationError(format!("获取活动应用信息失败: {}", e)))?;
         
         if output.status.success() {
-            let result = String::from_utf8_lossy(&output.stdout).trim();
+            let result_string = String::from_utf8_lossy(&output.stdout);
+            let result = result_string.trim();
             let parts: Vec<&str> = result.split('|').collect();
             
             Ok(ApplicationInfo {

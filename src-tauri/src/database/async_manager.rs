@@ -38,10 +38,10 @@ impl AsyncDatabaseManager {
             .build(manager)
             .map_err(|e| AppError::DatabaseError(format!("连接池创建失败: {}", e)))?;
 
+        let pool_clone = pool.clone();
         let db_manager = AsyncDatabaseManager { pool };
         
         // 在单独的任务中初始化数据库
-        let pool_clone = pool.clone();
         tokio::spawn(async move {
             if let Err(e) = Self::init_database_async(pool_clone).await {
                 eprintln!("数据库初始化失败: {}", e);
@@ -215,7 +215,7 @@ impl AsyncDatabaseManager {
     }
 
     // 异步方法：搜索转录记录
-    pub async fn search_transcriptions(&self, filter: &SearchFilter) -> AppResult<Vec<SearchResult>> {
+    pub async fn search_transcriptions(&self, filter: &SearchFilter) -> AppResult<SearchResult> {
         let pool = self.pool.clone();
         let filter = filter.clone();
         
@@ -230,10 +230,7 @@ impl AsyncDatabaseManager {
             );
             let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-            if let Some(search_text) = &filter.query {
-                query.push_str(" AND text LIKE ?");
-                params.push(Box::new(format!("%{}%", search_text)));
-            }
+            // TODO: 实现文本搜索功能 - 当前SearchFilter没有query字段
 
             if let Some(model) = &filter.model {
                 query.push_str(" AND model = ?");
@@ -247,10 +244,8 @@ impl AsyncDatabaseManager {
 
             query.push_str(" ORDER BY timestamp DESC");
 
-            if let Some(limit) = filter.limit {
-                query.push_str(" LIMIT ?");
-                params.push(Box::new(limit));
-            }
+            // 默认限制结果数量
+            query.push_str(" LIMIT 100");
 
             let mut stmt = conn.prepare(&query)
                 .map_err(|e| AppError::DatabaseError(format!("准备搜索查询失败: {}", e)))?;
@@ -258,24 +253,32 @@ impl AsyncDatabaseManager {
             let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
 
             let results = stmt.query_map(param_refs.as_slice(), |row| {
-                Ok(SearchResult {
+                Ok(crate::types::TranscriptionEntry {
                     id: row.get(0)?,
                     text: row.get(1)?,
                     timestamp: row.get(2)?,
+                    duration: row.get("duration")?,
                     model: row.get(3)?,
                     confidence: row.get(4)?,
                     audio_file_path: row.get(5)?,
                     created_at: row.get(6)?,
-                    relevance_score: 1.0, // 简化的相关性分数
+                    updated_at: row.get("updated_at")?,
+                    tags: row.get("tags")?,
+                    metadata: row.get("metadata")?,
                 })
             }).map_err(|e| AppError::DatabaseError(format!("执行搜索失败: {}", e)))?;
 
-            let mut search_results = Vec::new();
+            let mut entries = Vec::new();
             for result in results {
-                search_results.push(result.map_err(|e| AppError::DatabaseError(format!("解析搜索结果失败: {}", e)))?);
+                entries.push(result.map_err(|e| AppError::DatabaseError(format!("解析搜索结果失败: {}", e)))?);
             }
 
-            Ok(search_results)
+            let total_count = entries.len();
+            Ok(SearchResult {
+                entries,
+                total_count,
+                has_more: false, // TODO: 实现分页逻辑
+            })
         }).await
         .map_err(|e| AppError::DatabaseError(format!("异步搜索任务失败: {}", e)))?
     }
@@ -313,13 +316,11 @@ impl AsyncDatabaseManager {
             ).unwrap_or(0);
 
             Ok(DatabaseStats {
-                total_transcriptions,
+                total_transcriptions: total_transcriptions as i64,
                 total_duration,
+                most_used_model: None, // TODO: 实现最常用模型查询
                 average_confidence,
-                unique_models,
-                database_size: 0, // 需要额外计算
-                oldest_entry: None, // 可选实现
-                newest_entry: None, // 可选实现
+                database_size_mb: 0.0, // TODO: 需要额外计算
             })
         }).await
         .map_err(|e| AppError::DatabaseError(format!("统计任务失败: {}", e)))?

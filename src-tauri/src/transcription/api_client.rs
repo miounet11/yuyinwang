@@ -92,7 +92,12 @@ impl TranscriptionApiClient {
             .to_string();
         
         println!("✅ OpenAI API转录成功: {}", text);
-        Ok(TranscriptionResult { text })
+        Ok(TranscriptionResult { 
+            text, 
+            confidence: None, 
+            duration: None, 
+            language: None 
+        })
     }
 
     /// 使用自定义录音API进行转录
@@ -213,7 +218,12 @@ impl TranscriptionApiClient {
                     }
                     
                     println!("✅ 录音API转录成功: {}", result_text);
-                    return Ok(TranscriptionResult { text: result_text });
+                    return Ok(TranscriptionResult { 
+                        text: result_text, 
+                        confidence: None, 
+                        duration: None, 
+                        language: None 
+                    });
                 },
                 "failed" => {
                     let error_msg = status_json["data"]["error"].as_str()
