@@ -1,4 +1,6 @@
 // TTS 服务 - 集成 OpenAI TTS API
+import logger from '../utils/logger';
+
 interface TTSConfig {
   apiKey: string;
   baseUrl: string;
@@ -25,10 +27,10 @@ class TTSService {
   private isPro: boolean = false;
 
   constructor() {
-    // 默认配置 - 免费试用 API
+    // 安全配置 - 从环境变量读取
     this.config = {
-      apiKey: 'sk-vJToQKskNEIaFNM3GjTGh1YrN9kGZ33pw2D1AEZUXL0prLjw',
-      baseUrl: 'https://ttkk.inping.com/v1',
+      apiKey: this.getSecureApiKey('TTS'),
+      baseUrl: this.getSecureBaseUrl() || 'https://api.openai.com/v1',
       model: 'tts-1',
       voice: 'alloy',
       responseFormat: 'mp3',
@@ -36,8 +38,8 @@ class TTSService {
     };
 
     this.sttConfig = {
-      apiKey: 'sk-vJToQKskNEIaFNM3GjTGh1YrN9kGZ33pw2D1AEZUXL0prLjw',
-      baseUrl: 'https://ttkk.inping.com/v1',
+      apiKey: this.getSecureApiKey('STT'),
+      baseUrl: this.getSecureBaseUrl() || 'https://api.openai.com/v1',
       model: 'whisper-1',
       responseFormat: 'json',
       temperature: 0
@@ -45,6 +47,59 @@ class TTSService {
 
     this.loadSubscriptionStatus();
     this.checkTrialStatus();
+  }
+
+  // 安全获取API密钥 - 优先级：环境变量 > 用户配置 > 空值
+  private getSecureApiKey(type: 'TTS' | 'STT'): string {
+    // 尝试从环境变量获取 (Vite使用import.meta.env)
+    const envKey = type === 'TTS' ? 
+      import.meta.env.VITE_TTS_API_KEY : 
+      import.meta.env.VITE_STT_API_KEY;
+    
+    if (envKey) return envKey;
+    
+    // 尝试从安全存储获取用户设置的密钥
+    const userKey = localStorage.getItem(`spokenly_${type.toLowerCase()}_api_key_encrypted`);
+    if (userKey) {
+      // 这里应该实现解密逻辑
+      return this.decryptApiKey(userKey);
+    }
+    
+    // 如果都没有，返回空值并要求用户配置
+    logger.warn(`${type} API key not configured. Please set VITE_${type}_API_KEY environment variable.`);
+    return '';
+  }
+
+  // 安全获取基础URL
+  private getSecureBaseUrl(): string | undefined {
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  // 简单的加密/解密方法（生产环境应使用更强的加密）
+  private decryptApiKey(encryptedKey: string): string {
+    try {
+      // 这里应该实现真正的解密逻辑
+      // 当前只是base64解码示例
+      return atob(encryptedKey);
+    } catch {
+      return '';
+    }
+  }
+
+  // 安全存储API密钥
+  public setApiKey(type: 'TTS' | 'STT', apiKey: string): void {
+    if (!apiKey) return;
+    
+    // 简单加密存储（生产环境应使用更强的加密）
+    const encrypted = btoa(apiKey);
+    localStorage.setItem(`spokenly_${type.toLowerCase()}_api_key_encrypted`, encrypted);
+    
+    // 更新运行时配置
+    if (type === 'TTS') {
+      this.config.apiKey = apiKey;
+    } else {
+      this.sttConfig.apiKey = apiKey;
+    }
   }
 
   // 加载订阅状态
@@ -148,7 +203,7 @@ class TTSService {
 
       return await response.arrayBuffer();
     } catch (error) {
-      console.error('TTS 错误:', error);
+      logger.error('TTS 错误', error);
       throw error;
     }
   }
@@ -196,7 +251,7 @@ class TTSService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('STT 错误:', error);
+      logger.error('STT 错误', error);
       throw error;
     }
   }
@@ -241,7 +296,7 @@ class TTSService {
       const result = await response.json();
       return result;
     } catch (error) {
-      console.error('翻译错误:', error);
+      logger.error('翻译错误', error);
       throw error;
     }
   }
