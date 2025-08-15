@@ -1,10 +1,9 @@
 // Recording King - 重构版本
 // 模块化架构，统一错误处理，清晰的关注点分离
 
-use tauri::{Manager, AppHandle, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent, GlobalShortcutManager};
+use tauri::{Manager, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent};
 use std::sync::Arc;
 use parking_lot::Mutex;
-use std::path::PathBuf;
 use reqwest::Client;
 
 // 核心模块导入
@@ -26,15 +25,13 @@ mod security;
 
 // 使用重构后的模块
 use errors::{AppError, AppResult};
-use types::*;
 use config::AppSettings;
-use audio::{AudioRecorder, AudioDeviceManager, AudioProcessor};
+use audio::AudioDeviceManager;
 use transcription::{TranscriptionService, TranscriptionEditor};
 use ai_agent::AIAgentService;
 use database::{DatabaseManager, HistoryManager};
 
 // 安全模块
-use security::command_executor::SecureCommandExecutor;
 
 // 权限检查相关（macOS）
 #[cfg(target_os = "macos")]

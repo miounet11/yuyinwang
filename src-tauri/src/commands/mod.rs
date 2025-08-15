@@ -1,13 +1,9 @@
 // 命令模块 - 统一管理所有Tauri命令
 
 use tauri::{State, Manager};
-use std::sync::Arc;
-use parking_lot::Mutex;
-use crate::errors::{AppError, AppResult};
 use crate::types::*;
 use crate::{AppState, ai_agent};
 use std::path::Path;
-use std::io::Write;
 
 pub mod history;
 pub mod transcription;
