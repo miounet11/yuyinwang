@@ -2,8 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { shortcutManager } from '../utils/shortcutManager';
+import { useStore } from '../stores/appStore';
+import DiagnosticButton from './DiagnosticButton';
 
 const ShortcutPage: React.FC = () => {
+  const selectedModel = useStore((state) => state.selectedModel);
   const [currentShortcuts, setCurrentShortcuts] = useState(() => {
     return shortcutManager.getShortcuts();
   });
@@ -67,7 +70,7 @@ const ShortcutPage: React.FC = () => {
     if (!isRecording) return;
     try {
       setTestMessage('⏳ 正在转写，请稍候…');
-      await invoke('stop_recording');
+      await invoke('stop_recording', { model: selectedModel });
     } catch (error) {
       setTestMessage('❌ 停止录音失败');
     } finally {
@@ -170,8 +173,24 @@ const ShortcutPage: React.FC = () => {
   return (
     <div className="page-content">
       <div className="page-header">
-        <h1>快捷键</h1>
-        <p>选择您喜欢的键盘操作键来启动 Spokenly，仅按这些键即可开启录音。</p>
+        <div className="header-content">
+          <div>
+            <h1>快捷键</h1>
+            <p>选择您喜欢的键盘操作键来启动 Spokenly，仅按这些键即可开启录音。</p>
+          </div>
+          <div className="header-actions">
+            <DiagnosticButton 
+              category="shortcut" 
+              size="small"
+              style="button"
+            />
+            <DiagnosticButton 
+              category="permission" 
+              size="small"
+              style="button"
+            />
+          </div>
+        </div>
       </div>
 
       <div className="section">

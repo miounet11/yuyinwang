@@ -105,6 +105,8 @@ impl TranscriptionApiClient {
         &self,
         audio_file_path: P,
     ) -> AppResult<TranscriptionResult> {
+        // 获取 Bearer Token
+        let bearer_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3JlY29yZC10by10ZXh0LmNvbS9hcGkvdjEvbG9nb3V0IiwiaWF0IjoxNzUzODU4NzIxLCJleHAiOjE3NjI0OTg3MjEsIm5iZiI6MTc1Mzg1ODcyMSwianRpIjoiNTlZQjBUMExqWGV4NGZqdiIsInN1YiI6IjEiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3IiwiZGV2aWNlX2lkIjoiYmYyZTdkODU4NWU0YmM3YTFjY2VmNWE0YzI2OTkxZDQiLCJpc19sb2dpbiI6MH0.NxgG2hysvK7we4QuyNwpNoX5etfvHTW4ZqL8s1T-5oc";
         println!("🔍 使用录音API进行转录...");
         
         // 读取音频文件
@@ -128,6 +130,7 @@ impl TranscriptionApiClient {
         let form = Form::new().part("file[]", part);
         let upload_resp = self.client
             .post("https://ly.gl173.com/api/v1/upload-file")
+            .header("Authorization", format!("Bearer {}", bearer_token))
             .multipart(form)
             .send()
             .await
@@ -160,6 +163,7 @@ impl TranscriptionApiClient {
         // 2) 创建转换任务，得到 task_id
         let task_resp = self.client
             .post("https://ly.gl173.com/api/v1/task-add")
+            .header("Authorization", format!("Bearer {}", bearer_token))
             .form(&[("file_id", file_id.clone())])
             .send()
             .await
@@ -173,7 +177,7 @@ impl TranscriptionApiClient {
             return Err(AppError::ApiTranscriptionError(format!("创建任务返回非200: {}", task_text)));
         }
         
-        let task_id = task_json["data"]["task_id"].as_i64()
+        let task_id = task_json["data"]["task_id"].as_str()
             .ok_or_else(|| AppError::ApiTranscriptionError("无法获取task_id".to_string()))?;
 
         // 3) 轮询任务状态直到完成
@@ -190,7 +194,8 @@ impl TranscriptionApiClient {
             attempts += 1;
             
             let status_resp = self.client
-                .post("https://ly.gl173.com/api/v1/task-query")
+                .post("https://ly.gl173.com/api/v1/task-progress")
+                .header("Authorization", format!("Bearer {}", bearer_token))
                 .form(&[("task_id", task_id.to_string())])
                 .send()
                 .await
@@ -204,40 +209,31 @@ impl TranscriptionApiClient {
                 return Err(AppError::ApiTranscriptionError(format!("查询任务状态返回非200: {}", status_text)));
             }
             
-            let task_status = status_json["data"]["status"].as_str().unwrap_or("");
-            println!("📊 任务状态: {} (尝试 {}/{})", task_status, attempts, MAX_ATTEMPTS);
+            let progress = status_json["data"]["progress"].as_i64().unwrap_or(0);
+            println!("📊 任务进度: {} (尝试 {}/{})", progress, attempts, MAX_ATTEMPTS);
             
-            match task_status {
-                "success" => {
-                    let result_text = status_json["data"]["result"].as_str()
-                        .unwrap_or("")
-                        .to_string();
-                    
-                    if result_text.is_empty() {
-                        return Err(AppError::ApiTranscriptionError("转录结果为空".to_string()));
-                    }
-                    
-                    println!("✅ 录音API转录成功: {}", result_text);
-                    return Ok(TranscriptionResult { 
-                        text: result_text, 
-                        confidence: None, 
-                        duration: None, 
-                        language: None 
-                    });
-                },
-                "failed" => {
-                    let error_msg = status_json["data"]["error"].as_str()
-                        .unwrap_or("转录失败")
-                        .to_string();
-                    return Err(AppError::ApiTranscriptionError(format!("转录失败: {}", error_msg)));
-                },
-                "processing" | "pending" => {
-                    // 继续等待
-                    continue;
-                },
-                _ => {
-                    return Err(AppError::ApiTranscriptionError(format!("未知任务状态: {}", task_status)));
+            if progress == 1 {
+                // 转录完成
+                let result_text = status_json["data"]["result"].as_str()
+                    .unwrap_or("")
+                    .to_string();
+                
+                if result_text.is_empty() {
+                    return Err(AppError::ApiTranscriptionError("转录结果为空".to_string()));
                 }
+                
+                println!("✅ 录音王API转录成功: {}", result_text);
+                return Ok(TranscriptionResult { 
+                    text: result_text, 
+                    confidence: None, 
+                    duration: None, 
+                    language: None 
+                });
+            } else if progress == 0 {
+                // 仍在转换中，继续等待
+                continue;
+            } else {
+                return Err(AppError::ApiTranscriptionError(format!("未知进度值: {}", progress)));
             }
         }
     }
@@ -254,7 +250,7 @@ impl TranscriptionApiClient {
         }
         
         match config.model_name.as_str() {
-            "luyin-api" => {
+            "luyin-api" | "luyingwang-online" => {
                 self.transcribe_with_luyin_api(audio_file_path).await
             },
             _ => {

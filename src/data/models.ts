@@ -35,7 +35,8 @@ export const transcriptionModels: TranscriptionModel[] = [
     languages: ['多语言'],
     realtime: false,
     recommended: true,
-    requiresApiKey: false,
+    requiresApiKey: true,
+    apiKeyField: 'luyinwang_bearer_token',
     features: ['最准确', '准确度 •••••', '速度 ••••', '默认模型']
   },
   {
@@ -197,6 +198,26 @@ export const apiProviders: APIProvider[] = [
       }
     ],
     testEndpoint: 'https://api.mistral.ai/v1/audio/transcriptions'
+  },
+  {
+    id: 'luyinwang',
+    name: 'LuYinWang API',
+    icon: 'LW',
+    description: '录音王 API - 由 Miaoda Video 提供的高准确度转录服务',
+    requiresApiKey: true,
+    apiKeyField: 'luyinwang_bearer_token',
+    models: ['luyingwang-online'],
+    configFields: [
+      {
+        name: 'bearer_token',
+        label: 'Bearer Token',
+        type: 'password',
+        placeholder: 'eyJ0eXAiOiJKV1Q...',
+        required: true,
+        description: '从录音王获取的 JWT Bearer Token'
+      }
+    ],
+    testEndpoint: 'https://ly.gl173.com/api/v1/transcribe'
   }
 ];
 

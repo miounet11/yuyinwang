@@ -61,6 +61,7 @@ pub struct AppState {
     pub transcription_editor: Arc<TranscriptionEditor>,
     pub ai_agent_service: Arc<Mutex<AIAgentService>>,
     pub audio_device_manager: Arc<AudioDeviceManager>,
+    pub audio_recorder: Arc<Mutex<audio::AudioRecorder>>,
     pub folder_watcher: Arc<folder_watcher::FolderWatcher>,
     pub performance_optimizer: Arc<Mutex<performance_optimizer::PerformanceOptimizer>>,
 }
@@ -98,6 +99,16 @@ impl AppState {
         
         let audio_device_manager = AudioDeviceManager::new();
         
+        // 初始化音频录制器
+        let default_config = types::RecordingConfig {
+            device_id: None,
+            sample_rate: 16000,
+            channels: 1,
+            duration_seconds: None,
+            buffer_duration: Some(3.0),
+        };
+        let audio_recorder = audio::AudioRecorder::new(default_config);
+        
         // 初始化转录编辑器
         let transcription_editor = TranscriptionEditor::new();
         
@@ -110,6 +121,7 @@ impl AppState {
             transcription_editor: Arc::new(transcription_editor),
             ai_agent_service: Arc::new(Mutex::new(ai_agent_service)),
             audio_device_manager: Arc::new(audio_device_manager),
+            audio_recorder: Arc::new(Mutex::new(audio_recorder)),
             folder_watcher: Arc::new(folder_watcher::FolderWatcher::new()),
             performance_optimizer: Arc::new(Mutex::new(performance_optimizer::PerformanceOptimizer::new())),
         })
@@ -171,10 +183,15 @@ fn main() {
             commands::get_transcription_history,
             commands::process_ai_agent,
             commands::get_audio_devices,
+            commands::test_audio_input,
             commands::start_recording,
             commands::stop_recording,
             commands::get_app_settings,
             commands::update_app_settings,
+            // 权限管理命令
+            commands::check_permission,
+            commands::request_permission,
+            commands::open_system_preferences,
             // 历史记录管理命令
             commands::advanced_search_entries,
             commands::grouped_search_entries,
@@ -226,6 +243,26 @@ fn main() {
             commands::get_subtitle_statistics,
             commands::get_supported_subtitle_formats,
             commands::get_default_subtitle_options,
+            // 文本注入命令
+            commands::inject_text_to_cursor,
+            commands::smart_inject_text,
+            commands::check_text_injection_permission,
+            commands::get_active_app_info,
+            commands::test_text_injection,
+            commands::batch_inject_text,
+            commands::get_default_text_injection_config,
+            commands::validate_text_injection_config,
+            commands::clear_text_injection_history,
+            // 快捷键管理命令
+            commands::register_global_shortcut,
+            commands::unregister_global_shortcut,
+            commands::is_shortcut_registered,
+            commands::get_registered_shortcuts,
+            commands::register_multiple_shortcuts,
+            commands::unregister_all_shortcuts,
+            commands::validate_shortcut_format,
+            commands::check_shortcut_conflicts,
+            commands::test_shortcut,
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -234,8 +271,14 @@ fn main() {
             let state = app.state::<AppState>();
             app.manage(state.history_manager.clone());
             app.manage(state.transcription_editor.clone());
+            
+            // 初始化快捷键管理器
+            let shortcut_manager = commands::shortcut_management::ShortcutManager::new();
+            app.manage(shortcut_manager);
+            
             println!("✅ 历史管理器已注册");
             println!("✅ 转录编辑器已注册");
+            println!("✅ 快捷键管理器已注册");
             
             // 注册全局快捷键
             let shortcut = "CommandOrControl+Shift+R";

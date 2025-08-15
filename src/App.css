@@ -844,6 +844,96 @@ body {
   outline-offset: 2px;
 }
 
+/* 增强历史记录按钮 */
+.enhanced-history-btn {
+  background: linear-gradient(45deg, #2196f3, #1976d2) !important;
+  color: white !important;
+  border: none !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.enhanced-history-btn:hover {
+  background: linear-gradient(45deg, #1976d2, #1565c0) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
+}
+
+.enhanced-history-btn:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.enhanced-history-btn:hover:before {
+  left: 100%;
+}
+
+/* 文本注入按钮 */
+.text-injection-btn {
+  background: linear-gradient(45deg, #ff9800, #f57c00) !important;
+  color: white !important;
+  border: none !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.text-injection-btn:hover {
+  background: linear-gradient(45deg, #f57c00, #ef6c00) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.3);
+}
+
+.text-injection-btn:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.text-injection-btn:hover:before {
+  left: 100%;
+}
+
+/* 快捷键管理按钮 */
+.shortcut-manager-btn {
+  background: linear-gradient(45deg, #9c27b0, #7b1fa2) !important;
+  color: white !important;
+  border: none !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.shortcut-manager-btn:hover {
+  background: linear-gradient(45deg, #7b1fa2, #6a1b9a) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(156, 39, 176, 0.3);
+}
+
+.shortcut-manager-btn:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.shortcut-manager-btn:hover:before {
+  left: 100%;
+}
+
 /* 历史记录页面 */
 .history-controls {
   display: flex;
@@ -1663,6 +1753,70 @@ body {
   margin-bottom: var(--spacing-lg);
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* 音频测试工具 */
+.audio-test-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.audio-test-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.audio-test-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+}
+
+.audio-test-button:active {
+  transform: translateY(0);
+}
+
+/* 页面头部操作区域样式 */
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.header-actions .diagnostic-button {
+  font-size: 12px;
+  padding: 6px 12px;
+  min-width: auto;
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .recording-button {

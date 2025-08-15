@@ -548,9 +548,9 @@ impl WhisperTranscriber {
     fn get_whisper_model_hash(model: &str) -> AppResult<String> {
         let hash = match model {
             // 基础多语言模型
-            "whisper-tiny" => "be07e048e1e599ad46341c8d2a135645097a303b70b0fb6a534c35b9669135e0",
+            "whisper-tiny" => "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21",
             "whisper-base" => "60ed5bc3dd14eea856493d334349b405782e8c09fb330d14b57ccd38a9b4e1de",
-            "whisper-small" => "1e6940b64c5b6900cf83a47966e2301cdc97b0bb6d94aff1882b0b7b87fd21b5",
+            "whisper-small" => "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
             "whisper-medium" => "6c14d5adee0f39c1dcecbae45b7b1b5b9b765e8e8f58e96b7eb3e0f6ccbe68fe",
             "whisper-large-v3" => "ad82bf6a9043ceed055076d0fd39f5f186ff8062cb2a2fc40ef54a2c9b8dc65d",
             "whisper-large-v3-turbo" => "8171ed4044b3d23fe42fcbb0d56ee6b82de328b4d6b3b8e6b8f97cecc3e3eddf",

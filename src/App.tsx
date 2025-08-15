@@ -30,6 +30,8 @@ import AdvancedShortcutEditor from './components/AdvancedShortcutEditor';
 import HistorySettings from './components/HistorySettings';
 import TranscriptionModelsPage from './components/TranscriptionModelsPage';
 import FeatureTestPanel from './components/FeatureTestPanel';
+import AudioInputTest from './components/AudioInputTest';
+import DiagnosticButton from './components/DiagnosticButton';
 import PermissionSettings from './components/PermissionSettings';
 import PermissionIndicator from './components/PermissionIndicator';
 import FirstLaunchWizard from './components/FirstLaunchWizard';
@@ -37,6 +39,10 @@ import SubscriptionManager from './components/SubscriptionManager';
 import AIPrompts from './components/AIPrompts';
 import AIPromptsEnhanced from './components/AIPromptsEnhanced';
 import TranscriptionDetailView from './components/TranscriptionDetailView';
+import EnhancedHistoryPage from './components/EnhancedHistoryPage';
+import TextInjectionSettings from './components/TextInjectionSettings';
+import RecordingStatusIndicator from './components/RecordingStatusIndicator';
+import EnhancedShortcutManager from './components/EnhancedShortcutManager';
 import { shortcutManager } from './utils/shortcutManager';
 import { permissionManager } from './utils/permissionManager';
 // import SystemChecker from './utils/systemCheck';
@@ -44,7 +50,9 @@ import { ttsService } from './services/ttsService';
 
 // Types and Stores
 // import { ApiConfig } from './types/models';
-// import { useModelsStore } from './stores/modelsStore';
+import { useModelsStore } from './stores/modelsStore';
+import { enhancedShortcutManager } from './utils/enhancedShortcutManager';
+import { recordingTimer } from './utils/recordingTimer';
 
 // Zustand Store
 import { create } from 'zustand';
@@ -415,6 +423,15 @@ const PageContent: React.FC<{
               <div className="recording-controls">
                 <p className="recording-description">点击按钮测试麦克风录音和转录功能：</p>
                 
+                {/* 音频诊断工具按钮 */}
+                <div className="audio-test-actions">
+                  <DiagnosticButton 
+                    category="audio" 
+                    size="medium"
+                    autoStart={true}
+                  />
+                </div>
+                
                 <button 
                   className={`recording-button ${isRecording ? 'recording' : 'idle'}`}
                   onClick={async () => {
@@ -640,8 +657,19 @@ const PageContent: React.FC<{
       return (
         <div className="page-content">
           <div className="page-header">
-            <h1>历史记录</h1>
-            <p>查看存储在您电脑上的转录历史记录</p>
+            <div className="header-content">
+              <div>
+                <h1>历史记录</h1>
+                <p>查看存储在您电脑上的转录历史记录</p>
+              </div>
+              <div className="header-actions">
+                <DiagnosticButton 
+                  category="storage" 
+                  size="small"
+                  style="button"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="history-controls">
@@ -672,6 +700,18 @@ const PageContent: React.FC<{
               </button>
             </div>
             <div className="history-actions">
+              <button className="action-btn enhanced-history-btn" onClick={() => setShowEnhancedHistory(true)}>
+                <span>🚀</span>
+                增强搜索
+              </button>
+              <button className="action-btn text-injection-btn" onClick={() => setShowTextInjectionSettings(true)}>
+                <span>🎯</span>
+                文本注入
+              </button>
+              <button className="action-btn shortcut-manager-btn" onClick={() => setShowEnhancedShortcutManager(true)}>
+                <span>⌨️</span>
+                快捷键
+              </button>
               <button className="action-btn" onClick={() => setShowAppSelector?.(true)}>选择</button>
               <button className="action-btn" onClick={() => setShowHistorySettings?.(true)}>设置</button>
             </div>
@@ -834,8 +874,24 @@ const PageContent: React.FC<{
       return (
         <div className="page-content">
           <div className="page-header">
-            <h1>AI 提示管理</h1>
-            <p>选择和配置AI提示处理模式</p>
+            <div className="header-content">
+              <div>
+                <h1>AI 提示管理</h1>
+                <p>选择和配置AI提示处理模式</p>
+              </div>
+              <div className="header-actions">
+                <DiagnosticButton 
+                  category="api" 
+                  size="small"
+                  style="button"
+                />
+                <DiagnosticButton 
+                  category="network" 
+                  size="small"
+                  style="button"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="section">
@@ -947,13 +1003,23 @@ function App() {
     setShowFloatingDialog,
     setUseEnhancedAIPrompts,
   } = useStore();
+  
+  // Models Store
+  const { saveModelConfig } = useModelsStore();
 
   // 新增的状态管理
   const [showAppSelector, setShowAppSelector] = useState(false);
   const [showShortcutEditor, setShowShortcutEditor] = useState(false);
   const [useAdvancedShortcuts, setUseAdvancedShortcuts] = useState(false); // 默认使用精简版快捷键编辑器
   const [showHistorySettings, setShowHistorySettings] = useState(false);
+  const [showEnhancedHistory, setShowEnhancedHistory] = useState(false);
+  const [showTextInjectionSettings, setShowTextInjectionSettings] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [showFloatingIndicator, setShowFloatingIndicator] = useState(false);
+  const [showEnhancedShortcutManager, setShowEnhancedShortcutManager] = useState(false);
   const [showTestPanel, setShowTestPanel] = useState(false);
+  const [showAudioInputTest, setShowAudioInputTest] = useState(false);
   const [showPermissionSettings, setShowPermissionSettings] = useState(false);
   const [showFirstLaunchWizard, setShowFirstLaunchWizard] = useState(false);
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
@@ -1007,8 +1073,26 @@ function App() {
         
         // 检查 TTS 服务试用状态
         checkTTSTrialStatus();
+        
+        // 初始化 LuYinWang 模型配置
+        initializeLuYinWangConfig();
       } catch (error) {
         console.error('初始化失败:', error);
+      }
+    };
+
+    // 初始化 LuYinWang 模型配置
+    const initializeLuYinWangConfig = () => {
+      try {
+        const luyinwangConfig = {
+          modelId: 'luyingwang-online',
+          bearer_token: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwczovL3JlY29yZC10by10ZXh0LmNvbS9hcGkvdjEvbG9nb3V0IiwiaWF0IjoxNzUzODU4NzIxLCJleHAiOjE3NjI0OTg3MjEsIm5iZiI6MTc1Mzg1ODcyMSwianRpIjoiNTlZQjBUMExqWGV4NGZqdiIsInN1YiI6IjEiLCJwcnYiOiIyM2JkNWM4OTQ5ZjYwMGFkYjM5ZTcwMWM0MDA4NzJkYjdhNTk3NmY3IiwiZGV2aWNlX2lkIjoiYmYyZTdkODU4NWU0YmM3YTFjY2VmNWE0YzI2OTkxZDQiLCJpc19sb2dpbiI6MH0.NxgG2hysvK7we4QuyNwpNoX5etfvHTW4ZqL8s1T-5oc'
+        };
+        
+        saveModelConfig('luyingwang-online', luyinwangConfig);
+        logger.info('✅ LuYinWang 模型配置已初始化 - Bearer Token 已设置');
+      } catch (error) {
+        logger.error('❌ 初始化 LuYinWang 配置失败:', error);
       }
     };
 
@@ -1064,18 +1148,47 @@ function App() {
           setShowFloatingDialog(true);
         });
 
-        // 监听 Fn 键或其他特殊快捷键
-        const unlisten5 = await listen('shortcut_pressed', (event: any) => {
-          console.log('🚨🚨🚨 前端收到快捷键事件!', event.payload);
-          alert('🚨 收到快捷键事件: ' + JSON.stringify(event.payload));
-          logger.debug('快捷键按下', event.payload);
-          const { shortcut, action } = event.payload || {};
-          
-          if (shortcut === 'Fn' || shortcut === 'CommandOrControl+Shift+Space' || shortcut === 'CommandOrControl+Shift+R') {
-            console.log('🎯 触发录音切换!');
-            alert('🎯 触发录音切换!');
-            // 切换录音状态
+        // 设置增强快捷键管理器
+        const unsubscribeRecording = enhancedShortcutManager.on('toggle_recording', () => {
+          console.log('🎯 快捷键触发录音切换');
+          handleFloatingDialogToggleRecording();
+        });
+
+        const unsubscribeStartRecording = enhancedShortcutManager.on('start_recording', () => {
+          console.log('🎙️ 快捷键触发开始录音');
+          if (!isRecording) {
             handleFloatingDialogToggleRecording();
+          }
+        });
+
+        const unsubscribeStopRecording = enhancedShortcutManager.on('stop_recording', () => {
+          console.log('⏹️ 快捷键触发停止录音');
+          if (isRecording) {
+            handleFloatingDialogToggleRecording();
+          }
+        });
+
+        const unsubscribeShowHistory = enhancedShortcutManager.on('show_history', () => {
+          console.log('📚 快捷键触发显示历史记录');
+          setCurrentPage('history');
+        });
+
+        const unsubscribeToggleVisibility = enhancedShortcutManager.on('toggle_visibility', () => {
+          console.log('👁️ 快捷键触发切换窗口显示');
+          // 这里可以添加窗口显示/隐藏逻辑
+        });
+
+        const unsubscribeTextInjection = enhancedShortcutManager.on('toggle_text_injection', () => {
+          console.log('🎯 快捷键触发文本注入设置');
+          setShowTextInjectionSettings(true);
+        });
+
+        // 设置录音计时器监听器
+        const unsubscribeTimer = recordingTimer.addListener(({ duration, isActive }) => {
+          setRecordingDuration(duration);
+          if (!isActive) {
+            // 录音结束时的处理
+            console.log(`📊 录音结束，总时长: ${duration.toFixed(2)}秒`);
           }
         });
 
@@ -1100,11 +1213,19 @@ function App() {
           unlisten2b();
           unlisten3();
           unlisten4();
-          unlisten5();
           unlisten6();
           unlisten7();
           unlisten8();
           unregisterAll();
+          
+          // 清理增强快捷键管理器订阅
+          unsubscribeRecording();
+          unsubscribeStartRecording();
+          unsubscribeStopRecording();
+          unsubscribeShowHistory();
+          unsubscribeToggleVisibility();
+          unsubscribeTextInjection();
+          unsubscribeTimer();
         };
       } catch (error) {
         console.error('设置监听器失败:', error);
@@ -1301,24 +1422,57 @@ function App() {
     if (isRecording) {
       try {
         const { model, modelType } = getModelInfo(selectedModel || 'gpt-4o-mini');
+        
+        // 停止录音计时器
+        const session = recordingTimer.stopRecording();
+        console.log(`📊 录音会话结束:`, session);
+        
         await invoke('stop_recording', { 
           model: model, 
           modelType: modelType 
         });
         setRecording(false);
+        
+        // 重置音频电平
+        setAudioLevel(0);
+        
         // 更新托盘图标为非录音状态
         await invoke('set_tray_icon_recording', { isRecording: false });
       } catch (error) {
         console.error('停止录音失败:', error);
+        // 确保计时器停止
+        recordingTimer.stopRecording();
+        setRecording(false);
+        setAudioLevel(0);
       }
     } else {
       try {
         await invoke('start_recording');
         setRecording(true);
+        
+        // 启动录音计时器
+        const sessionId = recordingTimer.startRecording(selectedModel, 'default');
+        console.log(`🎙️ 录音会话开始: ${sessionId}`);
+        
         // 更新托盘图标为录音状态
         await invoke('set_tray_icon_recording', { isRecording: true });
+        
+        // 开始模拟音频电平（实际项目中应该从后端获取真实音频数据）
+        const levelInterval = setInterval(() => {
+          if (recordingTimer.isRecording()) {
+            // 模拟音频电平变化
+            const randomLevel = Math.random() * 0.8 + 0.1;
+            setAudioLevel(randomLevel);
+          } else {
+            clearInterval(levelInterval);
+            setAudioLevel(0);
+          }
+        }, 100);
+        
       } catch (error) {
         console.error('开始录音失败:', error);
+        setRecording(false);
+        recordingTimer.stopRecording();
       }
     }
   };
@@ -1473,6 +1627,12 @@ function App() {
         onClose={() => setShowTestPanel(false)}
       />
 
+      {/* 音频输入测试对话框 */}
+      <AudioInputTest
+        isVisible={showAudioInputTest}
+        onClose={() => setShowAudioInputTest(false)}
+      />
+
       {/* 权限设置对话框 */}
       <PermissionSettings
         isVisible={showPermissionSettings}
@@ -1512,6 +1672,43 @@ function App() {
         entry={selectedEntry}
         isVisible={!!selectedEntry}
         onClose={() => setSelectedEntry(null)}
+      />
+
+      {/* 增强历史记录页面 */}
+      <EnhancedHistoryPage
+        isVisible={showEnhancedHistory}
+        onClose={() => setShowEnhancedHistory(false)}
+        onOpenTranscriptionDetail={(entry) => {
+          setSelectedEntry(entry);
+          setShowEnhancedHistory(false);
+        }}
+      />
+
+      {/* 文本注入设置 */}
+      <TextInjectionSettings
+        isVisible={showTextInjectionSettings}
+        onClose={() => setShowTextInjectionSettings(false)}
+        onConfigChange={(config) => {
+          console.log('文本注入配置更新:', config);
+        }}
+      />
+
+      {/* 录音状态指示器 */}
+      <RecordingStatusIndicator
+        isRecording={isRecording}
+        recordingDuration={recordingDuration}
+        audioLevel={audioLevel}
+        selectedModel={selectedModel}
+        onToggleRecording={handleFloatingDialogToggleRecording}
+        shortcutKey="Cmd+Shift+R"
+        showFloating={true}
+        position="bottom-right"
+      />
+
+      {/* 增强快捷键管理器 */}
+      <EnhancedShortcutManager
+        isVisible={showEnhancedShortcutManager}
+        onClose={() => setShowEnhancedShortcutManager(false)}
       />
 
       {/* 试用状态提示 - 已移除以避免过度商业化 */}

@@ -3,6 +3,7 @@ import { useModelsStore } from '../stores/modelsStore';
 import { modelCategories } from '../data/models';
 import ModelConfigDialog from './ModelConfigDialog';
 import LocalModelManager from './LocalModelManager';
+import DiagnosticButton from './DiagnosticButton';
 import './TranscriptionModelsPage.css';
 
 // 导入主应用的 store
@@ -167,12 +168,19 @@ const TranscriptionModelsPage: React.FC = () => {
             <h1>听写模型</h1>
             <p>从各种听写模型中选择 - 从云端选项到离线工作的本地模型。选择最适合您听写需求的准确性、隐私性和速度的平衡点。</p>
           </div>
-          <button 
-            className="manage-local-btn"
-            onClick={() => setShowLocalManager(true)}
-          >
-            🖥️ 管理本地模型
-          </button>
+          <div className="header-actions">
+            <DiagnosticButton 
+              category="model" 
+              size="small"
+              style="button"
+            />
+            <button 
+              className="manage-local-btn"
+              onClick={() => setShowLocalManager(true)}
+            >
+              🖥️ 管理本地模型
+            </button>
+          </div>
         </div>
       </div>
 

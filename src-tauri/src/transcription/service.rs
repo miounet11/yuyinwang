@@ -75,8 +75,8 @@ impl TranscriptionService {
         } else {
             // 使用API转录
             match optimized_config.model_name.as_str() {
-                "luyin-api" => {
-                    println!("🔍 使用录音API进行转录");
+                "luyin-api" | "luyingwang-online" => {
+                    println!("🔍 使用录音王API进行转录");
                     self.api_client.transcribe_with_luyin_api(path).await
                 },
                 _ => {
