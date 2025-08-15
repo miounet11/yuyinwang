@@ -31,8 +31,6 @@ const getModelInfo = (modelId: string) => {
 // Components
 import FloatingDialog from './components/FloatingDialog';
 import AppSelector from './components/AppSelector';
-import ShortcutEditor from './components/ShortcutEditor';
-import AdvancedShortcutEditor from './components/AdvancedShortcutEditor';
 import HistorySettings from './components/HistorySettings';
 import TranscriptionModelsPage from './components/TranscriptionModelsPage';
 import FeatureTestPanel from './components/FeatureTestPanel';

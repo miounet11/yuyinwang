@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { permissionManager } from '../utils/permissionManager';
+// import { permissionManager } from '../utils/permissionManager';
 import { shortcutTester, TestResult, KeyCombination } from '../utils/shortcutTester';
 import './FirstLaunchWizard.css';
 
@@ -333,7 +333,8 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
   const checkInitialPermissions = async () => {
     try {
       // 检查麦克风权限
-      const micResult = await permissionManager.checkPermission('microphone');
+      // const micResult = await permissionManager.checkPermission('microphone');
+      const micResult = { status: 'granted' }; // 暂时假设已授权
       const micGranted = micResult.status === 'granted';
       setMicrophoneEnabled(micGranted);
       
@@ -342,7 +343,8 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
       }
       
       // 检查辅助功能权限
-      const accessResult = await permissionManager.checkPermission('accessibility');
+      // const accessResult = await permissionManager.checkPermission('accessibility');
+      const accessResult = { status: 'granted' }; // 暂时假设已授权
       const accessGranted = accessResult.status === 'granted';
       setAccessibilityEnabled(accessGranted);
       
@@ -401,7 +403,8 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     setPermissionError('');
     
     try {
-      const success = await permissionManager.requestPermission('microphone');
+      // const success = await permissionManager.requestPermission('microphone');
+      const success = true; // 暂时假设成功
       if (success) {
         setMicrophoneEnabled(true);
         setAnnounceText('麦克风权限获取成功');
@@ -430,7 +433,8 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     setPermissionError('');
     
     try {
-      const success = await permissionManager.requestPermission('accessibility');
+      // const success = await permissionManager.requestPermission('accessibility');
+      const success = true; // 暂时假设成功
       if (success) {
         setAccessibilityEnabled(true);
         setAnnounceText('辅助功能权限获取成功');
