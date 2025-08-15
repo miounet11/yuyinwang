@@ -452,3 +452,31 @@ pub async fn update_app_settings(
         }
     }
 }
+
+#[tauri::command]
+pub async fn get_recording_state(
+    state: State<'_, AppState>,
+) -> Result<bool, String> {
+    let is_recording = *state.is_recording.lock();
+    println!("📊 获取录音状态: {}", is_recording);
+    Ok(is_recording)
+}
+
+#[tauri::command]
+pub async fn reset_recording_state(
+    state: State<'_, AppState>,
+) -> Result<String, String> {
+    let mut is_recording = state.is_recording.lock();
+    let was_recording = *is_recording;
+    *is_recording = false;
+    
+    // 同时重置录音器状态
+    {
+        let mut recorder = state.audio_recorder.lock();
+        // 强制重置录音器状态，无论当前是否在录音
+        recorder.force_reset();
+    }
+    
+    println!("🔄 重置录音状态: {} -> false", was_recording);
+    Ok(format!("录音状态已重置: {} -> false", was_recording))
+}

@@ -227,6 +227,8 @@ impl AudioRecorder {
         std::thread::sleep(std::time::Duration::from_millis(200));
 
         // 获取录制的音频数据
+
+        // 获取录制的音频数据
         let audio_data = self.audio_data.lock().clone();
         
         println!("⏹️ 录音已停止。捕获了 {} 个采样点", audio_data.len());
@@ -239,6 +241,20 @@ impl AudioRecorder {
 
     pub fn get_sample_rate(&self) -> u32 {
         *self.sample_rate.lock()
+    }
+
+    /// 强制重置录音器状态，用于状态同步
+    pub fn force_reset(&mut self) {
+        println!("🔄 强制重置录音器状态");
+        self.is_recording.store(false, Ordering::Relaxed);
+        
+        // 清空音频数据缓存
+        self.audio_data.lock().clear();
+        
+        // 等待任何正在运行的线程结束
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        
+        println!("✅ 录音器状态已重置");
     }
 }
 

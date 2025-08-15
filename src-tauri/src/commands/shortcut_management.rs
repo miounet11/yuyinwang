@@ -196,6 +196,13 @@ pub async fn unregister_all_shortcuts(
     Ok(all_success)
 }
 
+/// 前端事件接收确认
+#[tauri::command]
+pub async fn confirm_event_received(event_type: String, details: String) -> Result<bool, String> {
+    println!("✅ 前端确认收到事件: {} - {}", event_type, details);
+    Ok(true)
+}
+
 /// 验证快捷键格式
 #[tauri::command]
 pub async fn validate_shortcut_format(shortcut: String) -> Result<bool, String> {

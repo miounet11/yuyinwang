@@ -1,6 +1,5 @@
-import { invoke } from '@tauri-apps/api';
+import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
-import { globalShortcut } from '@tauri-apps/api';
 
 export interface ShortcutConfig {
   key: string;
@@ -34,10 +33,11 @@ export class EnhancedShortcutManager {
   private registeredGlobal: Set<string> = new Set();
 
   constructor() {
+    console.log('🏗️ 构造 enhancedShortcutManager...');
     this.initializeDefaults();
-    this.setupEventListeners();
-    // 自动注册默认快捷键
-    this.initializeGlobalShortcuts();
+    // 注意：setupEventListeners 需要手动调用，因为它是异步的
+    // 注意：不再自动注册快捷键，因为后端已经处理了
+    console.log('✅ enhancedShortcutManager 构造完成');
   }
 
   private initializeDefaults() {
@@ -98,15 +98,25 @@ export class EnhancedShortcutManager {
     });
   }
 
-  private async setupEventListeners() {
+  public async setupEventListeners() {
     try {
       console.log('🔧 设置 enhancedShortcutManager 事件监听器...');
       
       // 监听来自后端的快捷键事件
-      await listen('shortcut_pressed', (event: any) => {
+      await listen('shortcut_pressed', async (event: any) => {
         console.log('🔥 收到 shortcut_pressed 事件:', event);
         const { shortcut, action } = event.payload;
         console.log('🎯 解析快捷键事件:', { shortcut, action });
+        
+        // 向后端确认事件接收
+        try {
+          await invoke('confirm_event_received', { 
+            eventType: 'shortcut_pressed', 
+            details: `${shortcut} -> ${action}` 
+          });
+        } catch (error) {
+          console.error('❌ 确认事件接收失败:', error);
+        }
         
         this.handleShortcutEvent({
           key: shortcut,

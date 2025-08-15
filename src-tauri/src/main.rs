@@ -263,6 +263,10 @@ fn main() {
             commands::validate_shortcut_format,
             commands::check_shortcut_conflicts,
             commands::test_shortcut,
+            commands::confirm_event_received,
+            // 录音状态管理命令
+            commands::get_recording_state,
+            commands::reset_recording_state,
         ])
         .setup(|app| {
             let app_handle = app.handle();

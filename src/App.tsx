@@ -1034,6 +1034,32 @@ function App() {
     exportFormat: 'txt' as const
   });
 
+  // 状态同步函数
+  const syncRecordingState = async () => {
+    try {
+      console.log('🔄 同步录音状态...');
+      const backendState = await invoke('get_recording_state') as boolean;
+      console.log('📊 后端录音状态:', backendState, '前端录音状态:', isRecording);
+      
+      if (backendState !== isRecording) {
+        console.log('⚠️ 检测到前后端状态不一致，正在同步...');
+        setRecording(backendState);
+        
+        if (backendState) {
+          // 如果后端在录音但前端不知道，启动前端计时器
+          const sessionId = recordingTimer.startRecording(selectedModel, 'sync');
+          console.log(`🔄 同步录音会话: ${sessionId}`);
+        } else {
+          // 如果后端没在录音，停止前端计时器
+          recordingTimer.stopRecording();
+        }
+      }
+      console.log('✅ 录音状态同步完成');
+    } catch (error) {
+      console.error('❌ 同步录音状态失败:', error);
+    }
+  };
+
   // 初始化
   useEffect(() => {
     const initializeApp = async () => {
@@ -1065,6 +1091,9 @@ function App() {
         
         // 初始化 LuYinWang 模型配置
         initializeLuYinWangConfig();
+        
+        // 同步录音状态
+        setTimeout(syncRecordingState, 1000);
       } catch (error) {
         console.error('初始化失败:', error);
       }
@@ -1101,6 +1130,7 @@ function App() {
     // 监听转录结果
     const setupListeners = async () => {
       try {
+        console.log('🚀 开始设置所有监听器...');
         // 监听录音转录结果（从 stop_recording 命令发出）
         const unlisten1 = await listen<TranscriptionEntry>('transcription_result', (event) => {
           const entry = event.payload;
@@ -1137,13 +1167,39 @@ function App() {
           setShowFloatingDialog(true);
         });
 
-        // 设置增强快捷键管理器
+        // 设置增强快捷键管理器 - 添加延迟确保后端快捷键注册完成
         console.log('🔧 设置 enhancedShortcutManager 事件订阅...');
+        console.log('🔍 检查 enhancedShortcutManager 实例:', enhancedShortcutManager);
+        
+        // 等待一下确保后端快捷键注册完成
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('⏳ 延迟完成，开始设置事件监听器...');
+        
+        // 手动设置 enhancedShortcutManager 的事件监听器
+        await enhancedShortcutManager.setupEventListeners();
+        
         const unsubscribeRecording = enhancedShortcutManager.on('toggle_recording', () => {
           console.log('🎯 快捷键触发录音切换');
           handleFloatingDialogToggleRecording();
         });
         console.log('✅ toggle_recording 事件已订阅');
+        
+        // 测试快捷键监听器是否工作 
+        console.log('🧪 测试快捷键监听器...');
+        setTimeout(async () => {
+          console.log('🧪 调用后端测试命令');
+          try {
+            await invoke('test_shortcut', { 
+              shortcut: 'CommandOrControl+Shift+R', 
+              action: 'toggle_recording' 
+            });
+          } catch (error) {
+            console.error('❌ 测试快捷键命令失败:', error);
+          }
+          
+          console.log('🧪 模拟快捷键触发测试');
+          enhancedShortcutManager.simulateShortcut('CommandOrControl+Shift+R');
+        }, 1000);
 
         const unsubscribeStartRecording = enhancedShortcutManager.on('start_recording', () => {
           console.log('🎙️ 快捷键触发开始录音');
@@ -1410,7 +1466,10 @@ function App() {
   };
 
   const handleFloatingDialogToggleRecording = async () => {
+    console.log('🎯 handleFloatingDialogToggleRecording 被调用, 当前状态:', { isRecording });
+    
     if (isRecording) {
+      console.log('🛑 执行停止录音逻辑...');
       try {
         const { model, modelType } = getModelInfo(selectedModel || 'gpt-4o-mini');
         
@@ -1428,6 +1487,7 @@ function App() {
           modelType: modelType 
         });
         
+        console.log('🔄 设置 setRecording(false)...');
         setRecording(false);
         setIsTranscribing(false);
         
@@ -1464,8 +1524,10 @@ function App() {
         setAudioLevel(0);
       }
     } else {
+      console.log('🎙️ 执行开始录音逻辑...');
       try {
         await invoke('start_recording');
+        console.log('🔄 设置 setRecording(true)...');
         setRecording(true);
         
         // 启动录音计时器
@@ -1489,6 +1551,40 @@ function App() {
         
       } catch (error) {
         console.error('开始录音失败:', error);
+        
+        // 检查是否是"已在录音中"的错误
+        if (error && typeof error === 'string' && error.includes('已在录音中')) {
+          console.log('🔄 检测到状态不同步，尝试重置后端状态...');
+          try {
+            // 重置后端录音状态
+            await invoke('reset_recording_state');
+            console.log('✅ 后端状态已重置，重新尝试开始录音...');
+            
+            // 重新尝试开始录音
+            await invoke('start_recording');
+            setRecording(true);
+            
+            // 启动录音计时器
+            const sessionId = recordingTimer.startRecording(selectedModel, 'default');
+            console.log(`🎙️ 录音会话开始 (重试后): ${sessionId}`);
+            
+            // 开始模拟音频电平
+            const levelInterval = setInterval(() => {
+              if (recordingTimer.isRecording()) {
+                const randomLevel = Math.random() * 0.8 + 0.1;
+                setAudioLevel(randomLevel);
+              } else {
+                clearInterval(levelInterval);
+                setAudioLevel(0);
+              }
+            }, 100);
+            
+            return; // 成功重试，直接返回
+          } catch (retryError) {
+            console.error('重试开始录音失败:', retryError);
+          }
+        }
+        
         setRecording(false);
         recordingTimer.stopRecording();
       }
