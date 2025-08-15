@@ -36,6 +36,8 @@ export class EnhancedShortcutManager {
   constructor() {
     this.initializeDefaults();
     this.setupEventListeners();
+    // 自动注册默认快捷键
+    this.initializeGlobalShortcuts();
   }
 
   private initializeDefaults() {
@@ -98,9 +100,14 @@ export class EnhancedShortcutManager {
 
   private async setupEventListeners() {
     try {
+      console.log('🔧 设置 enhancedShortcutManager 事件监听器...');
+      
       // 监听来自后端的快捷键事件
       await listen('shortcut_pressed', (event: any) => {
+        console.log('🔥 收到 shortcut_pressed 事件:', event);
         const { shortcut, action } = event.payload;
+        console.log('🎯 解析快捷键事件:', { shortcut, action });
+        
         this.handleShortcutEvent({
           key: shortcut,
           action: action as ShortcutAction,
@@ -125,8 +132,26 @@ export class EnhancedShortcutManager {
     }
   }
 
+  // 初始化全局快捷键
+  private async initializeGlobalShortcuts() {
+    try {
+      console.log('🚀 开始注册默认全局快捷键...');
+      
+      for (const shortcut of this.shortcuts.values()) {
+        if (shortcut.enabled && shortcut.global) {
+          await this.registerGlobalShortcut(shortcut.key, shortcut.action);
+        }
+      }
+      
+      console.log('✅ 默认全局快捷键注册完成');
+    } catch (error) {
+      console.error('❌ 注册默认全局快捷键失败:', error);
+    }
+  }
+
   private handleShortcutEvent(event: ShortcutEvent) {
     console.log('🔥 快捷键事件:', event);
+    console.log('📋 当前监听器数量:', this.listeners.get(event.action)?.length || 0);
     
     const listeners = this.listeners.get(event.action) || [];
     listeners.forEach(listener => {

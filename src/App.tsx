@@ -8,6 +8,13 @@ import './styles/micro-interactions.css';
 import { transcriptionModels } from './data/models';
 import logger from './utils/logger';
 
+// 扩展 Window 接口以包含全局录音函数
+declare global {
+  interface Window {
+    appToggleRecording?: () => Promise<void>;
+  }
+}
+
 // 获取模型信息的帮助函数
 const getModelInfo = (modelId: string) => {
   logger.debug('查找模型ID', modelId);
@@ -246,7 +253,9 @@ const PageContent: React.FC<{
   setUseEnhancedAIPrompts?: (value: boolean) => void;
   selectedEntry?: TranscriptionEntry | null;
   setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
-}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowEnhancedShortcutManager, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry }) => {
+  handleFloatingDialogToggleRecording?: () => Promise<void>;
+  isTranscribing?: boolean;
+}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowEnhancedShortcutManager, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -254,6 +263,7 @@ const PageContent: React.FC<{
     setTranscription,
     setTranscriptionHistory,
     setRecording,
+    isRecording,
   } = useStore();
 
   const [loginOnStartup, setLoginOnStartup] = useState(false);
@@ -264,7 +274,6 @@ const PageContent: React.FC<{
   const [touchBarFeedback, setTouchBarFeedback] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [supportedFormats, setSupportedFormats] = useState<string[]>([]);
-  const [isTranscribing, setIsTranscribing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'listening' | 'file' | 'journal'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
@@ -273,7 +282,8 @@ const PageContent: React.FC<{
   // 获取支持的文件格式
   const getSupportedFormats = async () => {
     try {
-      const formats = await invoke<string[]>('get_supported_formats');
+      // 暂时使用默认格式，命令不存在
+      const formats = ['mp3', 'wav', 'm4a', 'flac', 'mp4', 'mov', 'm4v'];
       setSupportedFormats(formats);
     } catch (error) {
       console.error('获取支持格式失败:', error);
@@ -437,39 +447,14 @@ const PageContent: React.FC<{
                 
                 <button 
                   className={`recording-button ${isRecording ? 'recording' : 'idle'}`}
-                  onClick={async () => {
-                    if (!isRecording) {
-                      logger.audio('开始录音测试');
-                      try {
-                        await invoke('start_recording');
-                        setRecording(true);
-                        logger.audio('录音已开始');
-                      } catch (error) {
-                        logger.error('开始录音失败', error);
-                        alert('开始录音失败: ' + error);
-                      }
+                  onClick={() => {
+                    console.log('🔥 REC 按钮被点击!');
+                    console.log('handleFloatingDialogToggleRecording 是否存在:', !!handleFloatingDialogToggleRecording);
+                    if (handleFloatingDialogToggleRecording) {
+                      handleFloatingDialogToggleRecording();
                     } else {
-                      logger.audio('停止录音测试');
-                      try {
-                        setRecording(false);
-                        setIsTranscribing(true);
-                        setTranscription('正在转录中，请稍候...');
-                        
-                        const currentModelId = selectedModel || 'gpt-4o-mini';
-                        const { model, modelType } = getModelInfo(currentModelId);
-                        const result = await invoke('stop_recording', { 
-                          model: model, 
-                          modelType: modelType 
-                        });
-                        
-                        logger.transcription('录音已停止，转录结果', result);
-                      } catch (error) {
-                        logger.error('停止录音失败', error);
-                        setTranscription(`停止录音失败: ${error}`);
-                        alert('停止录音失败: ' + error);
-                      } finally {
-                        setIsTranscribing(false);
-                      }
+                      console.error('❌ handleFloatingDialogToggleRecording 函数不存在!');
+                      alert('录音函数未找到，请检查控制台');
                     }
                   }}
                 >
@@ -1028,6 +1013,7 @@ function App() {
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [trialInfo, setTrialInfo] = useState<any>(null);
   const [selectedEntry, setSelectedEntry] = useState<TranscriptionEntry | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   // const [aiPromptsRef, setAiPromptsRef] = useState<any>(null);
   const [shortcuts, setShortcuts] = useState<any[]>([
     {
@@ -1152,10 +1138,12 @@ function App() {
         });
 
         // 设置增强快捷键管理器
+        console.log('🔧 设置 enhancedShortcutManager 事件订阅...');
         const unsubscribeRecording = enhancedShortcutManager.on('toggle_recording', () => {
           console.log('🎯 快捷键触发录音切换');
           handleFloatingDialogToggleRecording();
         });
+        console.log('✅ toggle_recording 事件已订阅');
 
         const unsubscribeStartRecording = enhancedShortcutManager.on('start_recording', () => {
           console.log('🎙️ 快捷键触发开始录音');
@@ -1430,19 +1418,46 @@ function App() {
         const session = recordingTimer.stopRecording();
         console.log(`📊 录音会话结束:`, session);
         
-        await invoke('stop_recording', { 
+        // 显示转录中状态
+        setIsTranscribing(true);
+        setTranscription('正在转录中，请稍候...');
+        
+        // 停止录音并获取转录结果
+        const result = await invoke('stop_recording', { 
           model: model, 
           modelType: modelType 
         });
+        
         setRecording(false);
+        setIsTranscribing(false);
+        
+        // 处理转录结果
+        if (result && typeof result === 'string') {
+          setTranscription(result);
+          logger.transcription('录音已停止，转录结果', result);
+          
+          // 添加到历史记录
+          addTranscriptionEntry({
+            id: Date.now().toString(),
+            text: result,
+            timestamp: Date.now(),
+            model: selectedModel || 'gpt-4o-mini',
+            confidence: 0.95,
+            duration: session?.duration ? Math.round(session.duration / 1000) : 0
+          });
+        } else {
+          setTranscription('转录完成，但未获取到结果');
+        }
         
         // 重置音频电平
         setAudioLevel(0);
         
-        // 更新托盘图标为非录音状态
-        await invoke('set_tray_icon_recording', { isRecording: false });
+        // 更新托盘图标为非录音状态 (暂时跳过，命令不存在)
+        // await invoke('set_tray_icon_recording', { isRecording: false });
       } catch (error) {
         console.error('停止录音失败:', error);
+        setTranscription(`停止录音失败: ${error}`);
+        setIsTranscribing(false);
         // 确保计时器停止
         recordingTimer.stopRecording();
         setRecording(false);
@@ -1457,8 +1472,8 @@ function App() {
         const sessionId = recordingTimer.startRecording(selectedModel, 'default');
         console.log(`🎙️ 录音会话开始: ${sessionId}`);
         
-        // 更新托盘图标为录音状态
-        await invoke('set_tray_icon_recording', { isRecording: true });
+        // 更新托盘图标为录音状态 (暂时跳过，命令不存在)
+        // await invoke('set_tray_icon_recording', { isRecording: true });
         
         // 开始模拟音频电平（实际项目中应该从后端获取真实音频数据）
         const levelInterval = setInterval(() => {
@@ -1498,6 +1513,14 @@ function App() {
       // setAiProcessingActive(false);
     }
   };
+
+  // 暴露统一的录音切换函数给子组件使用
+  useEffect(() => {
+    window.appToggleRecording = handleFloatingDialogToggleRecording;
+    return () => {
+      delete window.appToggleRecording;
+    };
+  }, []);
 
   return (
     <div className="app">
@@ -1559,6 +1582,8 @@ function App() {
           useEnhancedAIPrompts={useEnhancedAIPrompts}
           setUseEnhancedAIPrompts={setUseEnhancedAIPrompts}
           setSelectedEntry={setSelectedEntry}
+          handleFloatingDialogToggleRecording={handleFloatingDialogToggleRecording}
+          isTranscribing={isTranscribing}
         />
       </div>
 
@@ -1699,17 +1724,19 @@ function App() {
         }}
       />
 
-      {/* 录音状态指示器 */}
-      <RecordingStatusIndicator
-        isRecording={isRecording}
-        recordingDuration={recordingDuration}
-        audioLevel={audioLevel}
-        selectedModel={selectedModel}
-        onToggleRecording={handleFloatingDialogToggleRecording}
-        shortcutKey="Cmd+Shift+R"
-        showFloating={true}
-        position="bottom-right"
-      />
+      {/* 录音状态指示器 - 临时禁用避免状态冲突 */}
+      {false && (
+        <RecordingStatusIndicator
+          isRecording={isRecording}
+          recordingDuration={recordingDuration}
+          audioLevel={audioLevel}
+          selectedModel={selectedModel}
+          onToggleRecording={handleFloatingDialogToggleRecording}
+          shortcutKey="Cmd+Shift+R"
+          showFloating={false}
+          position="bottom-right"
+        />
+      )}
 
       {/* 增强快捷键管理器 */}
       <EnhancedShortcutManager

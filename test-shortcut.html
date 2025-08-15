@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>快捷键测试</title>
+</head>
+<body>
+    <h1>快捷键测试工具</h1>
+    <button onclick="testShortcut()">测试快捷键</button>
+    <button onclick="registerShortcut()">重新注册快捷键</button>
+    <div id="output"></div>
+
+    <script>
+        async function testShortcut() {
+            try {
+                const result = await window.__TAURI__.invoke('test_shortcut', {
+                    shortcut: 'CommandOrControl+Shift+R',
+                    action: 'toggle_recording'
+                });
+                document.getElementById('output').innerHTML += '<p>测试结果: ' + JSON.stringify(result) + '</p>';
+            } catch (error) {
+                document.getElementById('output').innerHTML += '<p>错误: ' + error + '</p>';
+            }
+        }
+
+        async function registerShortcut() {
+            try {
+                const result = await window.__TAURI__.invoke('register_global_shortcut', {
+                    shortcut: 'CommandOrControl+Shift+R',
+                    action: 'toggle_recording'
+                });
+                document.getElementById('output').innerHTML += '<p>注册结果: ' + JSON.stringify(result) + '</p>';
+            } catch (error) {
+                document.getElementById('output').innerHTML += '<p>注册错误: ' + error + '</p>';
+            }
+        }
+
+        // 监听快捷键事件
+        window.__TAURI__.event.listen('shortcut_pressed', (event) => {
+            console.log('🔥 收到快捷键事件:', event);
+            document.getElementById('output').innerHTML += '<p>快捷键事件: ' + JSON.stringify(event) + '</p>';
+        });
+    </script>
+</body>
+</html>

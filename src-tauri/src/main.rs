@@ -280,27 +280,8 @@ fn main() {
             println!("✅ 转录编辑器已注册");
             println!("✅ 快捷键管理器已注册");
             
-            // 注册全局快捷键
-            let shortcut = "CommandOrControl+Shift+R";
-            let app_handle_clone = app_handle.clone();
-            
-            if let Err(e) = app_handle.global_shortcut_manager().register(shortcut, move || {
-                println!("🔥 快捷键被按下: {}", shortcut);
-                
-                // 发送事件到前端
-                if let Err(emit_error) = app_handle_clone.emit_all("shortcut_pressed", serde_json::json!({
-                    "shortcut": shortcut,
-                    "action": "toggle_recording"
-                })) {
-                    eprintln!("❌ 快捷键事件发送失败: {:?}", emit_error);
-                } else {
-                    println!("✅ 快捷键事件已发送到前端");
-                }
-            }) {
-                eprintln!("❌ 注册快捷键失败: {:?}", e);
-            } else {
-                println!("✅ 成功注册快捷键: {}", shortcut);
-            }
+            // 移除直接快捷键注册，改由 enhancedShortcutManager 统一管理
+            println!("ℹ️ 快捷键注册已委托给 enhancedShortcutManager");
             
             println!("⌨️ 快捷键系统已启用 (CommandOrControl+Shift+R)");
             

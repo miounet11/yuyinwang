@@ -33,40 +33,52 @@ const HomePage: React.FC<HomePageProps> = memo(({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
 
-  // 优化的录音处理函数
+  // 优化的录音处理函数 - 使用统一的录音逻辑
   const handleStartRecording = useCallback(async () => {
-    logger.audio('开始录音测试');
-    try {
-      await invoke('start_recording');
-      setRecording(true);
-      logger.audio('录音已开始');
-    } catch (error) {
-      logger.error('开始录音失败', error);
-      alert('开始录音失败: ' + error);
+    // 使用主应用的统一录音逻辑，避免状态不同步
+    if (window.appToggleRecording) {
+      await window.appToggleRecording();
+    } else {
+      // 降级处理
+      logger.audio('开始录音测试');
+      try {
+        await invoke('start_recording');
+        setRecording(true);
+        logger.audio('录音已开始');
+      } catch (error) {
+        logger.error('开始录音失败', error);
+        alert('开始录音失败: ' + error);
+      }
     }
   }, [setRecording]);
 
   const handleStopRecording = useCallback(async () => {
-    logger.audio('停止录音测试');
-    try {
-      setRecording(false);
-      setIsTranscribing(true);
-      setTranscription('正在转录中，请稍候...');
-      
-      const currentModelId = selectedModel || 'gpt-4o-mini';
-      const { model, modelType } = getModelInfo(currentModelId);
-      const result = await invoke('stop_recording', { 
-        model: model, 
-        modelType: modelType 
-      });
-      
-      logger.transcription('录音已停止，转录结果', result);
-    } catch (error) {
-      logger.error('停止录音失败', error);
-      setTranscription(`停止录音失败: ${error}`);
-      alert('停止录音失败: ' + error);
-    } finally {
-      setIsTranscribing(false);
+    // 使用统一的录音逻辑
+    if (window.appToggleRecording) {
+      await window.appToggleRecording();
+    } else {
+      // 降级处理
+      logger.audio('停止录音测试');
+      try {
+        setRecording(false);
+        setIsTranscribing(true);
+        setTranscription('正在转录中，请稍候...');
+        
+        const currentModelId = selectedModel || 'gpt-4o-mini';
+        const { model, modelType } = getModelInfo(currentModelId);
+        const result = await invoke('stop_recording', { 
+          model: model, 
+          modelType: modelType 
+        });
+        
+        logger.transcription('录音已停止，转录结果', result);
+      } catch (error) {
+        logger.error('停止录音失败', error);
+        setTranscription(`停止录音失败: ${error}`);
+        alert('停止录音失败: ' + error);
+      } finally {
+        setIsTranscribing(false);
+      }
     }
   }, [selectedModel, setRecording, setTranscription]);
 

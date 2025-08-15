@@ -46,6 +46,7 @@ const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({
   // 初始化诊断步骤
   useEffect(() => {
     if (isVisible) {
+      setHasAutoStarted(false); // 重置自动启动状态
       initializeDiagnostics();
       if (category) {
         setActiveCategory(category);
@@ -54,13 +55,16 @@ const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({
   }, [isVisible, category]);
 
   // 自动开始测试
+  const [hasAutoStarted, setHasAutoStarted] = useState<boolean>(false);
+  
   useEffect(() => {
-    if (isVisible && autoStart && categories.length > 0) {
+    if (isVisible && autoStart && categories.length > 0 && !hasAutoStarted) {
       if (category && categories.find(cat => cat.id === category)) {
+        setHasAutoStarted(true);
         runCategoryTests(category);
       }
     }
-  }, [isVisible, autoStart, category, categories]);
+  }, [isVisible, autoStart, category, categories.length, hasAutoStarted]); // 只依赖 categories.length 而不是整个 categories 对象
 
   const initializeDiagnostics = () => {
     const diagnosticCategories: DiagnosticCategory[] = [

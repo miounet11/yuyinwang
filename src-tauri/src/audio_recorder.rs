@@ -42,6 +42,7 @@ impl AudioRecorder {
                 Some(d) => d,
                 None => {
                     eprintln!("No input device available");
+                    is_recording.store(false, Ordering::Relaxed); // 确保状态重置
                     return;
                 }
             };
@@ -51,6 +52,7 @@ impl AudioRecorder {
                 Ok(c) => c,
                 Err(e) => {
                     eprintln!("Failed to get default input config: {}", e);
+                    is_recording.store(false, Ordering::Relaxed); // 确保状态重置
                     return;
                 }
             };
@@ -66,6 +68,7 @@ impl AudioRecorder {
                 SampleFormat::U16 => build_input_stream::<u16>(&device, &config.into(), audio_data.clone(), is_recording.clone()),
                 _ => {
                     eprintln!("Unsupported sample format");
+                    is_recording.store(false, Ordering::Relaxed); // 确保状态重置
                     return;
                 }
             };
