@@ -112,7 +112,7 @@ const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({
             autoRun: true,
             action: async () => {
               const hasPermission = await invoke<boolean>('check_permission', {
-                permissionType: 'microphone'
+                permission_type: 'microphone'
               });
               if (!hasPermission) {
                 throw new Error('缺少麦克风权限，请在系统设置中授权');
@@ -203,7 +203,7 @@ const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({
             autoRun: true,
             action: async () => {
               const hasPermission = await invoke<boolean>('check_permission', {
-                permissionType: 'accessibility'
+                permission_type: 'accessibility'
               });
               if (!hasPermission) {
                 throw new Error('缺少辅助功能权限，请在系统偏好设置中授权');
@@ -220,7 +220,7 @@ const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({
             priority: 'medium',
             action: async () => {
               const hasPermission = await invoke<boolean>('check_permission', {
-                permissionType: 'input_monitoring'
+                permission_type: 'input-monitoring'
               });
               if (!hasPermission) {
                 throw new Error('缺少输入监控权限，全局快捷键可能无法使用');

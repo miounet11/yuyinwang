@@ -1,6 +1,6 @@
 [package]
 name = "spokenly-clone"
-version = "3.3.3"
+version = "3.3.4"
 description = "A Tauri App for real-time speech to text"
 authors = ["Your Name"]
 edition = "2021"

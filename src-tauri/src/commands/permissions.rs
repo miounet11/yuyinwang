@@ -13,8 +13,23 @@ const kIOHIDRequestTypeListenEvent: i32 = 1;
 /// 检查权限状态的命令
 #[cfg(target_os = "macos")]
 #[tauri::command]
-pub async fn check_permission(permission: String) -> Result<String, String> {
-    match permission.as_str() {
+pub async fn check_permission(permission_type: String) -> Result<bool, String> {
+    // Input validation - only allow specific permission types
+    let allowed_permissions = [
+        "accessibility",
+        "microphone", 
+        "file-system",
+        "notifications",
+        "screen-recording",
+        "automation",
+        "input-monitoring"
+    ];
+    
+    if !allowed_permissions.contains(&permission_type.as_str()) {
+        return Err(format!("Invalid permission type: {}", permission_type));
+    }
+    
+    match permission_type.as_str() {
         "accessibility" => {
             // 检查辅助功能权限
             let output = std::process::Command::new("osascript")
@@ -24,11 +39,7 @@ pub async fn check_permission(permission: String) -> Result<String, String> {
                 .map_err(|e| e.to_string())?;
             
             let result = String::from_utf8_lossy(&output.stdout);
-            if result.trim() == "true" {
-                Ok("granted".to_string())
-            } else {
-                Ok("denied".to_string())
-            }
+            Ok(result.trim() == "true")
         },
         "microphone" => {
             // 使用简化的权限检查方法
@@ -36,18 +47,17 @@ pub async fn check_permission(permission: String) -> Result<String, String> {
                 .args(&["-e", "tell application \"System Preferences\" to return 1"])
                 .output() {
                 Ok(output) => {
-                    if output.status.success() {
-                        Ok("granted".to_string())
-                    } else {
-                        Ok("not-determined".to_string())
-                    }
+                    // For microphone, we should check actual permission status
+                    // This is a simplified check - a proper implementation would
+                    // use AVAudioSession.sharedInstance().recordPermission
+                    Ok(output.status.success())
                 },
-                Err(_) => Ok("not-determined".to_string())
+                Err(_) => Ok(false)
             }
         },
         "file-system" => {
             // 文件系统权限通常是自动授予的
-            Ok("granted".to_string())
+            Ok(true)
         },
         "notifications" => {
             // 通知权限检查
@@ -55,13 +65,9 @@ pub async fn check_permission(permission: String) -> Result<String, String> {
                 .args(&["-e", "display notification \"权限测试\" with title \"Recording King\""])
                 .output() {
                 Ok(output) => {
-                    if output.status.success() {
-                        Ok("granted".to_string())
-                    } else {
-                        Ok("not-determined".to_string())
-                    }
+                    Ok(output.status.success())
                 },
-                Err(_) => Ok("not-determined".to_string())
+                Err(_) => Ok(false)
             }
         },
         "screen-recording" => {
@@ -70,13 +76,9 @@ pub async fn check_permission(permission: String) -> Result<String, String> {
                 .args(&["-e", "tell application \"System Events\" to get name of first process"])
                 .output() {
                 Ok(output) => {
-                    if output.status.success() {
-                        Ok("granted".to_string())
-                    } else {
-                        Ok("denied".to_string())
-                    }
+                    Ok(output.status.success())
                 },
-                Err(_) => Ok("denied".to_string())
+                Err(_) => Ok(false)
             }
         },
         "automation" => {
@@ -85,47 +87,65 @@ pub async fn check_permission(permission: String) -> Result<String, String> {
                 .args(&["-e", "tell application \"System Events\" to return 1"])
                 .output() {
                 Ok(output) => {
-                    if output.status.success() {
-                        Ok("granted".to_string())
-                    } else {
-                        Ok("denied".to_string())
-                    }
+                    Ok(output.status.success())
                 },
-                Err(_) => Ok("denied".to_string())
+                Err(_) => Ok(false)
             }
         },
         "input-monitoring" => {
             // 输入监控权限检查
             unsafe {
                 let status = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent);
-                let status_str = match status {
-                    1 => "granted".to_string(), // kIOHIDAccessTypeGranted
-                    0 => "denied".to_string(),  // kIOHIDAccessTypeDenied
-                    _ => "not-determined".to_string(),
-                };
-                println!("⌨️ 输入监控权限状态: {} (raw: {})", status_str, status);
-                Ok(status_str)
+                let has_permission = status == 1; // kIOHIDAccessTypeGranted = 1
+                println!("⌨️ 输入监控权限状态: {} (raw: {})", has_permission, status);
+                Ok(has_permission)
             }
         },
-        _ => Ok("not-determined".to_string())
+        _ => Ok(false)
     }
 }
 
 /// 非 macOS 系统的权限检查
 #[cfg(not(target_os = "macos"))]
 #[tauri::command]
-pub async fn check_permission(permission: String) -> Result<String, String> {
+pub async fn check_permission(permission_type: String) -> Result<bool, String> {
+    // Input validation - only allow specific permission types
+    let allowed_permissions = [
+        "accessibility",
+        "microphone", 
+        "file-system",
+        "notifications",
+        "screen-recording",
+        "automation",
+        "input-monitoring"
+    ];
+    
+    if !allowed_permissions.contains(&permission_type.as_str()) {
+        return Err(format!("Invalid permission type: {}", permission_type));
+    }
+    
     // 其他操作系统默认授予权限
-    match permission.as_str() {
-        "microphone" | "file-system" | "notifications" => Ok("granted".to_string()),
-        _ => Ok("not-determined".to_string())
+    match permission_type.as_str() {
+        "microphone" | "file-system" | "notifications" => Ok(true),
+        _ => Ok(false)
     }
 }
 
 /// 请求权限的命令
 #[tauri::command]
-pub async fn request_permission(permission: String) -> Result<bool, String> {
-    match permission.as_str() {
+pub async fn request_permission(permission_type: String) -> Result<bool, String> {
+    // Input validation - only allow specific permission types
+    let allowed_permissions = [
+        "accessibility",
+        "microphone",
+        "input-monitoring"
+    ];
+    
+    if !allowed_permissions.contains(&permission_type.as_str()) {
+        return Err(format!("Invalid permission type: {}", permission_type));
+    }
+    
+    match permission_type.as_str() {
         "accessibility" => request_accessibility_permission().await,
         "microphone" => request_microphone_permission().await,
         "input-monitoring" => request_input_monitoring_permission().await,
@@ -207,6 +227,21 @@ async fn request_input_monitoring_permission() -> Result<bool, String> {
 pub async fn open_system_preferences(preference_pane: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
+        // Input validation - only allow specific preference panes
+        let allowed_panes = [
+            "accessibility",
+            "microphone",
+            "input-monitoring",
+            "screen-recording",
+            "automation",
+            "file-system",
+            "notifications"
+        ];
+        
+        if !allowed_panes.contains(&preference_pane.as_str()) {
+            return Err(format!("Invalid preference pane: {}", preference_pane));
+        }
+        
         let url = match preference_pane.as_str() {
             "accessibility" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
             "microphone" => "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone", 
