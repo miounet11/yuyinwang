@@ -84,7 +84,7 @@ const ShortcutPage: React.FC = () => {
   const secondaryShortcut = recordingShortcuts.find(s => s.id === 'quick-transcribe') || recordingShortcuts[1];
 
   const handleKeyChange = (shortcutId: string, newKey: string) => {
-    if (shortcutManager.updateShortcut(shortcutId, newKey)) {
+    if (shortcutManager.updateShortcut(shortcutId, { key: newKey })) {
       setCurrentShortcuts(shortcutManager.getShortcuts());
       setTestMessage(`✅ 已更新快捷键: ${newKey}`);
       setTimeout(() => setTestMessage(''), 3000);

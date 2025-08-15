@@ -212,6 +212,27 @@ export class ShortcutManager {
       if (index > -1) callbacks.splice(index, 1);
     }
   }
+
+  public getShortcuts(): Shortcut[] {
+    return Array.from(this.shortcuts.values());
+  }
+
+  public updateShortcut(id: string, updates: Partial<Shortcut>): boolean {
+    const shortcut = this.shortcuts.get(id);
+    if (!shortcut) return false;
+    
+    const updatedShortcut = { ...shortcut, ...updates };
+    this.shortcuts.set(id, updatedShortcut);
+    
+    // 如果快捷键改变了，需要重新注册
+    if (updates.key && updates.key !== shortcut.key) {
+      this.unregisterShortcut(id);
+      this.registerShortcut(id);
+    }
+    
+    this.saveCustomShortcuts();
+    return true;
+  }
 }
 
 // 导出实例

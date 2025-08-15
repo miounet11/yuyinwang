@@ -74,6 +74,12 @@ interface TranscriptionEntry {
   audio_file_path?: string;
 }
 
+interface TranscriptionResult {
+  text: string;
+  language?: string;
+  duration?: number;
+}
+
 interface AudioDevice {
   name: string;
   id: string;
@@ -308,18 +314,32 @@ const PageContent: React.FC<{
       if (selected && typeof selected === 'string') {
         logger.info('选择的文件', selected);
         
-        const result = await invoke<string>('upload_file', { 
-          filePath: selected 
+        // 使用transcribe_file命令进行文件转录
+        const result = await invoke<TranscriptionResult>('transcribe_file', { 
+          filePath: selected,
+          model: selectedModel || 'whisper-1'
         });
         
-        logger.info('上传结果', result);
+        logger.info('转录结果', result);
         
-        // 显示上传成功消息
-        setTranscription(`文件上传成功: ${selected.split('/').pop()}`);
+        // 显示转录结果
+        setTranscription(result.text);
+        
+        // 保存到历史记录
+        const entry: TranscriptionEntry = {
+          id: Date.now().toString(),
+          text: result.text,
+          timestamp: Date.now(),
+          duration: result.duration || 0,
+          model: selectedModel || 'whisper-1',
+          confidence: 0.95,
+          audio_file_path: selected
+        };
+        setTranscriptionHistory([entry, ...transcriptionHistory]);
       }
     } catch (error) {
-      console.error('文件上传失败:', error);
-      setTranscription(`文件上传失败: ${error}`);
+      console.error('文件转录失败:', error);
+      setTranscription(`文件转录失败: ${error}`);
     } finally {
       setIsUploading(false);
     }
@@ -1335,7 +1355,8 @@ function App() {
 
     // 清理函数
     return () => {
-      shortcutManager.unregisterAllShortcuts();
+      // 使用Tauri API的unregisterAll方法清理所有快捷键
+      unregisterAll().catch(console.error);
     };
   }, [setDevices, setTranscriptionHistory, setTranscription, addTranscriptionEntry]);
 
@@ -1882,19 +1903,17 @@ function App() {
         }}
       />
 
-      {/* 录音状态指示器 - 临时禁用避免状态冲突 */}
-      {false && (
-        <RecordingStatusIndicator
-          isRecording={isRecording}
-          recordingDuration={recordingDuration}
-          audioLevel={audioLevel}
-          selectedModel={selectedModel}
-          onToggleRecording={handleFloatingDialogToggleRecording}
-          shortcutKey="Cmd+Shift+R"
-          showFloating={false}
-          position="bottom-right"
-        />
-      )}
+      {/* 录音状态指示器 */}
+      <RecordingStatusIndicator
+        isRecording={isRecording}
+        recordingDuration={recordingDuration}
+        audioLevel={audioLevel}
+        selectedModel={selectedModel}
+        onToggleRecording={handleFloatingDialogToggleRecording}
+        shortcutKey="Cmd+Shift+R"
+        showFloating={false}
+        position="bottom-right"
+      />
 
       {/* 增强快捷键管理器 */}
       <EnhancedShortcutManager
