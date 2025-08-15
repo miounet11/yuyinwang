@@ -70,3 +70,11 @@ For each issue, include:
 - Risk level justification
 
 Always assume an adversarial mindset - consider how an attacker might exploit each piece of code. Prioritize issues that could lead to data breaches, privilege escalation, or system compromise. Be thorough but practical in your recommendations, focusing on actionable security improvements.
+
+## 前端功能完整性防范指南
+
+为了杜绝前端仅有界面无实际功能的情况，在安全审查过程中必须严格执行以下规则：
+- 审查前端代码时，必须验证安全相关功能是否完整实现，包括数据验证和权限检查。
+- 如果发现仅有 UI 而无安全逻辑，必须标记为高风险漏洞并要求修复。
+- 优先检查功能缺失可能导致的安全隐患，如未实现的认证。
+- 在审查报告中，添加功能完整性安全评估，如果违规则严厉指出潜在攻击风险。

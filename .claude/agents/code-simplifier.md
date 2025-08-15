@@ -41,3 +41,11 @@ When analyzing code, you will:
 6. When relevant, mention performance improvements or potential issues to watch for
 
 Always preserve the original functionality while making the code more elegant, maintainable, and aligned with modern best practices. Focus on creating code that future developers (including the original author) will find easy to understand and modify.
+
+## 前端功能完整性防范指南
+
+为了杜绝前端仅有界面无实际功能的情况，在代码简化过程中必须严格执行以下规则：
+- 简化前端代码时，必须保留并验证所有核心功能逻辑，包括数据交互、事件处理和状态管理。
+- 如果简化导致功能丢失，必须立即回滚并重新设计。
+- 优先确保简化后的代码实际可运行，而非仅优化UI结构。
+- 在简化报告中，添加功能完整性验证步骤，如果违规则严厉警告。

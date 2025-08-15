@@ -213,13 +213,22 @@ impl TranscriptionApiClient {
             println!("📊 任务进度: {} (尝试 {}/{})", progress, attempts, MAX_ATTEMPTS);
             
             if progress == 1 {
-                // 转录完成
+                // 转录完成，尝试多种可能的结果字段
+                println!("🔍 完整状态响应: {}", status_text);
+                
                 let result_text = status_json["data"]["result"].as_str()
+                    .or_else(|| status_json["data"]["content"].as_str())
+                    .or_else(|| status_json["data"]["text"].as_str())
+                    .or_else(|| status_json["result"].as_str())
+                    .or_else(|| status_json["content"].as_str())
+                    .or_else(|| status_json["text"].as_str())
                     .unwrap_or("")
                     .to_string();
                 
                 if result_text.is_empty() {
-                    return Err(AppError::ApiTranscriptionError("转录结果为空".to_string()));
+                    // 如果所有字段都为空，打印完整响应用于调试
+                    println!("❌ 转录结果为空，完整响应数据: {:#}", status_json);
+                    return Err(AppError::ApiTranscriptionError(format!("转录结果为空，响应: {}", status_text)));
                 }
                 
                 println!("✅ 录音王API转录成功: {}", result_text);

@@ -1034,15 +1034,36 @@ function App() {
     exportFormat: 'txt' as const
   });
 
-  // 状态同步函数
+  // 初始化状态标记，防止重复同步
+  const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // 重试计数器，防止无限重试
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRY_COUNT = 1; // 最多重试1次
+
+  // 状态同步函数 - 仅在初始化时使用一次
   const syncRecordingState = async () => {
+    // 防止重复调用
+    if (hasInitialized) {
+      console.log('🔄 状态同步已完成，跳过重复调用');
+      return;
+    }
+
     try {
-      console.log('🔄 同步录音状态...');
+      console.log('🔄 初始化状态同步...');
       const backendState = await invoke('get_recording_state') as boolean;
       console.log('📊 后端录音状态:', backendState, '前端录音状态:', isRecording);
       
+      // 在初始化时，前后端状态通常都应该是false
+      if (!backendState && !isRecording) {
+        console.log('✅ 初始化状态正常 (false/false)');
+        setHasInitialized(true);
+        return;
+      }
+      
+      // 如果状态不匹配，进行同步
       if (backendState !== isRecording) {
-        console.log('⚠️ 检测到前后端状态不一致，正在同步...');
+        console.log('⚠️ 检测到状态不一致，正在同步...');
         setRecording(backendState);
         
         if (backendState) {
@@ -1054,9 +1075,12 @@ function App() {
           recordingTimer.stopRecording();
         }
       }
-      console.log('✅ 录音状态同步完成');
+      
+      console.log('✅ 状态同步完成');
+      setHasInitialized(true);
     } catch (error) {
-      console.error('❌ 同步录音状态失败:', error);
+      console.error('❌ 状态同步失败:', error);
+      setHasInitialized(true); // 即使失败也标记为已初始化，避免重复尝试
     }
   };
 
@@ -1079,6 +1103,9 @@ function App() {
 
         // 初始化快捷键管理器
         await initializeShortcuts();
+        
+        // 设置快捷键事件监听
+        setupShortcutListeners();
         
         // 检查权限
         await checkPermissions();
@@ -1125,6 +1152,30 @@ function App() {
           setShowSubscriptionManager(true);
         }, 3000);
       }
+    };
+
+    // 设置快捷键事件监听
+    const setupShortcutListeners = () => {
+      // 监听快捷键事件
+      shortcutManager.on('toggle-recording', async () => {
+        console.log('🎤 快捷键触发录音切换');
+        await handleFloatingDialogToggleRecording();
+      });
+
+      shortcutManager.on('quick-transcribe', async () => {
+        console.log('⚡ 快捷键触发快速转录');
+        if (!isRecording) {
+          await handleFloatingDialogToggleRecording();
+          // 3秒后自动停止
+          setTimeout(async () => {
+            if (isRecording) {
+              await handleFloatingDialogToggleRecording();
+            }
+          }, 3000);
+        }
+      });
+      
+      console.log('✅ 快捷键事件监听器已设置');
     };
 
     // 监听转录结果
@@ -1530,6 +1581,9 @@ function App() {
         console.log('🔄 设置 setRecording(true)...');
         setRecording(true);
         
+        // 成功启动录音，重置重试计数器
+        setRetryCount(0);
+        
         // 启动录音计时器
         const sessionId = recordingTimer.startRecording(selectedModel, 'default');
         console.log(`🎙️ 录音会话开始: ${sessionId}`);
@@ -1552,9 +1606,11 @@ function App() {
       } catch (error) {
         console.error('开始录音失败:', error);
         
-        // 检查是否是"已在录音中"的错误
-        if (error && typeof error === 'string' && error.includes('已在录音中')) {
-          console.log('🔄 检测到状态不同步，尝试重置后端状态...');
+        // 检查是否是"已在录音中"的错误，并且重试次数未达到限制
+        if (error && typeof error === 'string' && error.includes('已在录音中') && retryCount < MAX_RETRY_COUNT) {
+          console.log(`🔄 检测到状态不同步，尝试重置后端状态... (重试 ${retryCount + 1}/${MAX_RETRY_COUNT})`);
+          setRetryCount(prev => prev + 1);
+          
           try {
             // 重置后端录音状态
             await invoke('reset_recording_state');
@@ -1579,10 +1635,16 @@ function App() {
               }
             }, 100);
             
-            return; // 成功重试，直接返回
+            // 重试成功，重置计数器并返回
+            setRetryCount(0);
+            return;
           } catch (retryError) {
             console.error('重试开始录音失败:', retryError);
+            console.log('❌ 重试失败，放弃启动录音');
           }
+        } else if (retryCount >= MAX_RETRY_COUNT) {
+          console.log('❌ 已达到最大重试次数，停止重试');
+          setRetryCount(0); // 重置计数器
         }
         
         setRecording(false);

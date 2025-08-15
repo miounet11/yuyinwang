@@ -5,6 +5,10 @@ extern "C" {
     fn IOHIDCheckAccess(requestType: i32) -> i32;
 }
 
+extern "C" {
+    pub fn AXIsProcessTrusted() -> bool;
+}
+
 #[cfg(target_os = "macos")]
 const kIOHIDRequestTypeListenEvent: i32 = 1;
 
@@ -31,28 +35,44 @@ pub async fn check_permission(permission_type: String) -> Result<bool, String> {
     
     match permission_type.as_str() {
         "accessibility" => {
-            // 检查辅助功能权限
-            let output = std::process::Command::new("osascript")
-                .arg("-e")
-                .arg("tell application \"System Events\" to get UI elements enabled")
-                .output()
-                .map_err(|e| e.to_string())?;
-            
-            let result = String::from_utf8_lossy(&output.stdout);
-            Ok(result.trim() == "true")
+            // 使用 AXIsProcessTrusted 检查应用是否被信任
+            let trusted = unsafe { AXIsProcessTrusted() };
+            Ok(trusted)
         },
         "microphone" => {
-            // 使用简化的权限检查方法
+            // 检查麦克风权限状态
             match std::process::Command::new("osascript")
-                .args(&["-e", "tell application \"System Preferences\" to return 1"])
+                .args(&["-e", r#"
+                    on run
+                        try
+                            set microphonePermission to (do shell script "sqlite3 ~/Library/Application\\ Support/com.apple.TCC/TCC.db \"SELECT allowed FROM access WHERE service='kTCCServiceMicrophone' AND client LIKE '%spokenly%' OR client LIKE '%Recording%' LIMIT 1;\"" with administrator privileges)
+                            if microphonePermission is "1" then
+                                return true
+                            else
+                                return false
+                            end if
+                        on error
+                            -- 如果无法查询数据库，尝试实际测试麦克风
+                            try
+                                do shell script "rec -q -t raw -r 44100 -b 16 -c 1 -e signed-integer /dev/null trim 0 0.1 2>/dev/null"
+                                return true
+                            on error
+                                return false
+                            end try
+                        end try
+                    end run
+                "#])
                 .output() {
                 Ok(output) => {
-                    // For microphone, we should check actual permission status
-                    // This is a simplified check - a proper implementation would
-                    // use AVAudioSession.sharedInstance().recordPermission
-                    Ok(output.status.success())
+                    let output_str = String::from_utf8_lossy(&output.stdout);
+                    let has_permission = output_str.trim() == "true";
+                    println!("🎤 麦克风权限检查结果: {}", has_permission);
+                    Ok(has_permission)
                 },
-                Err(_) => Ok(false)
+                Err(e) => {
+                    println!("❌ 麦克风权限检查失败: {}", e);
+                    Ok(false)
+                }
             }
         },
         "file-system" => {

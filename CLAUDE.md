@@ -162,3 +162,11 @@ Key principles:
 - `vite.config.ts`: Frontend build configuration (port 1420)
 - `Cargo.toml`: Rust dependencies and features
 - `tsconfig.json`: TypeScript compilation settings (strict: false)
+
+## 前端开发防范指南
+
+为了杜绝前端仅有界面无实际功能的情况，所有开发必须严格遵守以下规则：
+- 任何前端组件或页面必须同时实现核心功能逻辑，包括与后端交互、数据处理和事件响应。
+- UI 开发必须包含功能验证测试，确保界面不仅仅是静态显示，而是能实际响应用户操作。
+- 在代码审查中，优先检查功能完整性，如果发现仅有 UI 无功能的代码，必须立即重构。
+- 所有 agents 在生成或审查前端代码时，必须明确验证功能实现，避免空壳界面。
