@@ -12,10 +12,11 @@ interface AudioDevice {
 interface AudioInputTestProps {
   isVisible: boolean;
   onClose: () => void;
+  audioDevices?: AudioDevice[];
 }
 
-const AudioInputTest: React.FC<AudioInputTestProps> = ({ isVisible, onClose }) => {
-  const [devices, setDevices] = useState<AudioDevice[]>([]);
+const AudioInputTest: React.FC<AudioInputTestProps> = ({ isVisible, onClose, audioDevices = [] }) => {
+  const [devices, setDevices] = useState<AudioDevice[]>(audioDevices);
   const [selectedDevice, setSelectedDevice] = useState<string>('');
   const [testDuration, setTestDuration] = useState<number>(3);
   const [isTestingAudio, setIsTestingAudio] = useState<boolean>(false);
@@ -27,20 +28,34 @@ const AudioInputTest: React.FC<AudioInputTestProps> = ({ isVisible, onClose }) =
     duration: number;
   } | null>(null);
 
-  // 加载音频设备列表
-  const loadAudioDevices = async () => {
-    try {
-      const audioDevices = await invoke<AudioDevice[]>('get_audio_devices');
+  // 更新设备列表
+  useEffect(() => {
+    if (audioDevices && audioDevices.length > 0) {
       setDevices(audioDevices);
-      
       // 自动选择默认设备
       const defaultDevice = audioDevices.find(device => device.is_default);
-      if (defaultDevice) {
+      if (defaultDevice && !selectedDevice) {
         setSelectedDevice(defaultDevice.id);
       }
-    } catch (error) {
-      console.error('加载音频设备失败:', error);
-      setTestResult(`❌ 加载音频设备失败: ${error}`);
+    }
+  }, [audioDevices]);
+
+  // 加载音频设备列表（仅在没有传入设备时使用）
+  const loadAudioDevices = async () => {
+    if (!audioDevices || audioDevices.length === 0) {
+      try {
+        const devices = await invoke<AudioDevice[]>('get_audio_devices');
+        setDevices(devices);
+        
+        // 自动选择默认设备
+        const defaultDevice = devices.find(device => device.is_default);
+        if (defaultDevice) {
+          setSelectedDevice(defaultDevice.id);
+        }
+      } catch (error) {
+        console.error('加载音频设备失败:', error);
+        setTestResult(`❌ 加载音频设备失败: ${error}`);
+      }
     }
   };
 

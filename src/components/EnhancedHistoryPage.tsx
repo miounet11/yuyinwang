@@ -122,20 +122,17 @@ const EnhancedHistoryPage: React.FC<EnhancedHistoryPageProps> = ({
       const searchOptions: AdvancedSearchOptions = {
         ...advancedOptions,
         ...options,
-        page: currentPage
-      };
-
-      // 构建筛选器
-      if (modelFilter !== 'all' || confidenceFilter > 0 || dateFilter.start || durationFilter.min) {
-        searchOptions.filter = {
+        page: currentPage,
+        // 确保 filter 字段总是存在
+        filter: {
           ...(modelFilter !== 'all' && { model: modelFilter }),
           ...(confidenceFilter > 0 && { min_confidence: confidenceFilter / 100 }),
           ...(dateFilter.start && { start_date: new Date(dateFilter.start).getTime() }),
           ...(dateFilter.end && { end_date: new Date(dateFilter.end).getTime() }),
           ...(durationFilter.min && { min_duration: durationFilter.min }),
           ...(durationFilter.max && { max_duration: durationFilter.max })
-        };
-      }
+        }
+      };
 
       // 构建全文搜索
       if (searchQuery.trim()) {

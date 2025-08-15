@@ -30,13 +30,15 @@ interface DiagnosticStepsProps {
   onClose: () => void;
   category?: string; // 如果指定，则只显示该类别的测试
   autoStart?: boolean; // 是否自动开始测试
+  audioDevices?: any[]; // 传入的音频设备列表
 }
 
 const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({ 
   isVisible, 
   onClose, 
   category, 
-  autoStart = false 
+  autoStart = false,
+  audioDevices = [] 
 }) => {
   const [categories, setCategories] = useState<DiagnosticCategory[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
@@ -83,7 +85,11 @@ const DiagnosticSteps: React.FC<DiagnosticStepsProps> = ({
             priority: 'critical',
             autoRun: true,
             action: async () => {
-              const devices = await invoke<any[]>('get_audio_devices');
+              // 优先使用传入的设备列表，如果没有则获取
+              let devices = audioDevices;
+              if (!devices || devices.length === 0) {
+                devices = await invoke<any[]>('get_audio_devices');
+              }
               return `发现 ${devices.length} 个音频设备: ${devices.map(d => d.name).join(', ')}`;
             }
           },

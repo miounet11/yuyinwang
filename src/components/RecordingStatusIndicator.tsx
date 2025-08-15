@@ -11,6 +11,8 @@ interface RecordingStatusIndicatorProps {
   shortcutKey?: string;
   showFloating?: boolean;
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  audioDevices?: any[];
+  currentDevice?: string;
 }
 
 export default function RecordingStatusIndicator({
@@ -21,12 +23,13 @@ export default function RecordingStatusIndicator({
   onToggleRecording,
   shortcutKey = 'Cmd+Shift+R',
   showFloating = false,
-  position = 'top-right'
+  position = 'top-right',
+  audioDevices = [],
+  currentDevice: propCurrentDevice = ''
 }: RecordingStatusIndicatorProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const [audioDevices, setAudioDevices] = useState<any[]>([]);
-  const [currentDevice, setCurrentDevice] = useState<string>('');
   const [showDetails, setShowDetails] = useState(false);
+  const [currentDevice, setCurrentDevice] = useState<string>(propCurrentDevice);
 
   // 格式化录音时长
   const formatDuration = (seconds: number): string => {
@@ -35,23 +38,22 @@ export default function RecordingStatusIndicator({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 获取音频设备信息
+  // 更新当前设备
   useEffect(() => {
-    const loadAudioDevices = async () => {
-      try {
-        const devices = await invoke<any[]>('get_audio_devices');
-        setAudioDevices(devices);
-        const defaultDevice = devices.find(d => d.is_default);
-        if (defaultDevice) {
-          setCurrentDevice(defaultDevice.name);
-        }
-      } catch (error) {
-        console.error('获取音频设备失败:', error);
+    if (audioDevices.length > 0 && !currentDevice) {
+      const defaultDevice = audioDevices.find(d => d.is_default);
+      if (defaultDevice) {
+        setCurrentDevice(defaultDevice.name);
       }
-    };
+    }
+  }, [audioDevices, currentDevice]);
 
-    loadAudioDevices();
-  }, []);
+  // 更新传入的设备名称
+  useEffect(() => {
+    if (propCurrentDevice) {
+      setCurrentDevice(propCurrentDevice);
+    }
+  }, [propCurrentDevice]);
 
   // 计算音频电平条数
   const getAudioLevelBars = (level: number): number => {

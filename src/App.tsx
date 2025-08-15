@@ -983,6 +983,7 @@ function App() {
     selectedModel,
     showFloatingDialog,
     audioDevices,
+    selectedDevice,
     useEnhancedAIPrompts,
     setDevices,
     setCurrentPage,
@@ -1085,8 +1086,8 @@ function App() {
         const history = await invoke<TranscriptionEntry[]>('get_transcription_history');
         setTranscriptionHistory(history);
 
-        // 获取支持的文件格式
-        const formats = await invoke<string[]>('get_supported_formats');
+        // 获取支持的文件格式 - 使用默认值，命令不存在
+        const formats = ['mp3', 'wav', 'm4a', 'flac', 'mp4', 'mov', 'm4v', 'webm', 'ogg'];
         logger.info('应用初始化完成');
         logger.info('支持的文件格式', formats);
 
@@ -1561,6 +1562,7 @@ function App() {
       <AudioInputTest
         isVisible={showAudioInputTest}
         onClose={() => setShowAudioInputTest(false)}
+        audioDevices={audioDevices}
       />
 
       {/* 首次启动向导 */}
@@ -1620,6 +1622,8 @@ function App() {
         shortcutKey="Cmd+Shift+R"
         showFloating={false}
         position="bottom-right"
+        audioDevices={audioDevices}
+        currentDevice={selectedDevice}
       />
 
       {/* 增强快捷键管理器 */}

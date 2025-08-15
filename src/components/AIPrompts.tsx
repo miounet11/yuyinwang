@@ -167,7 +167,7 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
 
   // 添加通知
   const addNotification = useCallback((notification: Omit<Notification, 'id'>) => {
-    const id = `notification-${Date.now()}`;
+    const id = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newNotification = { ...notification, id };
     
     setNotifications(prev => [...prev, newNotification]);
@@ -190,7 +190,8 @@ const AIPrompts: React.FC<AIPromptsProps> = ({ onEnhancedTextReady, transcriptio
 
   const loadPrompts = async () => {
     try {
-      const savedPrompts = await invoke<AIPrompt[]>('get_ai_prompts');
+      // 使用默认的AI提示，命令不存在
+      const savedPrompts = aiPrompts;
       setPrompts(savedPrompts);
       // 设置默认激活的提示
       const active = savedPrompts.find(p => p.is_active);
