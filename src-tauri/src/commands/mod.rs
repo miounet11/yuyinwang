@@ -11,6 +11,7 @@ pub mod subtitle;
 pub mod permissions;
 pub mod text_injection;
 pub mod shortcut_management;
+pub mod shortcuts;
 
 pub use history::*;
 pub use transcription::*;
@@ -18,6 +19,7 @@ pub use subtitle::*;
 pub use permissions::*;
 pub use text_injection::*;
 pub use shortcut_management::*;
+pub use shortcuts::*;
 
 // 辅助函数
 

@@ -17,6 +17,7 @@ mod database;
 mod subtitle;
 mod system;
 mod commands;
+mod shortcuts;
 
 // 保留的遗留模块（待进一步重构）
 mod folder_watcher;
@@ -264,6 +265,14 @@ fn main() {
             // 录音状态管理命令
             commands::get_recording_state,
             commands::reset_recording_state,
+            // 语音输入快捷键命令
+            commands::register_voice_shortcut,
+            commands::unregister_all_voice_shortcuts,
+            commands::get_cursor_position,
+            commands::insert_text_to_app,
+            commands::configure_voice_shortcuts,
+            commands::load_voice_shortcut_config,
+            commands::trigger_voice_input_test,
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -273,13 +282,29 @@ fn main() {
             app.manage(state.history_manager.clone());
             app.manage(state.transcription_editor.clone());
             
-            // 初始化快捷键管理器
+            // 初始化原有的快捷键管理器
             let shortcut_manager = commands::shortcut_management::ShortcutManager::new();
             app.manage(shortcut_manager);
+            
+            // 初始化语音输入快捷键管理器
+            let voice_shortcut_manager = Arc::new(shortcuts::ShortcutManager::new(app_handle.clone()));
+            app.manage(voice_shortcut_manager.clone());
+            
+            // 自动加载并注册已保存的快捷键配置
+            if let Ok(config) = commands::shortcuts::load_shortcut_config() {
+                if config.enabled {
+                    if let Err(e) = voice_shortcut_manager.register_voice_input_shortcut(&config.shortcut) {
+                        eprintln!("⚠️ 注册语音输入快捷键失败: {}", e);
+                    } else {
+                        println!("✅ 语音输入快捷键已启用: {}", config.shortcut);
+                    }
+                }
+            }
             
             println!("✅ 历史管理器已注册");
             println!("✅ 转录编辑器已注册");
             println!("✅ 快捷键管理器已注册");
+            println!("✅ 语音输入快捷键管理器已注册");
             
             // 移除直接快捷键注册，改由 enhancedShortcutManager 统一管理
             println!("ℹ️ 快捷键注册已委托给 enhancedShortcutManager");
