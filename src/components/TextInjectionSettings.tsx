@@ -226,7 +226,7 @@ export default function TextInjectionSettings({ isVisible, onClose, onConfigChan
             </div>
             {!hasPermission && (
               <div className="permission-help">
-                请在 系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能 中启用此应用
+                请在 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能 中启用此应用
               </div>
             )}
           </div>

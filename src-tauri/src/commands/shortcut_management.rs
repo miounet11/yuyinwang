@@ -60,7 +60,7 @@ pub async fn register_global_shortcut(
     let mut shortcut_manager = app_handle.global_shortcut_manager();
     
     // 如果快捷键已经注册，先取消注册
-    if shortcut_manager.is_registered(&shortcut) {
+    if shortcut_manager.is_registered(&shortcut).map_err(|e| e.to_string())? {
         if let Err(e) = shortcut_manager.unregister(&shortcut) {
             eprintln!("❌ 取消注册现有快捷键失败: {}", e);
             return Err(format!("取消注册现有快捷键失败: {}", e));
@@ -141,7 +141,7 @@ pub async fn is_shortcut_registered(
     shortcut: String,
 ) -> Result<bool, String> {
     let shortcut_manager = app_handle.global_shortcut_manager();
-    Ok(shortcut_manager.is_registered(&shortcut))
+    Ok(shortcut_manager.is_registered(&shortcut).map_err(|e| e.to_string())?)
 }
 
 /// 获取所有已注册的快捷键
@@ -233,7 +233,7 @@ pub async fn check_shortcut_conflicts(
     let shortcut_manager = app_handle.global_shortcut_manager();
     
     for shortcut in new_shortcuts {
-        if shortcut_manager.is_registered(&shortcut) {
+        if shortcut_manager.is_registered(&shortcut).map_err(|e| e.to_string())? {
             conflicts.push(shortcut);
         }
     }

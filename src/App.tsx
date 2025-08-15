@@ -232,6 +232,9 @@ const PageContent: React.FC<{
   setShowShortcutEditor?: (show: boolean) => void;
   setShowAppSelector?: (show: boolean) => void;
   setShowHistorySettings?: (show: boolean) => void;
+  setShowEnhancedHistory?: (show: boolean) => void;
+  setShowTextInjectionSettings?: (show: boolean) => void;
+  setShowEnhancedShortcutManager?: (show: boolean) => void;
   audioDevices?: AudioDevice[];
   trialInfo?: any;
   setShowSubscriptionManager?: (show: boolean) => void;
@@ -243,7 +246,7 @@ const PageContent: React.FC<{
   setUseEnhancedAIPrompts?: (value: boolean) => void;
   selectedEntry?: TranscriptionEntry | null;
   setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
-}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry }) => {
+}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowEnhancedShortcutManager, audioDevices = [], onEnhancedTextReady, isRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -1543,6 +1546,9 @@ function App() {
           setShowShortcutEditor={setShowShortcutEditor}
           setShowAppSelector={setShowAppSelector}
           setShowHistorySettings={setShowHistorySettings}
+          setShowEnhancedHistory={setShowEnhancedHistory}
+          setShowTextInjectionSettings={setShowTextInjectionSettings}
+          setShowEnhancedShortcutManager={setShowEnhancedShortcutManager}
           audioDevices={audioDevices}
           trialInfo={trialInfo}
           setShowSubscriptionManager={setShowSubscriptionManager}

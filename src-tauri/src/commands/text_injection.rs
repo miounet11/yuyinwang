@@ -120,7 +120,7 @@ pub async fn check_text_injection_permission() -> Result<bool, String> {
 pub async fn get_active_app_info() -> Result<AppInfo, String> {
     let injector = TextInjector::default();
     
-    match injector.get_active_app_info() {
+    match injector.get_active_app_info().await {
         Ok(app_info) => {
             println!("🎯 当前活动应用: {} (Bundle ID: {})", app_info.name, app_info.bundle_id);
             Ok(app_info)

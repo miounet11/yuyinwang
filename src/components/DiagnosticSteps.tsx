@@ -12,7 +12,7 @@ export interface DiagnosticStep {
   result?: string;
   error?: string;
   details?: any;
-  action?: () => Promise<void>;
+  action?: () => Promise<string>;
   autoRun?: boolean;
   priority: 'critical' | 'high' | 'medium' | 'low';
 }

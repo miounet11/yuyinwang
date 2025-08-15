@@ -16,7 +16,7 @@ export interface TimerEventData {
 
 export class RecordingTimer {
   private currentSession: RecordingSession | null = null;
-  private intervalId: NodeJS.Timeout | null = null;
+  private intervalId: number | null = null;
   private listeners: ((data: TimerEventData) => void)[] = [];
   private updateInterval: number = 100; // 100ms 更新频率
 
@@ -213,7 +213,7 @@ export class RecordingTimer {
       return;
     }
 
-    this.intervalId = setInterval(() => {
+    this.intervalId = window.setInterval(() => {
       this.updateCurrentDuration();
     }, this.updateInterval);
   }

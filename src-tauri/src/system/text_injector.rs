@@ -16,25 +16,31 @@ use objc::{msg_send, sel, sel_impl};
 #[derive(Debug, Clone)]
 pub struct TextInjectionConfig {
     /// 是否启用自动注入
-    pub auto_inject: bool,
-    /// 注入前延迟时间（毫秒）
-    pub delay_ms: u64,
-    /// 是否在注入前清空剪贴板
-    pub clear_clipboard: bool,
+    pub auto_inject_enabled: bool,
+    /// 注入前延迟时间
+    pub inject_delay: std::time::Duration,
     /// 是否使用键盘模拟而不是剪贴板
     pub use_keyboard_simulation: bool,
-    /// 每个字符之间的延迟（仅键盘模拟模式）
-    pub char_delay_ms: u64,
+    /// 是否保留剪贴板内容
+    pub preserve_clipboard: bool,
+    /// 是否启用重复检测
+    pub duplicate_detection: bool,
+    /// 快捷键延迟
+    pub shortcut_delay: std::time::Duration,
+    /// 目标应用过滤器
+    pub target_app_filter: Vec<String>,
 }
 
 impl Default for TextInjectionConfig {
     fn default() -> Self {
         Self {
-            auto_inject: true,
-            delay_ms: 100,
-            clear_clipboard: true,
+            auto_inject_enabled: true,
+            inject_delay: std::time::Duration::from_millis(100),
             use_keyboard_simulation: false,
-            char_delay_ms: 10,
+            preserve_clipboard: true,
+            duplicate_detection: true,
+            shortcut_delay: std::time::Duration::from_millis(50),
+            target_app_filter: Vec::new(),
         }
     }
 }
@@ -65,8 +71,8 @@ impl TextInjector {
         println!("📝 准备注入文本到当前应用: {} 字符", text.len());
         
         // 添加延迟确保用户切换到目标应用
-        if self.config.delay_ms > 0 {
-            tokio::time::sleep(Duration::from_millis(self.config.delay_ms)).await;
+        if !self.config.inject_delay.is_zero() {
+            tokio::time::sleep(self.config.inject_delay).await;
         }
         
         // 根据配置选择注入方式
@@ -92,7 +98,7 @@ impl TextInjector {
         tokio::time::sleep(Duration::from_millis(200)).await;
         
         // 5. 恢复原剪贴板内容（如果配置要求）
-        if !self.config.clear_clipboard {
+        if self.config.preserve_clipboard {
             if let Some(original) = original_clipboard {
                 self.set_clipboard_content(&original).await?;
             }
@@ -109,8 +115,8 @@ impl TextInjector {
         for ch in text.chars() {
             self.simulate_key_press(ch).await?;
             
-            if self.config.char_delay_ms > 0 {
-                tokio::time::sleep(Duration::from_millis(self.config.char_delay_ms)).await;
+            if !self.config.shortcut_delay.is_zero() {
+                tokio::time::sleep(self.config.shortcut_delay).await;
             }
         }
         
@@ -204,10 +210,15 @@ impl TextInjector {
         {
             Ok(ApplicationInfo {
                 name: "Unknown".to_string(),
-                bundle_id: None,
-                process_id: None,
+                bundle_id: "unknown".to_string(),
+                process_id: 0,
             })
         }
+    }
+    
+    /// 获取当前活动应用信息 (别名方法)
+    pub async fn get_active_app_info(&self) -> AppResult<ApplicationInfo> {
+        self.get_active_application_info().await
     }
 }
 
@@ -354,8 +365,8 @@ impl TextInjector {
             
             Ok(ApplicationInfo {
                 name: parts.get(0).unwrap_or(&"Unknown").to_string(),
-                bundle_id: parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string()),
-                process_id: None,
+                bundle_id: parts.get(1).filter(|s| !s.is_empty()).unwrap_or(&"unknown").to_string(),
+                process_id: 0, // Process ID would need additional AppleScript to retrieve
             })
         } else {
             Err(AppError::SystemIntegrationError("获取活动应用信息失败".to_string()))
@@ -458,11 +469,11 @@ impl TextInjector {
 }
 
 /// 应用信息结构体
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApplicationInfo {
     pub name: String,
-    pub bundle_id: Option<String>,
-    pub process_id: Option<u32>,
+    pub bundle_id: String,
+    pub process_id: u32,
 }
 
 /// 文本注入管理器
