@@ -232,7 +232,6 @@ const Toggle: React.FC<{ checked: boolean; onChange: (checked: boolean) => void;
 const PageContent: React.FC<{ 
   page: string;
   selectedModel?: string;
-  setShowShortcutEditor?: (show: boolean) => void;
   setShowAppSelector?: (show: boolean) => void;
   setShowHistorySettings?: (show: boolean) => void;
   setShowEnhancedHistory?: (show: boolean) => void;
@@ -250,7 +249,7 @@ const PageContent: React.FC<{
   setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
   handleFloatingDialogToggleRecording?: () => Promise<void>;
   isTranscribing?: boolean;
-}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
+}> = ({ page, selectedModel: propSelectedModel, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -1000,7 +999,6 @@ function App() {
 
   // 新增的状态管理
   const [showAppSelector, setShowAppSelector] = useState(false);
-  const [showShortcutEditor, setShowShortcutEditor] = useState(false);
   const [useAdvancedShortcuts, setUseAdvancedShortcuts] = useState(false); // 默认使用精简版快捷键编辑器
   const [showHistorySettings, setShowHistorySettings] = useState(false);
   const [showEnhancedHistory, setShowEnhancedHistory] = useState(false);
@@ -1016,16 +1014,6 @@ function App() {
   const [selectedEntry, setSelectedEntry] = useState<TranscriptionEntry | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   // const [aiPromptsRef, setAiPromptsRef] = useState<any>(null);
-  const [shortcuts, setShortcuts] = useState<any[]>([
-    {
-      id: '1',
-      name: '快捷键',
-      key: 'Fn',
-      modifiers: [],
-      mode: 'toggle',
-      assigned: true
-    }
-  ]);
   const [historySettings, setHistorySettings] = useState({
     autoDelete: false,
     deleteAfterDays: 30,
@@ -1102,14 +1090,7 @@ function App() {
         logger.info('应用初始化完成');
         logger.info('支持的文件格式', formats);
 
-        // 初始化快捷键管理器
-        await initializeShortcuts();
         
-        // 设置快捷键事件监听
-        setupShortcutListeners();
-        
-        // 检查权限
-        await checkPermissions();
         
         // 检查是否首次启动
         checkFirstLaunch();
@@ -1492,10 +1473,6 @@ function App() {
               className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
               onClick={() => {
                 setCurrentPage(item.id);
-                // 如果点击快捷键设置，同时检查权限
-                if (item.id === 'shortcuts') {
-                  checkPermissions();
-                }
               }}
             >
               <span className="nav-icon">{item.icon}</span>
@@ -1517,7 +1494,6 @@ function App() {
         <PageContent 
           page={currentPage} 
           selectedModel={selectedModel}
-          setShowShortcutEditor={setShowShortcutEditor}
           setShowAppSelector={setShowAppSelector}
           setShowHistorySettings={setShowHistorySettings}
           setShowEnhancedHistory={setShowEnhancedHistory}
@@ -1563,33 +1539,6 @@ function App() {
         }}
       />
 
-      {/* 快捷键编辑器对话框 - 根据设置选择标准或高级版本 */}
-      {useAdvancedShortcuts ? (
-        <AdvancedShortcutEditor
-          isVisible={showShortcutEditor}
-          onClose={() => setShowShortcutEditor(false)}
-        />
-      ) : (
-        <ShortcutEditor
-          isVisible={showShortcutEditor}
-          onClose={() => setShowShortcutEditor(false)}
-          shortcuts={shortcuts}
-            onUpdateShortcut={(shortcut) => {
-            setShortcuts(shortcuts.map(s => s.id === shortcut.id ? shortcut : s));
-          }}
-          onAddShortcut={() => {
-            const newShortcut = {
-              id: `${shortcuts.length + 1}`,
-            name: '新快捷键',
-            key: '未指定',
-            modifiers: [],
-            mode: 'toggle' as const,
-            assigned: false
-          };
-            setShortcuts([...shortcuts, newShortcut]);
-          }}
-        />
-      )}
 
       {/* 历史记录设置对话框 */}
       <HistorySettings
