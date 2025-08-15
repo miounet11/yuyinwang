@@ -904,6 +904,30 @@ body {
   left: 100%;
 }
 
+/* 语音快捷键按钮 */
+.voice-shortcut-btn {
+  background: linear-gradient(45deg, #4caf50, #45a049) !important;
+  color: white !important;
+  border: none !important;
+  position: relative;
+  overflow: hidden;
+  min-width: 120px;
+  white-space: nowrap;
+  z-index: 10;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.voice-shortcut-btn:hover {
+  background: linear-gradient(45deg, #45a049, #388e3c) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(76, 175, 80, 0.3);
+}
+
+.voice-shortcut-btn span {
+  margin-right: 6px;
+}
+
 /* 快捷键管理按钮 */
 .shortcut-manager-btn {
   background: linear-gradient(45deg, #9c27b0, #7b1fa2) !important;
@@ -971,6 +995,8 @@ body {
 .history-actions {
   display: flex;
   gap: var(--spacing-sm);
+  z-index: 100;
+  position: relative;
 }
 
 .search-bar {
@@ -2202,6 +2228,8 @@ body {
 .history-actions {
   display: flex;
   gap: var(--spacing-sm);
+  z-index: 100;
+  position: relative;
 }
 
 .search-bar {

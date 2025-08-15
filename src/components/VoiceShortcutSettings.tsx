@@ -1,0 +1,251 @@
+import React, { useState, useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/tauri';
+import './VoiceShortcutSettings.css';
+
+interface VoiceShortcutConfig {
+  enabled: boolean;
+  shortcut: string;
+  auto_insert: boolean;
+  use_floating_window: boolean;
+  preferred_model: string;
+}
+
+interface VoiceShortcutSettingsProps {
+  isVisible: boolean;
+  onClose: () => void;
+}
+
+const VoiceShortcutSettings: React.FC<VoiceShortcutSettingsProps> = ({ isVisible, onClose }) => {
+  const [config, setConfig] = useState<VoiceShortcutConfig>({
+    enabled: true,
+    shortcut: 'CmdOrCtrl+Shift+Space',
+    auto_insert: true,
+    use_floating_window: true,
+    preferred_model: 'luyingwang-online'
+  });
+  
+  const [isRecording, setIsRecording] = useState(false);
+  const [pressedKeys, setPressedKeys] = useState<string[]>([]);
+  const [saveStatus, setSaveStatus] = useState('');
+
+  // 预设快捷键
+  const presetShortcuts = [
+    { label: '⌘ + Shift + Space', value: 'CmdOrCtrl+Shift+Space' },
+    { label: '⌘ + Shift + V', value: 'CmdOrCtrl+Shift+V' },
+    { label: 'Option + Space', value: 'Alt+Space' },
+    { label: 'F1', value: 'F1' },
+    { label: 'F2', value: 'F2' },
+  ];
+
+  // 可用模型列表
+  const availableModels = [
+    { label: '录音王在线 (推荐)', value: 'luyingwang-online' },
+    { label: 'Whisper Tiny (本地)', value: 'whisper-tiny' },
+    { label: 'Whisper Base (本地)', value: 'whisper-base' },
+    { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
+  ];
+
+  useEffect(() => {
+    if (isVisible) {
+      loadConfig();
+    }
+  }, [isVisible]);
+
+  const loadConfig = async () => {
+    try {
+      // 从后端加载配置
+      const savedConfig = await invoke<VoiceShortcutConfig>('load_voice_shortcut_config');
+      if (savedConfig) {
+        setConfig(savedConfig);
+      }
+    } catch (error) {
+      console.error('加载快捷键配置失败:', error);
+    }
+  };
+
+  const saveConfig = async () => {
+    try {
+      setSaveStatus('保存中...');
+      await invoke('configure_voice_shortcuts', { config });
+      setSaveStatus('已保存');
+      setTimeout(() => setSaveStatus(''), 2000);
+    } catch (error) {
+      console.error('保存配置失败:', error);
+      setSaveStatus('保存失败');
+    }
+  };
+
+  const handleShortcutRecord = () => {
+    setIsRecording(true);
+    setPressedKeys([]);
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      e.preventDefault();
+      
+      const keys: string[] = [];
+      if (e.metaKey || e.ctrlKey) keys.push('CmdOrCtrl');
+      if (e.altKey) keys.push('Alt');
+      if (e.shiftKey) keys.push('Shift');
+      
+      // 添加主键
+      if (e.key && !['Control', 'Meta', 'Alt', 'Shift'].includes(e.key)) {
+        const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+        keys.push(key);
+      }
+      
+      if (keys.length > 0) {
+        setPressedKeys(keys);
+        const shortcut = keys.join('+');
+        setConfig(prev => ({ ...prev, shortcut }));
+      }
+    };
+    
+    const handleKeyUp = () => {
+      setIsRecording(false);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+  };
+
+  const testShortcut = async () => {
+    try {
+      // 触发一次快速语音输入测试
+      await invoke('trigger_voice_input_test');
+    } catch (error) {
+      console.error('测试快捷键失败:', error);
+    }
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="voice-shortcut-settings-overlay">
+      <div className="voice-shortcut-settings">
+        <div className="settings-header">
+          <h2>🎤 语音输入快捷键设置</h2>
+          <button className="close-btn" onClick={onClose}>×</button>
+        </div>
+
+        <div className="settings-content">
+          {/* 启用开关 */}
+          <div className="setting-group">
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={config.enabled}
+                onChange={(e) => setConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+              />
+              <span>启用快速语音输入</span>
+            </label>
+            <p className="setting-desc">在任何应用中使用快捷键快速输入语音转文字</p>
+          </div>
+
+          {/* 快捷键设置 */}
+          <div className="setting-group">
+            <h3>快捷键</h3>
+            <div className="shortcut-input-group">
+              <input
+                type="text"
+                className="shortcut-input"
+                value={isRecording ? '请按下快捷键组合...' : config.shortcut}
+                readOnly
+                onClick={handleShortcutRecord}
+              />
+              <button 
+                className="record-btn"
+                onClick={handleShortcutRecord}
+              >
+                {isRecording ? '录制中...' : '录制'}
+              </button>
+            </div>
+            
+            {/* 预设快捷键 */}
+            <div className="preset-shortcuts">
+              {presetShortcuts.map(preset => (
+                <button
+                  key={preset.value}
+                  className={`preset-btn ${config.shortcut === preset.value ? 'active' : ''}`}
+                  onClick={() => setConfig(prev => ({ ...prev, shortcut: preset.value }))}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 模型选择 */}
+          <div className="setting-group">
+            <h3>转录模型</h3>
+            <select
+              className="model-select"
+              value={config.preferred_model}
+              onChange={(e) => setConfig(prev => ({ ...prev, preferred_model: e.target.value }))}
+            >
+              {availableModels.map(model => (
+                <option key={model.value} value={model.value}>
+                  {model.label}
+                </option>
+              ))}
+            </select>
+            <p className="setting-desc">选择用于快速转录的AI模型</p>
+          </div>
+
+          {/* 行为设置 */}
+          <div className="setting-group">
+            <h3>行为设置</h3>
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={config.auto_insert}
+                onChange={(e) => setConfig(prev => ({ ...prev, auto_insert: e.target.checked }))}
+              />
+              <span>自动插入转录文本</span>
+            </label>
+            <p className="setting-desc">转录完成后自动将文本插入到当前应用光标位置</p>
+            
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={config.use_floating_window}
+                onChange={(e) => setConfig(prev => ({ ...prev, use_floating_window: e.target.checked }))}
+              />
+              <span>使用悬浮窗口</span>
+            </label>
+            <p className="setting-desc">在光标附近显示小型悬浮录音窗口</p>
+          </div>
+
+          {/* 使用说明 */}
+          <div className="setting-group">
+            <h3>使用说明</h3>
+            <div className="usage-guide">
+              <p>1. 在任何应用中按住设定的快捷键</p>
+              <p>2. 开始说话进行录音</p>
+              <p>3. 松开快捷键完成录音并自动转录</p>
+              <p>4. 转录文本将自动插入到光标位置</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="settings-footer">
+          <button className="test-btn" onClick={testShortcut}>
+            测试快捷键
+          </button>
+          <div className="footer-right">
+            {saveStatus && <span className="save-status">{saveStatus}</span>}
+            <button className="cancel-btn" onClick={onClose}>
+              取消
+            </button>
+            <button className="save-btn" onClick={saveConfig}>
+              保存设置
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VoiceShortcutSettings;

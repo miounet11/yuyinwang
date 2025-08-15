@@ -44,6 +44,8 @@ import TranscriptionDetailView from './components/TranscriptionDetailView';
 import EnhancedHistoryPage from './components/EnhancedHistoryPage';
 import TextInjectionSettings from './components/TextInjectionSettings';
 import RecordingStatusIndicator from './components/RecordingStatusIndicator';
+import VoiceShortcutSettings from './components/VoiceShortcutSettings';
+import QuickVoiceInput from './components/QuickVoiceInput';
 // import SystemChecker from './utils/systemCheck';
 import { ttsService } from './services/ttsService';
 
@@ -236,6 +238,7 @@ const PageContent: React.FC<{
   setShowHistorySettings?: (show: boolean) => void;
   setShowEnhancedHistory?: (show: boolean) => void;
   setShowTextInjectionSettings?: (show: boolean) => void;
+  setShowVoiceShortcutSettings?: (show: boolean) => void;
   audioDevices?: AudioDevice[];
   trialInfo?: any;
   setShowSubscriptionManager?: (show: boolean) => void;
@@ -249,7 +252,7 @@ const PageContent: React.FC<{
   setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
   handleFloatingDialogToggleRecording?: () => Promise<void>;
   isTranscribing?: boolean;
-}> = ({ page, selectedModel: propSelectedModel, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
+}> = ({ page, selectedModel: propSelectedModel, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowVoiceShortcutSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -704,6 +707,10 @@ const PageContent: React.FC<{
                 <span>🎯</span>
                 文本注入
               </button>
+              <button className="action-btn voice-shortcut-btn" onClick={() => setShowVoiceShortcutSettings(true)}>
+                <span>🎤</span>
+                语音快捷键
+              </button>
               <button className="action-btn" onClick={() => setShowAppSelector?.(true)}>选择</button>
               <button className="action-btn" onClick={() => setShowHistorySettings?.(true)}>设置</button>
             </div>
@@ -1004,6 +1011,8 @@ function App() {
   const [showHistorySettings, setShowHistorySettings] = useState(false);
   const [showEnhancedHistory, setShowEnhancedHistory] = useState(false);
   const [showTextInjectionSettings, setShowTextInjectionSettings] = useState(false);
+  const [showVoiceShortcutSettings, setShowVoiceShortcutSettings] = useState(false);
+  const [showQuickVoiceInput, setShowQuickVoiceInput] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [showFloatingIndicator, setShowFloatingIndicator] = useState(false);
@@ -1198,6 +1207,11 @@ function App() {
           setCurrentPage(event.payload);
         });
 
+        // 监听快速语音输入触发事件
+        const unlisten8 = await listen('quick_voice_input_triggered', () => {
+          logger.debug('快速语音输入触发');
+          setShowQuickVoiceInput(true);
+        });
 
         return () => {
           unlisten1();
@@ -1206,6 +1220,7 @@ function App() {
           unlisten4();
           unlisten6();
           unlisten7();
+          unlisten8();
           unregisterAll();
           
           // 清理计时器订阅
@@ -1499,6 +1514,7 @@ function App() {
           setShowHistorySettings={setShowHistorySettings}
           setShowEnhancedHistory={setShowEnhancedHistory}
           setShowTextInjectionSettings={setShowTextInjectionSettings}
+          setShowVoiceShortcutSettings={setShowVoiceShortcutSettings}
           audioDevices={audioDevices}
           trialInfo={trialInfo}
           setShowSubscriptionManager={setShowSubscriptionManager}
@@ -1611,6 +1627,27 @@ function App() {
           console.log('文本注入配置更新:', config);
         }}
       />
+
+      {/* 语音快捷键设置 */}
+      <VoiceShortcutSettings
+        isVisible={showVoiceShortcutSettings}
+        onClose={() => setShowVoiceShortcutSettings(false)}
+      />
+
+      {/* 快速语音输入窗口 */}
+      {showQuickVoiceInput && (
+        <QuickVoiceInput
+          onClose={() => setShowQuickVoiceInput(false)}
+          onTextReady={async (text) => {
+            try {
+              // 插入文本到当前应用
+              await invoke('insert_text_to_app', { text });
+            } catch (error) {
+              console.error('插入文本失败:', error);
+            }
+          }}
+        />
+      )}
 
       {/* 录音状态指示器 */}
       <RecordingStatusIndicator
