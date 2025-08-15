@@ -32,15 +32,12 @@ const getModelInfo = (modelId: string) => {
 import FloatingDialog from './components/FloatingDialog';
 import AppSelector from './components/AppSelector';
 import ShortcutEditor from './components/ShortcutEditor';
-import ShortcutPage from './components/ShortcutPage';
 import AdvancedShortcutEditor from './components/AdvancedShortcutEditor';
 import HistorySettings from './components/HistorySettings';
 import TranscriptionModelsPage from './components/TranscriptionModelsPage';
 import FeatureTestPanel from './components/FeatureTestPanel';
 import AudioInputTest from './components/AudioInputTest';
 import DiagnosticButton from './components/DiagnosticButton';
-import PermissionSettings from './components/PermissionSettings';
-import PermissionIndicator from './components/PermissionIndicator';
 import FirstLaunchWizard from './components/FirstLaunchWizard';
 import SubscriptionManager from './components/SubscriptionManager';
 import AIPrompts from './components/AIPrompts';
@@ -49,16 +46,12 @@ import TranscriptionDetailView from './components/TranscriptionDetailView';
 import EnhancedHistoryPage from './components/EnhancedHistoryPage';
 import TextInjectionSettings from './components/TextInjectionSettings';
 import RecordingStatusIndicator from './components/RecordingStatusIndicator';
-import EnhancedShortcutManager from './components/EnhancedShortcutManager';
-import { shortcutManager } from './utils/shortcutManager';
-import { permissionManager } from './utils/permissionManager';
 // import SystemChecker from './utils/systemCheck';
 import { ttsService } from './services/ttsService';
 
 // Types and Stores
 // import { ApiConfig } from './types/models';
 import { useModelsStore } from './stores/modelsStore';
-import { enhancedShortcutManager } from './utils/enhancedShortcutManager';
 import { recordingTimer } from './utils/recordingTimer';
 
 // Zustand Store
@@ -167,7 +160,6 @@ const navigationItems = [
   { id: 'transcription', label: '听写模型', icon: '•' },
   { id: 'files', label: '转录文件', icon: '•' },
   { id: 'history', label: '历史记录', icon: '•' },
-  { id: 'shortcuts', label: '快捷键', icon: '•' },
   { id: 'ai-prompts', label: 'AI提示', icon: '•' },
   { id: 'contact', label: '联系我们', icon: '•' },
 ];
@@ -247,7 +239,6 @@ const PageContent: React.FC<{
   setShowHistorySettings?: (show: boolean) => void;
   setShowEnhancedHistory?: (show: boolean) => void;
   setShowTextInjectionSettings?: (show: boolean) => void;
-  setShowEnhancedShortcutManager?: (show: boolean) => void;
   audioDevices?: AudioDevice[];
   trialInfo?: any;
   setShowSubscriptionManager?: (show: boolean) => void;
@@ -261,7 +252,7 @@ const PageContent: React.FC<{
   setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
   handleFloatingDialogToggleRecording?: () => Promise<void>;
   isTranscribing?: boolean;
-}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowEnhancedShortcutManager, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
+}> = ({ page, selectedModel: propSelectedModel, setShowShortcutEditor, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -716,10 +707,6 @@ const PageContent: React.FC<{
                 <span>🎯</span>
                 文本注入
               </button>
-              <button className="action-btn shortcut-manager-btn" onClick={() => setShowEnhancedShortcutManager(true)}>
-                <span>⌨️</span>
-                快捷键
-              </button>
               <button className="action-btn" onClick={() => setShowAppSelector?.(true)}>选择</button>
               <button className="action-btn" onClick={() => setShowHistorySettings?.(true)}>设置</button>
             </div>
@@ -875,8 +862,6 @@ const PageContent: React.FC<{
         </div>
       );
 
-    case 'shortcuts':
-      return <ShortcutPage />;
 
     case 'ai-prompts':
       return (
@@ -1025,10 +1010,8 @@ function App() {
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   const [showFloatingIndicator, setShowFloatingIndicator] = useState(false);
-  const [showEnhancedShortcutManager, setShowEnhancedShortcutManager] = useState(false);
   const [showTestPanel, setShowTestPanel] = useState(false);
   const [showAudioInputTest, setShowAudioInputTest] = useState(false);
-  const [showPermissionSettings, setShowPermissionSettings] = useState(false);
   const [showFirstLaunchWizard, setShowFirstLaunchWizard] = useState(false);
   const [showSubscriptionManager, setShowSubscriptionManager] = useState(false);
   const [trialInfo, setTrialInfo] = useState<any>(null);
@@ -1174,29 +1157,6 @@ function App() {
       }
     };
 
-    // 设置快捷键事件监听
-    const setupShortcutListeners = () => {
-      // 监听快捷键事件
-      shortcutManager.on('toggle-recording', async () => {
-        console.log('🎤 快捷键触发录音切换');
-        await handleFloatingDialogToggleRecording();
-      });
-
-      shortcutManager.on('quick-transcribe', async () => {
-        console.log('⚡ 快捷键触发快速转录');
-        if (!isRecording) {
-          await handleFloatingDialogToggleRecording();
-          // 3秒后自动停止
-          setTimeout(async () => {
-            if (isRecording) {
-              await handleFloatingDialogToggleRecording();
-            }
-          }, 3000);
-        }
-      });
-      
-      console.log('✅ 快捷键事件监听器已设置');
-    };
 
     // 监听转录结果
     const setupListeners = async () => {
@@ -1238,69 +1198,6 @@ function App() {
           setShowFloatingDialog(true);
         });
 
-        // 设置增强快捷键管理器 - 添加延迟确保后端快捷键注册完成
-        console.log('🔧 设置 enhancedShortcutManager 事件订阅...');
-        console.log('🔍 检查 enhancedShortcutManager 实例:', enhancedShortcutManager);
-        
-        // 等待一下确保后端快捷键注册完成
-        await new Promise(resolve => setTimeout(resolve, 500));
-        console.log('⏳ 延迟完成，开始设置事件监听器...');
-        
-        // 手动设置 enhancedShortcutManager 的事件监听器
-        await enhancedShortcutManager.setupEventListeners();
-        
-        const unsubscribeRecording = enhancedShortcutManager.on('toggle_recording', () => {
-          console.log('🎯 快捷键触发录音切换');
-          handleFloatingDialogToggleRecording();
-        });
-        console.log('✅ toggle_recording 事件已订阅');
-        
-        // 测试快捷键监听器是否工作 
-        console.log('🧪 测试快捷键监听器...');
-        setTimeout(async () => {
-          console.log('🧪 调用后端测试命令');
-          try {
-            await invoke('test_shortcut', { 
-              shortcut: 'CommandOrControl+Shift+R', 
-              action: 'toggle_recording' 
-            });
-          } catch (error) {
-            console.error('❌ 测试快捷键命令失败:', error);
-          }
-          
-          console.log('🧪 模拟快捷键触发测试');
-          enhancedShortcutManager.simulateShortcut('CommandOrControl+Shift+R');
-        }, 1000);
-
-        const unsubscribeStartRecording = enhancedShortcutManager.on('start_recording', () => {
-          console.log('🎙️ 快捷键触发开始录音');
-          if (!isRecording) {
-            handleFloatingDialogToggleRecording();
-          }
-        });
-
-        const unsubscribeStopRecording = enhancedShortcutManager.on('stop_recording', () => {
-          console.log('⏹️ 快捷键触发停止录音');
-          if (isRecording) {
-            handleFloatingDialogToggleRecording();
-          }
-        });
-
-        const unsubscribeShowHistory = enhancedShortcutManager.on('show_history', () => {
-          console.log('📚 快捷键触发显示历史记录');
-          setCurrentPage('history');
-        });
-
-        const unsubscribeToggleVisibility = enhancedShortcutManager.on('toggle_visibility', () => {
-          console.log('👁️ 快捷键触发切换窗口显示');
-          // 这里可以添加窗口显示/隐藏逻辑
-        });
-
-        const unsubscribeTextInjection = enhancedShortcutManager.on('toggle_text_injection', () => {
-          console.log('🎯 快捷键触发文本注入设置');
-          setShowTextInjectionSettings(true);
-        });
-
         // 设置录音计时器监听器
         const unsubscribeTimer = recordingTimer.addListener(({ duration, isActive }) => {
           setRecordingDuration(duration);
@@ -1321,10 +1218,6 @@ function App() {
           setCurrentPage(event.payload);
         });
 
-        const unlisten8 = await listen('tray_show_permissions', () => {
-          logger.debug('托盘权限设置');
-          setShowPermissionSettings(true);
-        });
 
         return () => {
           unlisten1();
@@ -1333,16 +1226,9 @@ function App() {
           unlisten4();
           unlisten6();
           unlisten7();
-          unlisten8();
           unregisterAll();
           
-          // 清理增强快捷键管理器订阅
-          unsubscribeRecording();
-          unsubscribeStartRecording();
-          unsubscribeStopRecording();
-          unsubscribeShowHistory();
-          unsubscribeToggleVisibility();
-          unsubscribeTextInjection();
+          // 清理计时器订阅
           unsubscribeTimer();
         };
       } catch (error) {
@@ -1424,118 +1310,7 @@ function App() {
     }
   };
   
-  // 检查权限
-  const checkPermissions = async () => {
-    const missingPermissions = await permissionManager.getMissingRequiredPermissions();
-    if (missingPermissions.length > 0) {
-      logger.warn('发现缺失的必需权限', missingPermissions.map(p => p.name).join(', '));
-      
-      // 如果不是首次启动且缺少关键权限，显示权限设置
-      const hasCompletedSetup = localStorage.getItem('spokenly_setup_completed');
-      if (hasCompletedSetup && missingPermissions.some(p => p.required)) {
-        setTimeout(() => {
-          setShowPermissionSettings(true);
-        }, 2000);
-      }
-    }
-  };
 
-  // 初始化快捷键
-  const initializeShortcuts = async () => {
-    // 注册快捷键事件监听器
-    shortcutManager.on('toggle-recording', async () => {
-      await handleFloatingDialogToggleRecording();
-    });
-
-    shortcutManager.on('quick-transcribe', async () => {
-      logger.debug('快速转录快捷键触发', { isRecording });
-      if (!isRecording) {
-        try {
-          logger.audio('开始快速转录');
-          await invoke('start_recording');
-          setRecording(true);
-          logger.audio('录音已开始');
-          
-          // 3秒后自动停止
-          setTimeout(async () => {
-            try {
-              logger.audio('自动停止录音');
-              const currentModelId = selectedModel || 'gpt-4o-mini';
-              const { model, modelType } = getModelInfo(currentModelId);
-              await invoke('stop_recording', { 
-                model: model, 
-                modelType: modelType 
-              });
-              setRecording(false);
-              logger.audio('录音已停止');
-            } catch (error) {
-              logger.error('停止录音失败', error);
-            }
-          }, 3000);
-        } catch (error) {
-          logger.error('开始录音失败', error);
-        }
-      } else {
-        logger.warn('已经在录音中，忽略快捷键');
-      }
-    });
-
-    shortcutManager.on('open-ai-assistant', () => {
-      setShowFloatingDialog(true);
-    });
-
-    shortcutManager.on('switch-to-history', () => {
-      setCurrentPage('history');
-    });
-
-    shortcutManager.on('switch-to-models', () => {
-      setCurrentPage('transcription');
-    });
-
-    shortcutManager.on('switch-to-settings', () => {
-      setCurrentPage('general');
-    });
-
-    // 监听首次启动向导事件
-    shortcutManager.on('show-first-launch-wizard', () => {
-      setShowFirstLaunchWizard(true);
-    });
-
-    shortcutManager.on('suggest-permission-check', () => {
-      // 温和的权限检查提醒
-      logger.warn('建议用户检查权限设置');
-    });
-
-    shortcutManager.on('copy-transcription', async () => {
-      if (transcriptionText) {
-        await navigator.clipboard.writeText(transcriptionText);
-        logger.info('已复制转录文本');
-      }
-    });
-
-    shortcutManager.on('export-transcription', async () => {
-      const history = useStore.getState().transcriptionHistory;
-      if (history.length > 0) {
-        const latest = history[0];
-        await invoke('export_transcription', {
-          entryId: latest.id,
-          exportFormat: 'txt'
-        });
-      }
-    });
-
-    // 处理快捷键冲突检测
-    shortcutManager.on('shortcut-conflicts-detected', (failedShortcuts: string[]) => {
-      logger.warn('检测到快捷键冲突', failedShortcuts);
-      // 可以在这里显示提示或打开快捷键设置页面
-      setTimeout(() => {
-        setCurrentPage('shortcuts');
-      }, 1000);
-    });
-
-    // 不在应用启动时自动注册全局快捷键，改为在快捷键编辑器中点击“应用更改”时注册
-    logger.info('快捷键事件监听已就绪');
-  };
 
   const handleFloatingDialogToggleRecording = async () => {
     console.log('🎯 handleFloatingDialogToggleRecording 被调用, 当前状态:', { isRecording });
@@ -1732,7 +1507,6 @@ function App() {
         </nav>
 
         <div className="sidebar-footer">
-          <PermissionIndicator onOpenSettings={() => setShowPermissionSettings(true)} />
           <div className="upgrade-link" onClick={() => setShowSubscriptionManager(true)}>
             升级 Pro
           </div>
@@ -1750,7 +1524,6 @@ function App() {
           setShowHistorySettings={setShowHistorySettings}
           setShowEnhancedHistory={setShowEnhancedHistory}
           setShowTextInjectionSettings={setShowTextInjectionSettings}
-          setShowEnhancedShortcutManager={setShowEnhancedShortcutManager}
           audioDevices={audioDevices}
           trialInfo={trialInfo}
           setShowSubscriptionManager={setShowSubscriptionManager}
@@ -1843,25 +1616,12 @@ function App() {
         onClose={() => setShowAudioInputTest(false)}
       />
 
-      {/* 权限设置对话框 */}
-      <PermissionSettings
-        isVisible={showPermissionSettings}
-        onClose={() => setShowPermissionSettings(false)}
-        onPermissionsConfigured={() => {
-          logger.info('权限已配置');
-          // 重新注册快捷键
-          shortcutManager.registerAllShortcuts();
-        }}
-      />
-
       {/* 首次启动向导 */}
       <FirstLaunchWizard
         isVisible={showFirstLaunchWizard}
         onComplete={() => {
           setShowFirstLaunchWizard(false);
           logger.info('首次设置完成');
-          // 重新注册快捷键
-          shortcutManager.registerAllShortcuts();
         }}
       />
 
@@ -1916,10 +1676,6 @@ function App() {
       />
 
       {/* 增强快捷键管理器 */}
-      <EnhancedShortcutManager
-        isVisible={showEnhancedShortcutManager}
-        onClose={() => setShowEnhancedShortcutManager(false)}
-      />
 
       {/* 试用状态提示 - 已移除以避免过度商业化 */}
     </div>
