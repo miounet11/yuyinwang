@@ -24,6 +24,7 @@ interface AdvancedSearchOptions {
   page_size: number;
   page: number;
   group_by?: string;
+  include_deleted: boolean;
 }
 
 // 搜索结果接口
@@ -123,6 +124,7 @@ const EnhancedHistoryPage: React.FC<EnhancedHistoryPageProps> = ({
         ...advancedOptions,
         ...options,
         page: currentPage,
+        include_deleted: false,
         // 确保 filter 字段总是存在
         filter: {
           ...(modelFilter !== 'all' && { model: modelFilter }),

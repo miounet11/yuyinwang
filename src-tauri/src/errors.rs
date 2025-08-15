@@ -38,6 +38,15 @@ pub enum AppError {
     // 配置相关错误
     ConfigurationError(String),
     
+    // 快捷键相关错误
+    ShortcutError(String),
+    
+    // 窗口相关错误
+    WindowError(String),
+    
+    // 系统错误
+    SystemError(String),
+    
     // 通用错误
     ValidationError(String),
     UnexpectedError(String),
@@ -65,6 +74,9 @@ impl fmt::Display for AppError {
             AppError::AccessibilityError(msg) => write!(f, "辅助功能权限错误: {}", msg),
             AppError::SystemIntegrationError(msg) => write!(f, "系统集成错误: {}", msg),
             AppError::ConfigurationError(msg) => write!(f, "配置错误: {}", msg),
+            AppError::ShortcutError(msg) => write!(f, "快捷键错误: {}", msg),
+            AppError::WindowError(msg) => write!(f, "窗口错误: {}", msg),
+            AppError::SystemError(msg) => write!(f, "系统错误: {}", msg),
             AppError::ValidationError(msg) => write!(f, "验证错误: {}", msg),
             AppError::UnexpectedError(msg) => write!(f, "未预期的错误: {}", msg),
         }

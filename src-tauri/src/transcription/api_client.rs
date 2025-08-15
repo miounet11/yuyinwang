@@ -182,6 +182,7 @@ impl TranscriptionApiClient {
         println!("✅ 任务创建完成");
 
         let task_text = task_resp.text().await.unwrap_or_default();
+        println!("📝 任务创建响应: {}", task_text);
         let task_json: serde_json::Value = serde_json::from_str(&task_text)
             .map_err(|e| AppError::DataSerializationError(format!("解析任务响应失败: {}", e)))?;
         
