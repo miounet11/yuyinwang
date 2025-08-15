@@ -128,13 +128,19 @@ impl TranscriptionApiClient {
             .map_err(|e| AppError::HttpRequestError(format!("创建上传部件失败: {}", e)))?;
 
         let form = Form::new().part("file[]", part);
+        println!("📤 开始上传文件到API...");
         let upload_resp = self.client
             .post("https://ly.gl173.com/api/v1/upload-file")
             .header("Authorization", format!("Bearer {}", bearer_token))
             .multipart(form)
+            .timeout(std::time::Duration::from_secs(30))
             .send()
             .await
-            .map_err(|e| AppError::HttpRequestError(format!("上传文件失败: {}", e)))?;
+            .map_err(|e| {
+                println!("❌ 上传文件失败: {}", e);
+                AppError::HttpRequestError(format!("上传文件失败: {}", e))
+            })?;
+        println!("✅ 文件上传完成");
 
         let status = upload_resp.status();
         let upload_text = upload_resp.text().await.unwrap_or_default();
@@ -161,13 +167,19 @@ impl TranscriptionApiClient {
         }
 
         // 2) 创建转换任务，得到 task_id
+        println!("🔄 创建转录任务，file_id: {}", file_id);
         let task_resp = self.client
             .post("https://ly.gl173.com/api/v1/task-add")
             .header("Authorization", format!("Bearer {}", bearer_token))
             .form(&[("file_id", file_id.clone())])
+            .timeout(std::time::Duration::from_secs(60))
             .send()
             .await
-            .map_err(|e| AppError::HttpRequestError(format!("创建任务失败: {}", e)))?;
+            .map_err(|e| {
+                println!("❌ 创建任务失败: {}", e);
+                AppError::HttpRequestError(format!("创建任务失败: {}", e))
+            })?;
+        println!("✅ 任务创建完成");
 
         let task_text = task_resp.text().await.unwrap_or_default();
         let task_json: serde_json::Value = serde_json::from_str(&task_text)
