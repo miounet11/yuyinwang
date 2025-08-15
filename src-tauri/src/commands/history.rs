@@ -3,8 +3,6 @@
 
 use std::sync::Arc;
 use tauri::State;
-use crate::errors::AppResult;
-use crate::types::TranscriptionEntry;
 use crate::database::{
     HistoryManager, 
     AdvancedSearchOptions, 
@@ -395,7 +393,7 @@ pub async fn build_search_options(
 /// 获取搜索建议（自动完成）
 #[tauri::command]
 pub async fn get_search_suggestions(
-    history_manager: State<'_, Arc<HistoryManager>>,
+    _history_manager: State<'_, Arc<HistoryManager>>,
     partial_query: String,
     max_suggestions: Option<usize>,
 ) -> Result<Vec<String>, String> {

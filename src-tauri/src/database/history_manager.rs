@@ -6,10 +6,9 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use crate::errors::{AppError, AppResult};
 use crate::types::TranscriptionEntry;
-use super::{DatabaseManager, SearchFilter, SearchResult, Tag};
+use super::{DatabaseManager, SearchFilter, SearchResult};
 
 /// 高级搜索选项
 #[derive(Debug, Clone, Serialize, Deserialize)]

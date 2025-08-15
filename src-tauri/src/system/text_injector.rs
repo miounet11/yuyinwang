@@ -7,10 +7,6 @@ use crate::errors::{AppError, AppResult};
 
 #[cfg(target_os = "macos")]
 use cocoa::foundation::{NSString, NSAutoreleasePool};
-#[cfg(target_os = "macos")]
-use cocoa::base::nil;
-#[cfg(target_os = "macos")]
-use objc::{msg_send, sel, sel_impl};
 
 /// 文本注入配置
 #[derive(Debug, Clone)]

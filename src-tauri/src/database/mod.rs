@@ -5,6 +5,5 @@ pub mod migrations;
 pub mod history_manager;
 
 pub use manager::*;
-pub use async_manager::*;
 pub use models::*;
 pub use history_manager::*;

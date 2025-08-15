@@ -183,7 +183,7 @@ pub async fn get_audio_devices(
 #[tauri::command]
 pub async fn test_audio_input(
     state: State<'_, AppState>,
-    device_id: Option<String>,
+    _device_id: Option<String>,
     duration_seconds: Option<f32>,
 ) -> Result<String, String> {
     let test_duration = duration_seconds.unwrap_or(3.0);
@@ -383,11 +383,11 @@ pub async fn stop_recording(
                                     }
                                     
                                     // 发送转录结果事件到前端
-                                    if let Err(e) = app_handle_clone.emit_all("transcription_result", &entry) {
+                                    match app_handle_clone.emit_all("transcription_result", &entry) { Err(e) => {
                                         eprintln!("发送转录结果事件失败: {}", e);
-                                    } else {
+                                    } _ => {
                                         println!("✅ 转录结果事件已发送到前端");
-                                    }
+                                    }}
                                     
                                     // 清理临时文件
                                     if let Err(e) = std::fs::remove_file(&temp_file_path) {

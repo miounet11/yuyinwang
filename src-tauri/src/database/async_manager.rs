@@ -1,12 +1,12 @@
 // 异步数据库管理器 - 连接池版本（性能优化）
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::{Result as SqliteResult, params, OptionalExtension};
+use rusqlite::params;
 use std::path::Path;
 use tokio::task;
 use crate::errors::{AppError, AppResult};
 use crate::types::TranscriptionEntry;
-use super::models::{ModelUsageStats, AppSetting, Tag, SearchResult, DatabaseStats, SearchFilter};
+use super::models::{SearchResult, DatabaseStats, SearchFilter};
 
 pub type SqlitePool = Pool<SqliteConnectionManager>;
 pub type SqliteConnection = PooledConnection<SqliteConnectionManager>;

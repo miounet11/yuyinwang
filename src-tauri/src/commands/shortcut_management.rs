@@ -76,18 +76,18 @@ pub async fn register_global_shortcut(
         println!("🔥 全局快捷键被触发: {} -> {}", shortcut_clone, action_clone);
         
         // 发送事件到前端
-        if let Err(e) = app_handle_clone.emit_all("shortcut_pressed", serde_json::json!({
+        match app_handle_clone.emit_all("shortcut_pressed", serde_json::json!({
             "shortcut": shortcut_clone,
             "action": action_clone,
             "timestamp": std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_millis()
-        })) {
+        })) { Err(e) => {
             eprintln!("❌ 发送快捷键事件失败: {}", e);
-        } else {
+        } _ => {
             println!("✅ 快捷键事件已发送到前端");
-        }
+        }}
     }) {
         Ok(_) => {
             println!("✅ 全局快捷键注册成功: {}", shortcut);

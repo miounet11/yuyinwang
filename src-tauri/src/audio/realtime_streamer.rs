@@ -5,11 +5,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use parking_lot::Mutex;
-use ringbuf::{HeapRb, Producer, Consumer, Rb};
+use ringbuf::{HeapRb, Rb};
 use tokio::sync::mpsc;
 use tokio::time::interval;
 use crate::errors::{AppError, AppResult};
-use crate::types::{TranscriptionResult, TranscriptionConfig, RealtimeTranscriptionEvent};
+use crate::types::TranscriptionConfig;
 use super::AudioRecorder;
 use crate::transcription::TranscriptionService;
 
@@ -119,7 +119,7 @@ impl RealtimeAudioStreamer {
     /// 开始实时音频流处理
     pub async fn start_streaming(
         &mut self,
-        event_receiver: mpsc::UnboundedReceiver<RealtimeEvent>
+        _event_receiver: mpsc::UnboundedReceiver<RealtimeEvent>
     ) -> AppResult<mpsc::UnboundedReceiver<RealtimeEvent>> {
         if self.is_streaming.load(Ordering::Relaxed) {
             return Err(AppError::AudioRecordingError("已经在进行实时流处理".to_string()));
@@ -203,11 +203,11 @@ impl RealtimeAudioStreamer {
     /// 启动音频处理循环
     async fn start_audio_processing_loop(
         &self,
-        event_sender: mpsc::UnboundedSender<RealtimeEvent>
+        _event_sender: mpsc::UnboundedSender<RealtimeEvent>
     ) -> AppResult<()> {
         let is_streaming = self.is_streaming.clone();
         let audio_recorder = self.audio_recorder.clone();
-        let buffer_manager = self.buffer_manager.clone();
+        let _buffer_manager = self.buffer_manager.clone();
         
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_millis(100)); // 每100ms检查一次
@@ -238,7 +238,7 @@ impl RealtimeAudioStreamer {
         event_sender: mpsc::UnboundedSender<RealtimeEvent>
     ) -> AppResult<()> {
         let is_streaming = self.is_streaming.clone();
-        let buffer_manager = self.buffer_manager.clone();
+        let _buffer_manager = self.buffer_manager.clone();
         let chunk_processor = self.chunk_processor.clone();
         let transcription_service = self.transcription_service.clone();
         let chunk_counter = self.chunk_counter.clone();
@@ -338,7 +338,7 @@ impl RealtimeAudioStreamer {
         event_sender: mpsc::UnboundedSender<RealtimeEvent>
     ) -> AppResult<()> {
         let is_streaming = self.is_streaming.clone();
-        let buffer_manager = self.buffer_manager.clone();
+        let _buffer_manager = self.buffer_manager.clone();
         let chunk_counter = self.chunk_counter.clone();
         
         tokio::spawn(async move {

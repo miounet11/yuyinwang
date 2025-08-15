@@ -7,7 +7,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use crate::errors::{AppError, AppResult};
-use super::{AgentTask, PipelineStrategy, AgentPipelineManager};
+use super::{AgentTask, PipelineStrategy};
 
 /// 文本分析上下文
 #[derive(Debug, Clone, Serialize, Deserialize)]

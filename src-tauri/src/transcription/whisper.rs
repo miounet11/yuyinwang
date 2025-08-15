@@ -13,7 +13,7 @@ use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 use sha2::{Sha256, Digest};
 use std::fs::File;
-use std::io::{BufReader, Write, Read};
+use std::io::{Write, Read};
 
 pub struct WhisperTranscriber {
     optimizer: Arc<Mutex<PerformanceOptimizer>>,
@@ -41,15 +41,15 @@ impl WhisperTranscriber {
             let model_path = Self::download_whisper_model_if_needed(model)?;
             
             // 尝试加载模型到缓存
-            if let Ok(_) = Self::get_cached_model(
+            match Self::get_cached_model(
                 &model_path, 
                 self.model_cache.clone(), 
                 &mut self.optimizer.lock()
-            ) {
+            ) { Ok(_) => {
                 println!("✅ 模型 {} 预加载成功", model);
-            } else {
+            } _ => {
                 println!("⚠️ 模型 {} 预加载失败", model);
-            }
+            }}
         }
         
         println!("🎯 模型预加载完成");
@@ -370,7 +370,7 @@ impl WhisperTranscriber {
         model_cache: Arc<Mutex<std::collections::HashMap<String, WhisperContext>>>,
         optimizer: &mut PerformanceOptimizer,
     ) -> AppResult<WhisperContext> {
-        let mut cache = model_cache.lock();
+        let cache = model_cache.lock();
         
         if let Some(ctx) = cache.get(model_path) {
             println!("🔍 使用缓存的模型: {}", model_path);

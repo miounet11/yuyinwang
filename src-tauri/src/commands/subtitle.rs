@@ -1,6 +1,5 @@
 // 字幕生成相关的Tauri命令
 use tauri::State;
-use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use crate::AppState;
 use crate::subtitle::{

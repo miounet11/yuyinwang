@@ -1,9 +1,9 @@
-use rusqlite::{Connection, Result as SqliteResult, params, OptionalExtension};
+use rusqlite::{Connection, params, OptionalExtension};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use crate::errors::{AppError, AppResult};
 use crate::types::TranscriptionEntry;
-use super::models::{ModelUsageStats, AppSetting, Tag, SearchResult, DatabaseStats, SearchFilter};
+use super::models::{ModelUsageStats, SearchResult, DatabaseStats, SearchFilter};
 
 #[derive(Debug)]
 pub struct DatabaseManager {

@@ -1,7 +1,6 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Sample, SampleFormat};
 use parking_lot::Mutex;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use crate::errors::{AppError, AppResult};
@@ -130,7 +129,7 @@ impl AudioRecorder {
             };
 
             // 获取配置
-            let mut config = match device.default_input_config() {
+            let config = match device.default_input_config() {
                 Ok(c) => c,
                 Err(e) => {
                     eprintln!("获取默认输入配置失败: {}", e);

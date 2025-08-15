@@ -6,7 +6,6 @@ use crate::errors::{AppError, AppResult};
 use crate::types::{TranscriptionResult, TranscriptionConfig};
 use super::{WhisperTranscriber, TranscriptionApiClient};
 use parking_lot::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct TranscriptionService {
     whisper_transcriber: Arc<WhisperTranscriber>,

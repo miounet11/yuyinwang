@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Instant;
 
 /// 实时转录事件
 #[derive(Debug, Clone, Serialize, Deserialize)]

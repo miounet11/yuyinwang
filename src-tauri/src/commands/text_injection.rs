@@ -1,8 +1,5 @@
 // 文本注入相关的Tauri命令
-use std::sync::Arc;
-use tauri::State;
 use serde::{Deserialize, Serialize};
-use crate::errors::AppResult;
 use crate::system::{TextInjector, TextInjectionConfig, TextInjectionManager, AppInfo};
 
 /// 文本注入配置的序列化结构

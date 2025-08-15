@@ -1,11 +1,11 @@
 // 权限管理命令模块
 
 #[cfg(target_os = "macos")]
-extern "C" {
+unsafe extern "C" {
     fn IOHIDCheckAccess(requestType: i32) -> i32;
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn AXIsProcessTrusted() -> bool;
 }
 

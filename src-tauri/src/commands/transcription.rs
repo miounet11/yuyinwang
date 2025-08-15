@@ -74,7 +74,7 @@ pub async fn get_transcription_document(
 pub async fn smart_split_text(
     _editor: State<'_, Arc<TranscriptionEditor>>,
     text: String,
-    options: Option<ParagraphSplitOptions>,
+    _options: Option<ParagraphSplitOptions>,
 ) -> Result<Vec<String>, String> {
     // 简化实现 - 按换行符分割
     let paragraphs = if text.contains('\n') {

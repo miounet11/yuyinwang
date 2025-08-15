@@ -9,7 +9,6 @@ use tokio::sync::{mpsc, Semaphore};
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use crate::errors::{AppError, AppResult};
-use crate::types::{AgentRequest, AgentResponse};
 use super::processors::AIProcessor;
 use super::types::{AIAgentType, AIAgentRequest};
 
