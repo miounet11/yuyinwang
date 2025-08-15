@@ -207,7 +207,7 @@ impl RealtimeAudioStreamer {
     ) -> AppResult<()> {
         let is_streaming = self.is_streaming.clone();
         let audio_recorder = self.audio_recorder.clone();
-        let _buffer_manager = self.buffer_manager.clone();
+        let buffer_manager = self.buffer_manager.clone();
         
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_millis(100)); // 每100ms检查一次
@@ -238,7 +238,7 @@ impl RealtimeAudioStreamer {
         event_sender: mpsc::UnboundedSender<RealtimeEvent>
     ) -> AppResult<()> {
         let is_streaming = self.is_streaming.clone();
-        let _buffer_manager = self.buffer_manager.clone();
+        let buffer_manager = self.buffer_manager.clone();
         let chunk_processor = self.chunk_processor.clone();
         let transcription_service = self.transcription_service.clone();
         let chunk_counter = self.chunk_counter.clone();
@@ -338,7 +338,7 @@ impl RealtimeAudioStreamer {
         event_sender: mpsc::UnboundedSender<RealtimeEvent>
     ) -> AppResult<()> {
         let is_streaming = self.is_streaming.clone();
-        let _buffer_manager = self.buffer_manager.clone();
+        let buffer_manager = self.buffer_manager.clone();
         let chunk_counter = self.chunk_counter.clone();
         
         tokio::spawn(async move {
