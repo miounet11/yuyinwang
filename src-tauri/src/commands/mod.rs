@@ -224,7 +224,7 @@ pub async fn test_audio_input(
                     println!("   - 样本数: {}", sample_count);
                     println!("   - 最大音量: {:.4}", audio_max);
                     println!("   - RMS音量: {:.4}", audio_rms);
-                    println!("   - 持续时间: {:.2}秒", sample_count as f32 / 48000.0);
+                    println!("   - 持续时间: {:.2}秒", sample_count as f32 / 16000.0);
                     
                     let result = if audio_max < 0.01 {
                         "❌ 音频输入异常：音量过低，请检查麦克风设置和权限"
@@ -316,8 +316,8 @@ pub async fn stop_recording(
                     println!("⚠️ 警告：音频信号较弱 (RMS={:.4})，建议提高麦克风音量或靠近说话", audio_rms);
                 }
                 
-                // 创建WAV文件
-                match crate::commands::create_wav_file(&temp_file, &audio_data, 48000, 1) {
+                // 创建WAV文件 - 修复：使用正确的16kHz采样率
+                match crate::commands::create_wav_file(&temp_file, &audio_data, 16000, 1) {
                     Ok(_) => {
                         println!("📁 音频文件已保存: {:?}", temp_file);
                         
@@ -422,7 +422,7 @@ pub async fn stop_recording(
                 }
             }
             
-            Ok(format!("录音已停止，录制了 {:.2} 秒音频，正在转录...", audio_data.len() as f32 / 48000.0))
+            Ok(format!("录音已停止，录制了 {:.2} 秒音频，正在转录...", audio_data.len() as f32 / 16000.0))
         },
         Err(e) => {
             *is_recording = false; // 确保状态正确

@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
-use rand::Rng;
-use uuid::Uuid;
+// 移除未使用的 rand 导入
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveAppInfo {
@@ -134,16 +133,11 @@ pub async fn start_voice_recording(
                     break;
                 }
                 
-                // 获取音频电平并发送到前端
+                // 获取真实的音频电平并发送到前端
                 let audio_level = {
                     let recorder = recorder_clone.lock();
-                    // 这里应该从录音器获取实际的音频电平
-                    // 暂时使用模拟值
-                    if rand::random::<f32>() > 0.3 {
-                        0.1 + rand::random::<f32>() * 0.5
-                    } else {
-                        0.01
-                    }
+                    // 获取实际的音频电平
+                    recorder.get_current_audio_level().unwrap_or(0.0)
                 };
                 
                 // 发送音频电平事件
@@ -151,22 +145,14 @@ pub async fn start_voice_recording(
                     eprintln!("发送音频电平事件失败: {}", e);
                 }
                 
-                // 每2秒发送一次实时转录（模拟）
-                if last_transcription_time.elapsed() > Duration::from_secs(2) {
-                    // 模拟实时转录文本
-                    let transcribed_text = match rand::random::<u8>() % 3 {
-                        0 => "你好，请问有什么可以帮助你的",
-                        1 => "今天天气真不错",
-                        _ => "我正在录音并实时转录",
-                    };
-                    
-                    // 发送实时转录事件
-                    if let Err(e) = app_handle.emit_all("realtime_transcription", transcribed_text) {
-                        eprintln!("发送实时转录事件失败: {}", e);
-                    }
-                    
-                    last_transcription_time = std::time::Instant::now();
-                }
+                // 实时转录功能 - 暂时禁用模拟数据
+                // TODO: 实现真实的实时转录
+                // 1. 从录音器获取音频缓冲区片段
+                // 2. 发送到转录服务
+                // 3. 发送转录结果到前端
+                
+                // 暂时不发送假的转录数据
+                // 只在停止录音时进行完整转录
             }
         });
         
@@ -188,6 +174,7 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     // 停止录音并获取音频数据
     let audio_data = {
         let mut recorder = state.audio_recorder.lock();
+        println!("🛑 停止录音");
         recorder.stop_recording()
             .map_err(|e| format!("停止录音失败: {}", e))?
     };
@@ -198,17 +185,27 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     
     println!("📊 录音已停止，音频样本数: {}", audio_data.len());
     
+    // 如果音频数据太短，返回空字符串
+    if audio_data.len() < 16000 { // 小于1秒的音频
+        println!("⚠️ 音频太短，跳过转录");
+        return Ok(String::new());
+    }
+    
     // 创建临时WAV文件
     let temp_dir = std::env::temp_dir();
-    let temp_file = temp_dir.join(format!("voice_input_{}.wav", uuid::Uuid::new_v4()));
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let temp_file = temp_dir.join(format!("voice_input_{}.wav", timestamp));
     
-    // 写入WAV文件
-    crate::commands::create_wav_file(&temp_file, &audio_data, 48000, 1)
+    // 写入WAV文件 - 修复：使用录音器的实际采样率16kHz而不是错误的48kHz
+    crate::commands::create_wav_file(&temp_file, &audio_data, 16000, 1)
         .map_err(|e| format!("创建WAV文件失败: {}", e))?;
     
-    // 使用默认模型进行转录
+    // 使用默认模型进行转录 - 升级到base模型以提升中文支持
     let config = TranscriptionConfig {
-        model_name: "whisper-tiny".to_string(),
+        model_name: "whisper-base".to_string(),  // 从tiny升级到base，大幅提升中文转录质量
         language: Some("zh".to_string()),
         temperature: Some(0.0),
         is_local: true,
@@ -216,19 +213,31 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     };
     
     // 进行转录
+    println!("🎯 开始转录，模型: {}, 语言: {:?}", config.model_name, config.language);
+    println!("📂 WAV文件: {:?}, 大小: {} 样本", temp_file, audio_data.len());
+    
     let result = state.transcription_service
         .transcribe_audio(temp_file.to_str().unwrap(), &config)
         .await
-        .map_err(|e| format!("转录失败: {}", e))?;
+        .map_err(|e| {
+            eprintln!("❌ 转录服务错误: {}", e);
+            format!("转录失败: {}", e)
+        })?;
     
     // 清理临时文件
     if let Err(e) = std::fs::remove_file(&temp_file) {
         eprintln!("清理临时文件失败: {}", e);
     }
     
-    println!("✅ 语音转录完成: {}", result.text);
+    let final_text = result.text.trim().to_string();
     
-    Ok(result.text)
+    if final_text.is_empty() {
+        println!("⚠️ 转录结果为空，可能是静音或识别失败");
+    } else {
+        println!("✅ 语音转录成功: '{}'", final_text);
+    }
+    
+    Ok(final_text)
 }
 
 /// 将文本注入到当前活动的应用
@@ -243,19 +252,37 @@ pub async fn inject_text_to_active_app(text: String) -> Result<(), String> {
         unsafe {
             let pool = NSAutoreleasePool::new(nil);
             
-            // 使用 AppleScript 注入文本
-            let script = format!(
-                r#"tell application "System Events" to keystroke "{}""#,
-                text.replace("\"", "\\\"")
-            );
+            // 使用更可靠的粘贴板方法注入文本
+            // 1. 先备份当前剪贴板内容
+            let pasteboard_class = objc::class!(NSPasteboard);
+            let general_pasteboard: id = msg_send![pasteboard_class, generalPasteboard];
+            
+            // NSPasteboardTypeString 常量
+            let string_type = NSString::alloc(nil).init_str("public.utf8-plain-text");
+            let old_contents: id = msg_send![general_pasteboard, stringForType:string_type];
+            
+            // 2. 将文本写入剪贴板
+            let text_string = NSString::alloc(nil).init_str(&text);
+            let _: () = msg_send![general_pasteboard, clearContents];
+            let _: bool = msg_send![general_pasteboard, setString:text_string forType:string_type];
+            
+            // 3. 使用Cmd+V粘贴 - 比keystroke更可靠
+            let script = r#"tell application "System Events" to key code 9 using command down"#;
             
             let ns_script_class = objc::class!(NSAppleScript);
             let ns_script: id = msg_send![ns_script_class, alloc];
-            let script_string = NSString::alloc(nil).init_str(&script);
+            let script_string = NSString::alloc(nil).init_str(script);
             let ns_script: id = msg_send![ns_script, initWithSource:script_string];
             
             if ns_script != nil {
                 let _: id = msg_send![ns_script, executeAndReturnError:nil];
+                
+                // 4. 延迟一点后恢复剪贴板内容（如果之前有内容）
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if old_contents != nil {
+                    let _: () = msg_send![general_pasteboard, clearContents];
+                    let _: bool = msg_send![general_pasteboard, setString:old_contents forType:string_type];
+                }
             }
             
             pool.drain();

@@ -92,6 +92,69 @@ impl AudioRecorder {
     pub fn clear_realtime_buffer(&self) {
         self.realtime_buffer.lock().clear();
     }
+    
+    /// 获取当前音频电平 (0.0 - 1.0)
+    pub fn get_current_audio_level(&self) -> Option<f32> {
+        if !self.is_recording.load(Ordering::Relaxed) {
+            return Some(0.0);
+        }
+        
+        // 从音频数据获取最近的样本来计算电平
+        let audio_data = self.audio_data.lock();
+        if audio_data.is_empty() {
+            return Some(0.0);
+        }
+        
+        // 获取最近的2400个样本（约0.05秒@48kHz）来计算实时电平
+        let sample_count = audio_data.len().min(2400);
+        let start_idx = audio_data.len().saturating_sub(sample_count);
+        
+        // 计算RMS（均方根）- 这是音频电平的标准计算方法
+        let mut sum_squares = 0.0f32;
+        let mut max_sample = 0.0f32;
+        let mut sample_count_above_noise = 0;
+        
+        // 噪音门限 - 过滤掉极低的背景噪音
+        const NOISE_FLOOR: f32 = 0.001; // -60dB 噪音门限
+        
+        for i in start_idx..audio_data.len() {
+            let sample = audio_data[i].abs();
+            
+            // 只统计高于噪音门限的样本
+            if sample > NOISE_FLOOR {
+                max_sample = max_sample.max(sample);
+                sum_squares += sample * sample;
+                sample_count_above_noise += 1;
+            }
+        }
+        
+        // 如果没有有效样本，返回0
+        if sample_count_above_noise == 0 {
+            return Some(0.0);
+        }
+        
+        // 计算有效样本的RMS
+        let rms = (sum_squares / sample_count_above_noise as f32).sqrt();
+        
+        // 直接使用RMS值，不做过度处理
+        // 音频样本范围通常是 -1.0 到 1.0
+        // 正常说话的RMS通常在 0.01 到 0.3 之间
+        // 大声说话可能达到 0.5
+        let level = rms.min(1.0);
+        
+        // 可选：应用温和的对数曲线，使低音量更容易察觉
+        // 但不要过度放大
+        let adjusted_level = if level > 0.0 {
+            // 使用更温和的对数映射
+            let db = 20.0 * level.log10();
+            // 映射 -40dB 到 0dB → 0.0 到 1.0
+            ((db + 40.0) / 40.0).max(0.0).min(1.0)
+        } else {
+            0.0
+        };
+        
+        Some(adjusted_level)
+    }
 
     pub fn start_recording(&mut self) -> AppResult<()> {
         if self.is_recording.load(Ordering::Relaxed) {
