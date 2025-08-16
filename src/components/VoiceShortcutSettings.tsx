@@ -8,6 +8,8 @@ interface VoiceShortcutConfig {
   auto_insert: boolean;
   use_floating_window: boolean;
   preferred_model: string;
+  trigger_mode?: 'press' | 'hold';  // 新增：触发模式
+  hold_duration?: number;  // 新增：长按持续时间（毫秒）
 }
 
 interface VoiceShortcutSettingsProps {
@@ -21,7 +23,9 @@ const VoiceShortcutSettings: React.FC<VoiceShortcutSettingsProps> = ({ isVisible
     shortcut: 'CmdOrCtrl+Shift+Space',
     auto_insert: true,
     use_floating_window: true,
-    preferred_model: 'luyingwang-online'
+    preferred_model: 'luyingwang-online',
+    trigger_mode: 'press',
+    hold_duration: 300
   });
   
   const [isRecording, setIsRecording] = useState(false);
@@ -196,6 +200,39 @@ const VoiceShortcutSettings: React.FC<VoiceShortcutSettingsProps> = ({ isVisible
           {/* 行为设置 */}
           <div className="setting-group">
             <h3>行为设置</h3>
+            
+            {/* 触发模式选择 */}
+            <div className="trigger-mode-section">
+              <label className="setting-label">触发模式</label>
+              <div className="trigger-mode-options">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="triggerMode"
+                    value="press"
+                    checked={config.trigger_mode === 'press'}
+                    onChange={() => setConfig(prev => ({ ...prev, trigger_mode: 'press' }))}
+                  />
+                  <span>单击激活</span>
+                </label>
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="triggerMode"
+                    value="hold"
+                    checked={config.trigger_mode === 'hold'}
+                    onChange={() => setConfig(prev => ({ ...prev, trigger_mode: 'hold' }))}
+                  />
+                  <span>长按录音</span>
+                </label>
+              </div>
+              <p className="setting-desc">
+                {config.trigger_mode === 'press' 
+                  ? '按下快捷键开始录音，检测到静音自动停止' 
+                  : '按住快捷键录音，松开即停止'}
+              </p>
+            </div>
+            
             <label className="setting-label">
               <input
                 type="checkbox"
@@ -214,7 +251,7 @@ const VoiceShortcutSettings: React.FC<VoiceShortcutSettingsProps> = ({ isVisible
               />
               <span>使用悬浮窗口</span>
             </label>
-            <p className="setting-desc">在光标附近显示小型悬浮录音窗口</p>
+            <p className="setting-desc">在屏幕中间显示录音状态窗口</p>
           </div>
 
           {/* 使用说明 */}

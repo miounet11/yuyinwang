@@ -2114,6 +2114,45 @@ body {
   color: var(--text-muted);
 }
 
+/* 悬浮助手按钮样式 */
+.floating-assistant-btn {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border: none;
+  position: relative;
+  overflow: hidden;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.floating-assistant-btn:hover {
+  background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(245, 87, 108, 0.4);
+}
+
+.floating-assistant-btn span {
+  position: relative;
+  z-index: 1;
+  animation: float-icon 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(245, 87, 108, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 87, 108, 0.5);
+  }
+}
+
+@keyframes float-icon {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
 /* 快捷键状态样式 */
 .shortcut-status {
   display: flex;
@@ -2351,5 +2390,110 @@ body {
     flex-direction: column;
     gap: var(--spacing-xs);
     align-items: flex-start;
+  }
+}
+
+/* 权限警告横幅样式 */
+.permission-warning-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  color: white;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.warning-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  gap: 12px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.warning-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  font-size: 14px;
+  font-weight: 500;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.warning-action {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.warning-action:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.warning-dismiss {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.warning-dismiss:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 当有权限警告时，调整主内容区域 */
+.app:has(.permission-warning-banner) .main-content {
+  padding-top: calc(var(--spacing-lg) + 48px);
+}
+
+@media (max-width: 768px) {
+  .warning-content {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+  
+  .warning-text {
+    font-size: 13px;
+  }
+  
+  .warning-action {
+    align-self: stretch;
   }
 }

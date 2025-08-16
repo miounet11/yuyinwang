@@ -7,6 +7,7 @@ import './App.css';
 import './styles/micro-interactions.css';
 import { transcriptionModels } from './data/models';
 import logger from './utils/logger';
+import PermissionManager from './components/PermissionManager';
 
 // 扩展 Window 接口以包含全局录音函数
 declare global {
@@ -101,6 +102,10 @@ interface AppStore {
   showFloatingDialog: boolean;
   aiProcessingActive: boolean;
   useEnhancedAIPrompts: boolean;
+  // 权限相关状态
+  hasAllPermissions: boolean;
+  showPermissionModal: boolean;
+  permissionIssueDetected: boolean;
   setRecording: (value: boolean) => void;
   setTranscription: (text: string) => void;
   setDevices: (devices: AudioDevice[]) => void;
@@ -115,6 +120,10 @@ interface AppStore {
   setShowFloatingDialog: (show: boolean) => void;
   setAiProcessingActive: (active: boolean) => void;
   setUseEnhancedAIPrompts: (use: boolean) => void;
+  // 权限相关方法
+  setHasAllPermissions: (has: boolean) => void;
+  setShowPermissionModal: (show: boolean) => void;
+  setPermissionIssueDetected: (detected: boolean) => void;
 }
 
 export const useStore = create<AppStore>((set) => ({
@@ -136,6 +145,10 @@ export const useStore = create<AppStore>((set) => ({
   showFloatingDialog: false,
   aiProcessingActive: false,
   useEnhancedAIPrompts: false, // 默认使用原版
+  // 权限相关初始状态
+  hasAllPermissions: false,
+  showPermissionModal: false,
+  permissionIssueDetected: false,
   setRecording: (value) => set({ isRecording: value }),
   setTranscription: (text) => set({ transcriptionText: text }),
   setDevices: (devices) => set({ audioDevices: devices }),
@@ -152,11 +165,16 @@ export const useStore = create<AppStore>((set) => ({
   setShowFloatingDialog: (show) => set({ showFloatingDialog: show }),
   setAiProcessingActive: (active) => set({ aiProcessingActive: active }),
   setUseEnhancedAIPrompts: (use) => set({ useEnhancedAIPrompts: use }),
+  // 权限相关setter方法
+  setHasAllPermissions: (has) => set({ hasAllPermissions: has }),
+  setShowPermissionModal: (show) => set({ showPermissionModal: show }),
+  setPermissionIssueDetected: (detected) => set({ permissionIssueDetected: detected }),
 }));
 
 // 导航菜单项
 const navigationItems = [
   { id: 'general', label: '常规设置', icon: '•' },
+  { id: 'permissions', label: '权限管理', icon: '🔒' },
   { id: 'transcription', label: '听写模型', icon: '•' },
   { id: 'files', label: '转录文件', icon: '•' },
   { id: 'history', label: '历史记录', icon: '•' },
@@ -252,7 +270,8 @@ const PageContent: React.FC<{
   setSelectedEntry?: (entry: TranscriptionEntry | null) => void;
   handleFloatingDialogToggleRecording?: () => Promise<void>;
   isTranscribing?: boolean;
-}> = ({ page, selectedModel: propSelectedModel, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowVoiceShortcutSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing }) => {
+  setHasAllPermissions?: (has: boolean) => void;
+}> = ({ page, selectedModel: propSelectedModel, setShowAppSelector, setShowHistorySettings, setShowEnhancedHistory, setShowTextInjectionSettings, setShowVoiceShortcutSettings, audioDevices = [], onEnhancedTextReady, isRecording: propIsRecording, useAdvancedShortcuts, setUseAdvancedShortcuts, useEnhancedAIPrompts, setUseEnhancedAIPrompts, setSelectedEntry, handleFloatingDialogToggleRecording, isTranscribing, setHasAllPermissions }) => {
   const {
     transcriptionText,
     transcriptionHistory,
@@ -454,6 +473,33 @@ const PageContent: React.FC<{
                     size="medium"
                     autoStart={true}
                   />
+                  
+                  {/* 测试悬浮输入窗口按钮 */}
+                  <button 
+                    className="test-floating-input-btn"
+                    style={{
+                      marginLeft: '10px',
+                      padding: '8px 16px',
+                      background: '#007AFF',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '14px'
+                    }}
+                    onClick={async () => {
+                      try {
+                        console.log('尝试显示悬浮输入窗口...');
+                        await invoke('show_floating_input');
+                        console.log('命令执行成功');
+                      } catch (error) {
+                        console.error('显示悬浮输入窗口失败:', error);
+                        alert('显示悬浮输入窗口失败: ' + error);
+                      }
+                    }}
+                  >
+                    测试悬浮输入
+                  </button>
                 </div>
                 
                 <button 
@@ -710,6 +756,20 @@ const PageContent: React.FC<{
               <button className="action-btn voice-shortcut-btn" onClick={() => setShowVoiceShortcutSettings(true)}>
                 <span>🎤</span>
                 语音快捷键
+              </button>
+              <button 
+                className="action-btn floating-assistant-btn" 
+                onClick={async () => {
+                  try {
+                    await invoke('toggle_floating_assistant');
+                  } catch (error) {
+                    console.error('启动悬浮助手失败:', error);
+                  }
+                }}
+                title="启动悬浮助手"
+              >
+                <span>🎯</span>
+                悬浮助手
               </button>
               <button className="action-btn" onClick={() => setShowAppSelector?.(true)}>选择</button>
               <button className="action-btn" onClick={() => setShowHistorySettings?.(true)}>设置</button>
@@ -976,6 +1036,9 @@ const PageContent: React.FC<{
         </div>
       );
 
+    case 'permissions':
+      return <PermissionManager onPermissionChange={(hasAll) => setHasAllPermissions?.(hasAll)} />;
+
     default:
       return <div className="page-content">页面未找到</div>;
   }
@@ -992,6 +1055,9 @@ function App() {
     audioDevices,
     selectedDevice,
     useEnhancedAIPrompts,
+    hasAllPermissions,
+    showPermissionModal,
+    permissionIssueDetected,
     setDevices,
     setCurrentPage,
     setTranscriptionHistory,
@@ -1000,6 +1066,9 @@ function App() {
     setRecording,
     setShowFloatingDialog,
     setUseEnhancedAIPrompts,
+    setHasAllPermissions,
+    setShowPermissionModal,
+    setPermissionIssueDetected,
   } = useStore();
   
   // Models Store
@@ -1083,10 +1152,42 @@ function App() {
     }
   };
 
+  // 权限检查和管理
+  const checkPermissions = async () => {
+    try {
+      const permissionInfo = await invoke('check_all_permissions');
+      const hasAll = permissionInfo.status.all_granted;
+      const hasCritical = permissionInfo.status.input_monitoring;
+      
+      setHasAllPermissions(hasAll);
+      setPermissionIssueDetected(!hasCritical);
+      
+      // 如果缺少关键权限，显示权限模态框
+      if (!hasCritical) {
+        console.warn('⚠️ 缺少关键权限，将显示权限配置界面');
+        setShowPermissionModal(true);
+      }
+      
+      return hasAll;
+    } catch (error) {
+      console.error('权限检查失败:', error);
+      setPermissionIssueDetected(true);
+      return false;
+    }
+  };
+
   // 初始化
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        // 第一步：检查系统权限
+        console.log('🔍 开始权限检查...');
+        const hasPermissions = await checkPermissions();
+        
+        if (!hasPermissions) {
+          console.warn('⚠️ 权限不完整，部分功能可能受限');
+        }
+
         // 获取音频设备列表
         const devices = await invoke<AudioDevice[]>('get_audio_devices');
         setDevices(devices);
@@ -1527,6 +1628,7 @@ function App() {
           setSelectedEntry={setSelectedEntry}
           handleFloatingDialogToggleRecording={handleFloatingDialogToggleRecording}
           isTranscribing={isTranscribing}
+          setHasAllPermissions={setHasAllPermissions}
         />
       </div>
 
@@ -1664,6 +1766,45 @@ function App() {
       />
 
       {/* 增强快捷键管理器 */}
+
+      {/* 权限管理模态框 */}
+      {showPermissionModal && (
+        <PermissionManager
+          showModal={true}
+          onClose={() => setShowPermissionModal(false)}
+          onPermissionChange={(hasAll) => {
+            setHasAllPermissions(hasAll);
+            if (hasAll) {
+              setPermissionIssueDetected(false);
+              setShowPermissionModal(false);
+            }
+          }}
+        />
+      )}
+
+      {/* 权限警告提示 */}
+      {permissionIssueDetected && !showPermissionModal && (
+        <div className="permission-warning-banner">
+          <div className="warning-content">
+            <span className="warning-icon">⚠️</span>
+            <span className="warning-text">
+              检测到权限问题，快捷键功能可能无法正常工作
+            </span>
+            <button 
+              className="warning-action"
+              onClick={() => setShowPermissionModal(true)}
+            >
+              配置权限
+            </button>
+            <button 
+              className="warning-dismiss"
+              onClick={() => setPermissionIssueDetected(false)}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 试用状态提示 - 已移除以避免过度商业化 */}
     </div>
