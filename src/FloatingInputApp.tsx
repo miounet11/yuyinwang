@@ -1,8 +1,8 @@
 import React from 'react';
-import FloatingInput from './components/FloatingInput';
+import MacOSVoiceInput from './components/MacOSVoiceInput';
 
 function FloatingInputApp() {
-  return <FloatingInput />;
+  return <MacOSVoiceInput />;
 }
 
 export default FloatingInputApp;

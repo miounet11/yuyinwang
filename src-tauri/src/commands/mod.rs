@@ -13,6 +13,7 @@ pub mod text_injection;
 pub mod shortcut_management;
 pub mod shortcuts;
 pub mod floating_assistant;
+pub mod voice_input;
 
 pub use history::*;
 pub use transcription::*;
@@ -22,6 +23,7 @@ pub use text_injection::*;
 pub use shortcut_management::*;
 pub use shortcuts::*;
 pub use floating_assistant::*;
+pub use voice_input::*;
 
 // 辅助函数
 

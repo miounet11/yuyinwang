@@ -320,6 +320,11 @@ fn main() {
             commands::start_long_press_monitoring,
             commands::test_long_press_trigger,
             commands::get_long_press_status,
+            // macOS 语音输入命令
+            commands::get_active_app_info_for_voice,
+            commands::start_voice_recording,
+            commands::stop_voice_recording,
+            commands::inject_text_to_active_app,
         ])
         .setup(|app| {
             let app_handle = app.handle();
