@@ -45,7 +45,7 @@ pub async fn check_permission(permission_type: String) -> Result<bool, String> {
                 .args(&["-e", r#"
                     on run
                         try
-                            set microphonePermission to (do shell script "sqlite3 ~/Library/Application\\ Support/com.apple.TCC/TCC.db \"SELECT allowed FROM access WHERE service='kTCCServiceMicrophone' AND client LIKE '%spokenly%' OR client LIKE '%Recording%' LIMIT 1;\"" with administrator privileges)
+                            set microphonePermission to (do shell script "sqlite3 ~/Library/Application\\ Support/com.apple.TCC/TCC.db \"SELECT allowed FROM access WHERE service='kTCCServiceMicrophone' AND (client LIKE '%Recording%' OR client LIKE '%recordingking%' OR client LIKE '%com.recordingking%') LIMIT 1;\"" with administrator privileges)
                             if microphonePermission is "1" then
                                 return true
                             else

@@ -8,6 +8,9 @@ use crate::types::RecordingConfig;
 use ringbuf::{HeapRb, Rb, ring_buffer::RbBase};
 use crossbeam_channel;
 use std::time::{Duration, Instant};
+use std::path::PathBuf;
+use hound::{WavWriter, WavSpec};
+use tempfile::NamedTempFile;
 
 pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
@@ -226,12 +229,64 @@ impl AudioRecorder {
         std::thread::sleep(std::time::Duration::from_millis(200));
 
         // 获取录制的音频数据
-
-        // 获取录制的音频数据
         let audio_data = self.audio_data.lock().clone();
         
         println!("⏹️ 录音已停止。捕获了 {} 个采样点", audio_data.len());
         Ok(audio_data)
+    }
+
+    /// 停止录音并保存为WAV文件
+    pub fn stop(&mut self) -> AppResult<Option<PathBuf>> {
+        if !self.is_recording.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+
+        // 停止录音并获取音频数据
+        let audio_data = self.stop_recording()?;
+        
+        if audio_data.is_empty() {
+            return Ok(None);
+        }
+
+        // 保存为WAV文件
+        let wav_path = self.save_to_wav(&audio_data)?;
+        Ok(Some(wav_path))
+    }
+
+    /// 将音频数据保存为WAV文件
+    fn save_to_wav(&self, samples: &[f32]) -> AppResult<PathBuf> {
+        // 创建临时文件
+        let temp_file = NamedTempFile::with_suffix(".wav")
+            .map_err(|e| AppError::AudioRecordingError(format!("创建临时文件失败: {}", e)))?;
+        
+        let temp_path = temp_file.path().to_path_buf();
+        
+        // 配置WAV规格
+        let spec = WavSpec {
+            channels: self.config.channels,
+            sample_rate: self.get_sample_rate(),
+            bits_per_sample: 32,
+            sample_format: hound::SampleFormat::Float,
+        };
+        
+        // 写入WAV文件
+        let mut writer = WavWriter::create(&temp_path, spec)
+            .map_err(|e| AppError::AudioRecordingError(format!("创建WAV文件失败: {}", e)))?;
+        
+        for &sample in samples {
+            writer.write_sample(sample)
+                .map_err(|e| AppError::AudioRecordingError(format!("写入音频样本失败: {}", e)))?;
+        }
+        
+        writer.finalize()
+            .map_err(|e| AppError::AudioRecordingError(format!("完成WAV文件失败: {}", e)))?;
+        
+        // 保持文件不被删除
+        temp_file.persist(&temp_path)
+            .map_err(|e| AppError::AudioRecordingError(format!("保存WAV文件失败: {}", e)))?;
+        
+        println!("💾 音频已保存到: {:?}", temp_path);
+        Ok(temp_path)
     }
 
     pub fn is_recording(&self) -> bool {

@@ -5,52 +5,128 @@ use crate::errors::AppResult;
 #[cfg(target_os = "macos")]
 use objc::{sel, sel_impl};
 
+mod fn_key_listener;
+pub use fn_key_listener::FnKeyListener;
+
+pub mod global_shortcuts;
+pub use global_shortcuts::{EnhancedShortcutManager, test_global_shortcut, check_shortcut_status};
+
+
 pub struct ShortcutManager {
     app_handle: AppHandle,
-    registered_shortcuts: Arc<Mutex<Vec<String>>>,
+    pub registered_shortcuts: Arc<Mutex<Vec<String>>>,
+    fn_key_listener: Option<Arc<FnKeyListener>>,
 }
 
 impl ShortcutManager {
     pub fn new(app_handle: AppHandle) -> Self {
+        let fn_listener = Arc::new(FnKeyListener::new(app_handle.clone()));
+        
         Self {
             app_handle,
             registered_shortcuts: Arc::new(Mutex::new(Vec::new())),
+            fn_key_listener: Some(fn_listener),
         }
     }
+    
+    /// 启动 Fn 键监听器
+    pub fn start_fn_key_listener(&self) -> AppResult<()> {
+        if let Some(listener) = &self.fn_key_listener {
+            listener.start()?;
+            println!("✅ Fn 键监听器已启动（双击 Fn 键触发悬浮输入）");
+        }
+        Ok(())
+    }
 
-    /// 注册快速语音输入快捷键
-    pub fn register_voice_input_shortcut(&self, shortcut: &str) -> AppResult<()> {
+    /// 注册快速语音输入快捷键（支持长按和单击模式）
+    pub fn register_voice_input_shortcut(&self, shortcut: &str, trigger_mode: &str) -> AppResult<()> {
+        // 如果要求使用Fn键，则使用Option键作为替代
+        let actual_shortcut = if shortcut == "Fn" || shortcut.contains("Fn") {
+            "Option+Space".to_string()
+        } else {
+            shortcut.to_string()
+        };
+        
+        println!("🔧 开始注册快速语音输入快捷键: {} (模式: {})", actual_shortcut, trigger_mode);
+        
+        // 先检查是否已注册
+        let is_registered = self.app_handle
+            .global_shortcut_manager()
+            .is_registered(&actual_shortcut)
+            .unwrap_or(false);
+        
+        if is_registered {
+            println!("⚠️ 快捷键 {} 已注册，先注销", actual_shortcut);
+            let _ = self.app_handle
+                .global_shortcut_manager()
+                .unregister(&actual_shortcut);
+        }
+        
         let app_handle = self.app_handle.clone();
-        let shortcut_str = shortcut.to_string();
+        let shortcut_str = actual_shortcut.clone();
         let shortcut_clone = shortcut_str.clone();
+        let trigger_mode_clone = trigger_mode.to_string();
         
         // 注册全局快捷键
-        self.app_handle
+        let register_result = self.app_handle
             .global_shortcut_manager()
             .register(&shortcut_str, move || {
-                println!("🎤 快速语音输入快捷键触发: {}", shortcut_clone);
+                println!("🎤 快速语音输入快捷键触发: {} (模式: {})", shortcut_clone, trigger_mode_clone);
+                eprintln!("🎤 快速语音输入快捷键触发: {} (模式: {})", shortcut_clone, trigger_mode_clone);
                 
-                // 发送事件到前端
-                app_handle
-                    .emit_all("quick_voice_input_triggered", ())
-                    .unwrap_or_else(|e| {
-                        eprintln!("发送快速语音输入事件失败: {}", e);
-                    });
+                // 添加系统日志
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = std::process::Command::new("osascript")
+                        .arg("-e")
+                        .arg(&format!("display notification \"快捷键触发: {}\" with title \"Recording King\"", shortcut_clone))
+                        .spawn();
+                }
                 
-                // 创建或显示快速输入窗口
-                let _ = create_quick_input_window(&app_handle);
-            })
-            .map_err(|e| {
-                crate::errors::AppError::ShortcutError(format!(
+                // 显示悬浮输入窗口
+                if let Some(window) = app_handle.get_window("floating-input") {
+                    // 显示窗口
+                    if let Err(e) = window.show() {
+                        eprintln!("❌ 显示窗口失败: {}", e);
+                    }
+                    if let Err(e) = window.set_focus() {
+                        eprintln!("❌ 设置焦点失败: {}", e);
+                    }
+                    // 发送触发事件到窗口
+                    if let Err(e) = window.emit("floating_input_triggered", ()) {
+                        eprintln!("❌ 发送事件失败: {}", e);
+                    }
+                    
+                    // 根据触发模式发送不同的事件
+                    if trigger_mode_clone == "hold" {
+                        window.emit("voice_input_hold_start", ()).unwrap_or_else(|e| {
+                            eprintln!("发送长按开始事件失败: {}", e);
+                        });
+                    }
+                } else {
+                    eprintln!("❌ 悬浮输入窗口未找到，尝试创建快速输入窗口");
+                    // 回退：创建或显示快速输入窗口
+                    let _ = create_quick_input_window(&app_handle);
+                }
+            });
+            
+        match register_result {
+            Ok(_) => {
+                println!("✅ 快捷键注册成功: {}", actual_shortcut);
+            }
+            Err(e) => {
+                eprintln!("❌ 快捷键注册失败: {} - {}", actual_shortcut, e);
+                return Err(crate::errors::AppError::ShortcutError(format!(
                     "注册快捷键 {} 失败: {}",
-                    shortcut, e
-                ))
-            })?;
+                    actual_shortcut, e
+                )));
+            }
+        }
 
         // 记录已注册的快捷键
-        self.registered_shortcuts.lock().unwrap().push(shortcut.to_string());
+        self.registered_shortcuts.lock().unwrap().push(actual_shortcut.clone());
         
-        println!("✅ 已注册快速语音输入快捷键: {}", shortcut);
+        println!("✅ 已注册快速语音输入快捷键: {} (模式: {})", actual_shortcut, trigger_mode);
         Ok(())
     }
 
