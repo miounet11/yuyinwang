@@ -1,6 +1,6 @@
 [package]
 name = "recording-king"
-version = "4.4.0"
+version = "4.4.2"
 description = "Recording King - AI-powered speech-to-text desktop application"
 authors = ["Recording King Team"]
 edition = "2021"
@@ -42,6 +42,7 @@ hex = "0.4"
 regex = "1.11.1"
 r2d2 = "0.8.10"
 r2d2_sqlite = "0.31.0"
+async-trait = "0.1"
 
 [features]
 default = ["custom-protocol"]
