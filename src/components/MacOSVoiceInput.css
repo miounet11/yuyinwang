@@ -1,4 +1,15 @@
-/* macOS 原生语音输入样式 */
+/* macOS 原生语音输入样式 - 增强版 */
+:root {
+  /* 可配置颜色变量 */
+  --primary-gradient-start: rgba(88, 86, 214, 0.8);
+  --primary-gradient-end: rgba(147, 51, 234, 0.8);
+  --button-gradient-start: #6366f1;
+  --button-gradient-end: #8b5cf6;
+  --success-gradient-start: #10b981;
+  --success-gradient-end: #34d399;
+  --voice-container-width: 380px;
+}
+
 html {
   background: transparent !important;
   overflow: hidden !important;
@@ -50,9 +61,9 @@ body {
 }
 
 .voice-input-container {
-  background: rgba(30, 30, 30, 0.92); /* 增加不透明度确保可见性 */
-  backdrop-filter: blur(50px) saturate(180%);
-  -webkit-backdrop-filter: blur(50px) saturate(180%);
+  background: rgba(30, 30, 30, 0.95); /* 增强对比度 */
+  backdrop-filter: blur(50px) saturate(200%); /* 增强饱和度 */
+  -webkit-backdrop-filter: blur(50px) saturate(200%);
   border-radius: 16px;
   border: 0.5px solid rgba(255, 255, 255, 0.15);
   box-shadow: 
@@ -63,9 +74,11 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  width: 380px;
+  width: var(--voice-container-width); /* 使用CSS变量 */
+  min-width: 300px; /* 防止过小 */
   height: 88px;
   animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: background 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); /* 状态切换动画 */
 }
 
 @keyframes slideUp {
@@ -113,7 +126,7 @@ body {
 
 .app-name {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7); /* 提高对比度 */
   text-align: center;
   max-width: 60px;
   white-space: nowrap;
@@ -129,6 +142,11 @@ body {
   justify-content: center;
   min-height: 56px;
   position: relative;
+}
+
+/* 状态容器动画 */
+.waveform-container, .processing-container, .success-container {
+  transition: opacity 0.3s ease, transform 0.2s ease;
 }
 
 /* 波形容器 */
@@ -152,19 +170,21 @@ body {
   width: 3px;
   background: linear-gradient(
     to top,
-    rgba(88, 86, 214, 0.8),
-    rgba(147, 51, 234, 0.8)
+    var(--primary-gradient-start),
+    var(--primary-gradient-end)
   );
   border-radius: 2px;
   transition: height 0.1s ease;
-  animation: pulse 1s ease-in-out infinite;
+  animation: pulse 0.8s cubic-bezier(0.36, 0.85, 0.64, 1.15) infinite;
 }
 
 @keyframes pulse {
   0%, 100% {
+    transform: scaleY(1);
     opacity: 0.6;
   }
   50% {
+    transform: scaleY(1.5);
     opacity: 1;
   }
 }
@@ -172,15 +192,17 @@ body {
 .listening-hint {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.4);
-  animation: blink 1.5s ease-in-out infinite;
+  animation: blink 1.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes blink {
   0%, 100% {
     opacity: 0.4;
+    transform: scale(1);
   }
   50% {
     opacity: 0.7;
+    transform: scale(1.05);
   }
 }
 
@@ -238,15 +260,19 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  animation: successPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: successPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @keyframes successPop {
-  from {
+  0% {
     transform: scale(0.8);
     opacity: 0;
   }
-  to {
+  70% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
     transform: scale(1);
     opacity: 1;
   }
@@ -255,7 +281,7 @@ body {
 .success-icon {
   width: 24px;
   height: 24px;
-  background: linear-gradient(135deg, #10b981, #34d399);
+  background: linear-gradient(135deg, var(--success-gradient-start), var(--success-gradient-end));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -281,7 +307,7 @@ body {
 
 .done-button {
   padding: 6px 14px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, var(--button-gradient-start), var(--button-gradient-end));
   border: none;
   border-radius: 6px;
   color: white;
@@ -290,23 +316,25 @@ body {
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 
-    0 2px 8px rgba(99, 102, 241, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 3px 10px rgba(99, 102, 241, 0.2),
+    0 1px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .done-button:hover {
   background: linear-gradient(135deg, #7c3aed, #9333ea);
   transform: translateY(-1px);
   box-shadow: 
-    0 4px 12px rgba(124, 58, 237, 0.4),
+    0 4px 12px rgba(124, 58, 237, 0.3),
+    0 2px 6px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .done-button:active {
   transform: translateY(0);
   box-shadow: 
-    0 1px 4px rgba(99, 102, 241, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 1px 4px rgba(99, 102, 241, 0.2),
+    inset 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .close-button {
@@ -350,7 +378,7 @@ body {
 
 .hint-text {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.5); /* 提高对比度 */
   background: rgba(0, 0, 0, 0.5);
   padding: 2px 8px;
   border-radius: 4px;
@@ -359,8 +387,15 @@ body {
 
 /* 深色模式适配 */
 @media (prefers-color-scheme: light) {
+  :root {
+    --primary-gradient-start: rgba(99, 102, 241, 0.8);
+    --primary-gradient-end: rgba(139, 92, 246, 0.8);
+  }
+  
   .voice-input-container {
-    background: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.8); /* 增强对比度 */
+    backdrop-filter: blur(50px) saturate(200%); /* 增强饱和度 */
+    -webkit-backdrop-filter: blur(50px) saturate(200%);
     border: 0.5px solid rgba(0, 0, 0, 0.1);
   }
 
@@ -370,7 +405,7 @@ body {
   }
 
   .app-name {
-    color: rgba(0, 0, 0, 0.5);
+    color: rgba(0, 0, 0, 0.7); /* 提高对比度 */
   }
 
   .waveform-bar {
@@ -415,7 +450,89 @@ body {
   }
 
   .hint-text {
-    color: rgba(0, 0, 0, 0.4);
+    color: rgba(0, 0, 0, 0.5); /* 提高对比度 */
     background: rgba(255, 255, 255, 0.8);
+  }
+}
+
+/* 响应式设计 */
+@media screen and (max-width: 480px) {
+  :root {
+    --voice-container-width: 320px;
+  }
+  
+  .voice-input-container {
+    padding: 12px;
+    height: 76px;
+  }
+  
+  .app-info-section {
+    min-width: 50px;
+  }
+  
+  .app-icon-wrapper {
+    width: 30px;
+    height: 30px;
+  }
+  
+  .app-icon {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .voice-input-container {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  .app-name {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .hint-text {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  @media (prefers-color-scheme: light) {
+    .voice-input-container {
+      border: 1px solid rgba(0, 0, 0, 0.3);
+    }
+    
+    .app-name {
+      color: rgba(0, 0, 0, 0.9);
+    }
+    
+    .hint-text {
+      color: rgba(0, 0, 0, 0.8);
+    }
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .waveform-bar {
+    animation: none;
+  }
+  
+  .listening-hint {
+    animation: none;
+  }
+  
+  .voice-input-container {
+    animation: none;
+  }
+  
+  .success-container {
+    animation: none;
+  }
+  
+  .processing-spinner {
+    animation: none;
+  }
+  
+  * {
+    transition-duration: 0.01ms !important;
   }
 }
