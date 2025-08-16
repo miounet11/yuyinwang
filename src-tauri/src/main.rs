@@ -1,7 +1,7 @@
 // Recording King - 重构版本
 // 模块化架构，统一错误处理，清晰的关注点分离
 
-use tauri::{Manager, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent};
+use tauri::{Manager, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent, WindowBuilder, WindowUrl};
 use std::sync::Arc;
 use parking_lot::Mutex;
 use reqwest::Client;
@@ -127,6 +127,32 @@ impl AppState {
 }
 
 
+/// 创建悬浮输入窗口
+fn create_floating_input_window(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    // 检查窗口是否已存在
+    if app_handle.get_window("floating-input").is_some() {
+        return Ok(());
+    }
+    
+    // 创建悬浮输入窗口
+    let window = WindowBuilder::new(
+        app_handle,
+        "floating-input",
+        WindowUrl::App("index.html".into()),
+    )
+    .title("")
+    .decorations(false)
+    .always_on_top(true)
+    .resizable(false)
+    .skip_taskbar(true)
+    .inner_size(600.0, 120.0)
+    .center()
+    .visible(false)  // 初始隐藏，由快捷键触发显示
+    .build()?;
+    
+    Ok(())
+}
+
 fn main() {
     println!("🎙️ Recording King 启动中...");
     
@@ -190,6 +216,12 @@ fn main() {
             commands::check_permission,
             commands::request_permission,
             commands::open_system_preferences,
+            // 新的权限管理命令
+            system::check_all_permissions,
+            system::open_permission_settings,
+            system::get_permission_guide,
+            system::show_permission_warning_dialog,
+            system::check_critical_permissions,
             // 历史记录管理命令
             commands::advanced_search_entries,
             commands::grouped_search_entries,
@@ -273,6 +305,21 @@ fn main() {
             commands::configure_voice_shortcuts,
             commands::load_voice_shortcut_config,
             commands::trigger_voice_input_test,
+            commands::show_floating_input,
+            commands::debug_shortcut_status,
+            // 悬浮助手命令
+            commands::show_main_window,
+            commands::show_settings,
+            commands::open_quick_note,
+            commands::show_clipboard_history,
+            commands::show_search,
+            commands::toggle_floating_assistant,
+            commands::get_audio_level,
+            commands::stop_recording_and_transcribe,
+            // 长按快捷键命令
+            commands::start_long_press_monitoring,
+            commands::test_long_press_trigger,
+            commands::get_long_press_status,
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -290,13 +337,26 @@ fn main() {
             let voice_shortcut_manager = Arc::new(shortcuts::ShortcutManager::new(app_handle.clone()));
             app.manage(voice_shortcut_manager.clone());
             
-            // 自动加载并注册已保存的快捷键配置
-            if let Ok(config) = commands::shortcuts::load_shortcut_config() {
-                if config.enabled {
-                    if let Err(e) = voice_shortcut_manager.register_voice_input_shortcut(&config.shortcut) {
-                        eprintln!("⚠️ 注册语音输入快捷键失败: {}", e);
-                    } else {
-                        println!("✅ 语音输入快捷键已启用: {}", config.shortcut);
+            // 创建悬浮输入窗口
+            match create_floating_input_window(&app_handle) {
+                Ok(_) => println!("✅ 悬浮输入窗口创建成功"),
+                Err(e) => eprintln!("❌ 悬浮输入窗口创建失败: {}", e),
+            }
+            
+            // 使用新的全局快捷键管理器
+            match shortcuts::EnhancedShortcutManager::new(app_handle.clone()) {
+                Ok(global_manager) => {
+                    if let Err(e) = global_manager.register_shortcuts() {
+                        eprintln!("⚠️ 注册全局快捷键失败: {}", e);
+                    }
+                    // 保存管理器实例
+                    app.manage(Arc::new(global_manager));
+                }
+                Err(e) => {
+                    eprintln!("⚠️ 创建全局快捷键管理器失败: {}", e);
+                    // 回退到旧的快捷键系统
+                    if let Err(e) = voice_shortcut_manager.register_voice_input_shortcut("Option+Space", "press") {
+                        eprintln!("⚠️ 回退快捷键注册也失败: {}", e);
                     }
                 }
             }
