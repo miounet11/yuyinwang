@@ -212,3 +212,4 @@ pub async fn clear_text_injection_history() -> Result<(), String> {
     println!("🧹 文本注入历史已清除");
     Ok(())
 }
+

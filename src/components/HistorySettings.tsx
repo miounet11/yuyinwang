@@ -12,6 +12,11 @@ interface HistorySettingsProps {
     groupByDate: boolean;
     showSummaries: boolean;
     exportFormat: 'txt' | 'json' | 'csv';
+    searchHistoryEnabled: boolean;
+    showConfidenceScores: boolean;
+    showDurations: boolean;
+    enableAutoBackup: boolean;
+    backupInterval: number;
   };
   onUpdateSettings: (settings: any) => void;
 }
@@ -36,7 +41,12 @@ const HistorySettings: React.FC<HistorySettingsProps> = ({
       maxStorageSize: 1000,
       groupByDate: true,
       showSummaries: true,
-      exportFormat: 'txt' as const
+      exportFormat: 'txt' as const,
+      searchHistoryEnabled: true,
+      showConfidenceScores: false,
+      showDurations: true,
+      enableAutoBackup: false,
+      backupInterval: 7
     };
     setLocalSettings(defaultSettings);
   };
@@ -153,6 +163,57 @@ const HistorySettings: React.FC<HistorySettingsProps> = ({
               在列表中显示转录内容的简短摘要
             </p>
           </div>
+
+          <div className="setting-item">
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={localSettings.searchHistoryEnabled}
+                onChange={(e) => setLocalSettings({
+                  ...localSettings,
+                  searchHistoryEnabled: e.target.checked
+                })}
+              />
+              <span>启用搜索历史</span>
+            </label>
+            <p className="setting-description">
+              在历史页面中显示搜索功能
+            </p>
+          </div>
+
+          <div className="setting-item">
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={localSettings.showConfidenceScores}
+                onChange={(e) => setLocalSettings({
+                  ...localSettings,
+                  showConfidenceScores: e.target.checked
+                })}
+              />
+              <span>显示置信度分数</span>
+            </label>
+            <p className="setting-description">
+              显示语音识别的置信度评分
+            </p>
+          </div>
+
+          <div className="setting-item">
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={localSettings.showDurations}
+                onChange={(e) => setLocalSettings({
+                  ...localSettings,
+                  showDurations: e.target.checked
+                })}
+              />
+              <span>显示录音时长</span>
+            </label>
+            <p className="setting-description">
+              在历史记录中显示每次录音的时长
+            </p>
+          </div>
         </div>
 
         <div className="settings-section">
@@ -177,6 +238,81 @@ const HistorySettings: React.FC<HistorySettingsProps> = ({
             <p className="setting-description">
               选择导出历史记录时的默认文件格式
             </p>
+          </div>
+        </div>
+
+        <div className="settings-section">
+          <h3>备份设置</h3>
+          
+          <div className="setting-item">
+            <label className="setting-label">
+              <input
+                type="checkbox"
+                checked={localSettings.enableAutoBackup}
+                onChange={(e) => setLocalSettings({
+                  ...localSettings,
+                  enableAutoBackup: e.target.checked
+                })}
+              />
+              <span>启用自动备份</span>
+            </label>
+            <p className="setting-description">
+              定期自动备份历史记录到本地文件
+            </p>
+          </div>
+
+          {localSettings.enableAutoBackup && (
+            <div className="setting-item indented">
+              <label className="setting-label">
+                <span>备份间隔：</span>
+                <select
+                  value={localSettings.backupInterval}
+                  onChange={(e) => setLocalSettings({
+                    ...localSettings,
+                    backupInterval: parseInt(e.target.value)
+                  })}
+                  className="backup-interval-select"
+                >
+                  <option value={1}>每天</option>
+                  <option value={3}>每3天</option>
+                  <option value={7}>每周</option>
+                  <option value={14}>每两周</option>
+                  <option value={30}>每月</option>
+                </select>
+              </label>
+              <p className="setting-description">
+                自动备份的时间间隔
+              </p>
+            </div>
+          )}
+          
+          <div className="backup-actions">
+            <button className="backup-btn" onClick={async () => {
+              try {
+                await invoke('manual_backup_history');
+                alert('手动备份完成！备份文件已保存到桌面');
+              } catch (error) {
+                console.error('手动备份失败:', error);
+                alert('手动备份失败');
+              }
+            }}>
+              立即备份
+            </button>
+            
+            <button className="restore-btn" onClick={async () => {
+              try {
+                const confirmed = window.confirm('恢复备份将替换当前所有历史记录，确定继续？');
+                if (confirmed) {
+                  await invoke('restore_backup_history');
+                  alert('备份恢复完成！');
+                }
+              } catch (error) {
+                console.error('恢复备份失败:', error);
+                alert('恢复备份失败');
+              }
+            }}>
+              恢复备份
+            </button>
           </div>
         </div>
 

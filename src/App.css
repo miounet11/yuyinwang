@@ -2497,3 +2497,17 @@ body {
     align-self: stretch;
   }
 }
+/* 统一设置按钮特殊样式 */
+.unified-settings-btn {
+  background: linear-gradient(135deg, var(--vscode-accent), var(--vscode-accent-hover)) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3) !important;
+  border: 1px solid var(--vscode-accent) !important;
+}
+
+.unified-settings-btn:hover {
+  background: linear-gradient(135deg, var(--vscode-accent-hover), var(--vscode-accent)) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.4) !important;
+}

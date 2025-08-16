@@ -62,6 +62,7 @@ pub struct AppState {
     pub audio_recorder: Arc<Mutex<audio::AudioRecorder>>,
     pub folder_watcher: Arc<folder_watcher::FolderWatcher>,
     pub performance_optimizer: Arc<Mutex<performance_optimizer::PerformanceOptimizer>>,
+    pub smart_text_injector: Arc<system::SmartTextInjector>,
 }
 
 impl AppState {
@@ -110,6 +111,10 @@ impl AppState {
         // 初始化转录编辑器
         let transcription_editor = TranscriptionEditor::new();
         
+        // 初始化优化的文本注入器
+        let text_injection_config = system::OptimizedTextInjectionConfig::default();
+        let smart_text_injector = system::SmartTextInjector::new(text_injection_config);
+        
         Ok(Self {
             settings: Arc::new(Mutex::new(settings)),
             is_recording: Arc::new(Mutex::new(false)),
@@ -122,6 +127,7 @@ impl AppState {
             audio_recorder: Arc::new(Mutex::new(audio_recorder)),
             folder_watcher: Arc::new(folder_watcher::FolderWatcher::new()),
             performance_optimizer: Arc::new(Mutex::new(performance_optimizer::PerformanceOptimizer::new())),
+            smart_text_injector: Arc::new(smart_text_injector),
         })
     }
 }
@@ -173,8 +179,13 @@ fn main() {
         .add_item(quit);
     let system_tray = SystemTray::new().with_menu(tray_menu);
     
+    // 创建优化的文本注入器作为独立的管理状态
+    let text_injection_config = system::OptimizedTextInjectionConfig::default();
+    let injector_for_state = Arc::new(system::SmartTextInjector::new(text_injection_config));
+
     tauri::Builder::default()
         .manage(app_state)
+        .manage(injector_for_state)
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| {
             match event {

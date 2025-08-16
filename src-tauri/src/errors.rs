@@ -44,6 +44,12 @@ pub enum AppError {
     // 窗口相关错误
     WindowError(String),
     
+    // 文本注入相关错误
+    InjectionError(String),
+    
+    // IPC相关错误
+    IpcError(String),
+    
     // 系统错误
     SystemError(String),
     
@@ -76,6 +82,8 @@ impl fmt::Display for AppError {
             AppError::ConfigurationError(msg) => write!(f, "配置错误: {}", msg),
             AppError::ShortcutError(msg) => write!(f, "快捷键错误: {}", msg),
             AppError::WindowError(msg) => write!(f, "窗口错误: {}", msg),
+            AppError::InjectionError(msg) => write!(f, "文本注入错误: {}", msg),
+            AppError::IpcError(msg) => write!(f, "IPC通信错误: {}", msg),
             AppError::SystemError(msg) => write!(f, "系统错误: {}", msg),
             AppError::ValidationError(msg) => write!(f, "验证错误: {}", msg),
             AppError::UnexpectedError(msg) => write!(f, "未预期的错误: {}", msg),

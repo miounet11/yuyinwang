@@ -47,6 +47,7 @@ import TextInjectionSettings from './components/TextInjectionSettings';
 import RecordingStatusIndicator from './components/RecordingStatusIndicator';
 import VoiceShortcutSettings from './components/VoiceShortcutSettings';
 import QuickVoiceInput from './components/QuickVoiceInput';
+import UnifiedSettings from './components/UnifiedSettings';
 // import SystemChecker from './utils/systemCheck';
 import { ttsService } from './services/ttsService';
 
@@ -745,6 +746,10 @@ const PageContent: React.FC<{
               </button>
             </div>
             <div className="history-actions">
+              <button className="action-btn unified-settings-btn" onClick={() => setShowUnifiedSettings(true)}>
+                <span>⚙️</span>
+                统一设置
+              </button>
               <button className="action-btn enhanced-history-btn" onClick={() => setShowEnhancedHistory(true)}>
                 <span>🚀</span>
                 增强搜索
@@ -1081,6 +1086,7 @@ function App() {
   const [showEnhancedHistory, setShowEnhancedHistory] = useState(false);
   const [showTextInjectionSettings, setShowTextInjectionSettings] = useState(false);
   const [showVoiceShortcutSettings, setShowVoiceShortcutSettings] = useState(false);
+  const [showUnifiedSettings, setShowUnifiedSettings] = useState(false);
   const [showQuickVoiceInput, setShowQuickVoiceInput] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
@@ -1734,6 +1740,12 @@ function App() {
       <VoiceShortcutSettings
         isVisible={showVoiceShortcutSettings}
         onClose={() => setShowVoiceShortcutSettings(false)}
+      />
+
+      {/* 统一设置窗口 */}
+      <UnifiedSettings
+        isVisible={showUnifiedSettings}
+        onClose={() => setShowUnifiedSettings(false)}
       />
 
       {/* 快速语音输入窗口 */}

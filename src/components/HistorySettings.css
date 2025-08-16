@@ -1,4 +1,4 @@
-/* 历史记录设置样式 */
+/* 历史记录设置样式 - 增强版 */
 .history-settings-overlay {
   position: fixed;
   top: 0;
@@ -285,4 +285,181 @@
 
 .history-settings-dialog::-webkit-scrollbar-thumb:hover {
   background: #606060;
+}
+
+/* 备份设置样式 */
+.backup-interval-select {
+  background: #404040;
+  border: 1px solid #606060;
+  border-radius: 6px;
+  color: #ffffff;
+  padding: 4px 8px;
+  font-size: 13px;
+  margin-left: 8px;
+  min-width: 80px;
+}
+
+.backup-interval-select:focus {
+  outline: none;
+  border-color: #007AFF;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+}
+
+.backup-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.backup-btn, .restore-btn {
+  background: linear-gradient(135deg, #007AFF, #0051D5);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.backup-btn:hover, .restore-btn:hover {
+  background: linear-gradient(135deg, #0056D6, #003BB3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.backup-btn:active, .restore-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.2);
+}
+
+.restore-btn {
+  background: linear-gradient(135deg, #FF9500, #FF7A00);
+}
+
+.restore-btn:hover {
+  background: linear-gradient(135deg, #E6850E, #CC6600);
+  box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3);
+}
+
+/* 增强显示选项样式 */
+.setting-item {
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.setting-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #ffffff;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.setting-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #606060;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  margin: 0;
+}
+
+.setting-label input[type="checkbox"]:checked {
+  background: #007AFF;
+  border-color: #007AFF;
+}
+
+.setting-label input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 1px;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.setting-description {
+  font-size: 12px;
+  color: #909090;
+  margin: 4px 0 0 24px;
+  line-height: 1.4;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .history-settings-dialog {
+    width: 95%;
+    max-height: 90vh;
+    margin: 10px;
+  }
+  
+  .backup-actions {
+    flex-direction: column;
+  }
+  
+  .backup-btn, .restore-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .privacy-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .privacy-actions button {
+    width: 100%;
+  }
+}
+
+/* 深色模式优化 */
+@media (prefers-color-scheme: light) {
+  .history-settings-dialog {
+    background: #ffffff;
+    border-color: #e0e0e0;
+    color: #000000;
+  }
+  
+  .history-settings-header {
+    border-bottom-color: #e0e0e0;
+  }
+  
+  .history-settings-header h2 {
+    color: #000000;
+  }
+  
+  .setting-label {
+    color: #000000;
+  }
+  
+  .setting-description {
+    color: #666666;
+  }
+  
+  .backup-interval-select {
+    background: #f5f5f5;
+    border-color: #d0d0d0;
+    color: #000000;
+  }
+  
+  .setting-item {
+    border-bottom-color: rgba(0, 0, 0, 0.05);
+  }
 }
