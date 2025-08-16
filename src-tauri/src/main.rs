@@ -138,7 +138,7 @@ fn create_floating_input_window(app_handle: &tauri::AppHandle) -> Result<(), Box
     let window = WindowBuilder::new(
         app_handle,
         "floating-input",
-        WindowUrl::App("index.html".into()),
+        WindowUrl::App("floating-input.html".into()),
     )
     .title("")
     .decorations(false)

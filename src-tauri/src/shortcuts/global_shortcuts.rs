@@ -78,7 +78,7 @@ impl EnhancedShortcutManager {
                         if let Err(e) = window.set_focus() {
                             eprintln!("❌ 设置焦点失败: {}", e);
                         }
-                        if let Err(e) = window.emit("floating_input_triggered", ()) {
+                        if let Err(e) = window.emit("voice_input_triggered", ()) {
                             eprintln!("❌ 发送事件失败: {}", e);
                         }
                         println!("✅ 悬浮输入窗口操作完成");
@@ -144,7 +144,7 @@ pub async fn test_global_shortcut(app: tauri::AppHandle) -> Result<String, Strin
         println!("✅ 找到悬浮输入窗口");
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
-        window.emit("floating_input_triggered", ()).map_err(|e| e.to_string())?;
+        window.emit("voice_input_triggered", ()).map_err(|e| e.to_string())?;
         Ok("悬浮窗口已触发".to_string())
     } else {
         println!("❌ 悬浮窗口未找到");

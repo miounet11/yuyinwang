@@ -93,7 +93,7 @@ impl ShortcutManager {
                         eprintln!("❌ 设置焦点失败: {}", e);
                     }
                     // 发送触发事件到窗口
-                    if let Err(e) = window.emit("floating_input_triggered", ()) {
+                    if let Err(e) = window.emit("voice_input_triggered", ()) {
                         eprintln!("❌ 发送事件失败: {}", e);
                     }
                     

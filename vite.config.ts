@@ -16,6 +16,9 @@ export default defineConfig(async () => ({
         main: resolve(__dirname, 'index.html'),
         'floating-input': resolve(__dirname, 'floating-input.html'),
       },
+      output: {
+        manualChunks: undefined,
+      },
     },
   },
 }));

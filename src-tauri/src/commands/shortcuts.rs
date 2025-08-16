@@ -148,8 +148,8 @@ pub async fn show_floating_input(
     if let Some(window) = app_handle.get_window("floating-input") {
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
-        // 发送事件通知窗口已被触发
-        window.emit("floating_input_triggered", ()).map_err(|e| e.to_string())?;
+        // 发送事件通知窗口已被触发 - 使用新的事件名称
+        window.emit("voice_input_triggered", ()).map_err(|e| e.to_string())?;
     } else {
         return Err("悬浮输入窗口未找到".to_string());
     }

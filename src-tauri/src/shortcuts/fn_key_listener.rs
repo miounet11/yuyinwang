@@ -110,7 +110,7 @@ fn trigger_floating_input(app_handle: &tauri::AppHandle) {
     if let Some(window) = app_handle.get_window("floating-input") {
         let _ = window.show();
         let _ = window.set_focus();
-        let _ = window.emit("floating_input_triggered", ());
+        let _ = window.emit("voice_input_triggered", ());
     } else {
         eprintln!("❌ 悬浮输入窗口未找到");
     }
