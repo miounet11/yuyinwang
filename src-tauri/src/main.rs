@@ -335,6 +335,7 @@ fn main() {
             commands::get_active_app_info_for_voice,
             commands::start_voice_recording,
             commands::stop_voice_recording,
+            commands::get_current_model_info,
             commands::inject_text_to_active_app,
         ])
         .setup(|app| {
@@ -345,13 +346,9 @@ fn main() {
             app.manage(state.history_manager.clone());
             app.manage(state.transcription_editor.clone());
             
-            // 初始化原有的快捷键管理器
+            // 初始化原有的快捷键管理器（用于其他功能）
             let shortcut_manager = commands::shortcut_management::ShortcutManager::new();
             app.manage(shortcut_manager);
-            
-            // 初始化语音输入快捷键管理器
-            let voice_shortcut_manager = Arc::new(shortcuts::ShortcutManager::new(app_handle.clone()));
-            app.manage(voice_shortcut_manager.clone());
             
             // 创建悬浮输入窗口
             match create_floating_input_window(&app_handle) {
@@ -359,7 +356,7 @@ fn main() {
                 Err(e) => eprintln!("❌ 悬浮输入窗口创建失败: {}", e),
             }
             
-            // 使用新的全局快捷键管理器
+            // 只使用EnhancedShortcutManager，避免重复注册
             match shortcuts::EnhancedShortcutManager::new(app_handle.clone()) {
                 Ok(global_manager) => {
                     if let Err(e) = global_manager.register_shortcuts() {
@@ -367,13 +364,11 @@ fn main() {
                     }
                     // 保存管理器实例
                     app.manage(Arc::new(global_manager));
+                    println!("✅ 统一快捷键管理器已注册");
                 }
                 Err(e) => {
-                    eprintln!("⚠️ 创建全局快捷键管理器失败: {}", e);
-                    // 回退到旧的快捷键系统
-                    if let Err(e) = voice_shortcut_manager.register_voice_input_shortcut("Option+Space", "press") {
-                        eprintln!("⚠️ 回退快捷键注册也失败: {}", e);
-                    }
+                    eprintln!("❌ 创建全局快捷键管理器失败: {}", e);
+                    eprintln!("⚠️ 语音输入快捷键功能可能不可用");
                 }
             }
             

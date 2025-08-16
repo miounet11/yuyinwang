@@ -144,12 +144,23 @@ pub async fn debug_shortcut_status(
 pub async fn show_floating_input(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
+    // 在显示窗口之前先获取当前活动应用
+    let active_app_info = crate::commands::voice_input::get_active_app_info_for_voice()
+        .await
+        .unwrap_or(crate::commands::voice_input::ActiveAppInfo {
+            name: "Unknown".to_string(),
+            icon: None,
+            bundle_id: None,
+        });
+    
+    println!("当前活动应用: {}", active_app_info.name);
+    
     // 显示悬浮输入窗口
     if let Some(window) = app_handle.get_window("floating-input") {
         window.show().map_err(|e| e.to_string())?;
         window.set_focus().map_err(|e| e.to_string())?;
-        // 发送事件通知窗口已被触发 - 使用新的事件名称
-        window.emit("voice_input_triggered", ()).map_err(|e| e.to_string())?;
+        // 发送事件通知窗口已被触发，并包含原始活动应用信息
+        window.emit("voice_input_triggered", &active_app_info).map_err(|e| e.to_string())?;
     } else {
         return Err("悬浮输入窗口未找到".to_string());
     }

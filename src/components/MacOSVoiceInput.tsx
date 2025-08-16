@@ -21,6 +21,9 @@ const MacOSVoiceInput: React.FC = () => {
   const [hasAudioInput, setHasAudioInput] = useState(false);
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [showDebug, setShowDebug] = useState(true); // 默认显示调试信息
+  const [currentModel, setCurrentModel] = useState<string>('loading...'); // 当前使用的模型
+  const [isProcessing, setIsProcessing] = useState(false); // 防止重复处理
+  const [isProcessingTrigger, setIsProcessingTrigger] = useState(false); // 防止重复触发事件
   
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
@@ -53,6 +56,19 @@ const MacOSVoiceInput: React.FC = () => {
   useEffect(() => {
     addDebugLog('组件初始化');
     
+    // 获取当前模型信息
+    const fetchModelInfo = async () => {
+      try {
+        const model = await invoke<string>('get_current_model_info');
+        setCurrentModel(model);
+        addDebugLog(`当前使用模型: ${model}`);
+      } catch (error) {
+        console.error('获取模型信息失败:', error);
+        setCurrentModel('unknown');
+      }
+    };
+    fetchModelInfo();
+    
     // 设置窗口属性 - 模拟 macOS 原生样式
     const setupWindow = async () => {
       addDebugLog('开始设置窗口属性');
@@ -78,36 +94,43 @@ const MacOSVoiceInput: React.FC = () => {
         addDebugLog(`窗口位置设置失败: ${error}`);
       }
 
-      // 获取当前活动应用信息
-      try {
-        const appInfo = await invoke<ActiveAppInfo>('get_active_app_info_for_voice');
-        setActiveApp(appInfo);
-        addDebugLog(`获取活动应用: ${appInfo.name}`);
-      } catch (error) {
-        console.error('获取活动应用信息失败:', error);
-        addDebugLog(`获取活动应用失败: ${error}`);
-      }
+      // 初始化时不获取活动应用，等待事件触发时传递
+      // 活动应用信息将由快捷键触发时传递
     };
     
     setupWindow();
 
     // 监听语音输入触发事件
-    const unlistenTrigger = listen('voice_input_triggered', async () => {
-      console.log('语音输入被触发');
+    const unlistenTrigger = listen<ActiveAppInfo>('voice_input_triggered', async (event) => {
+      // 防止重复触发
+      if (isProcessingTrigger) {
+        console.log('忽略重复的触发事件');
+        addDebugLog('⚠️ 忽略重复触发事件');
+        return;
+      }
+      
+      setIsProcessingTrigger(true);
+      console.log('语音输入被触发', event);
       addDebugLog('收到 voice_input_triggered 事件');
       
       setState('idle');
       setTranscribedText('');
       setHasAudioInput(false);
       
-      // 重新获取活动应用信息
-      try {
-        const appInfo = await invoke<ActiveAppInfo>('get_active_app_info_for_voice');
-        setActiveApp(appInfo);
-        addDebugLog(`重新获取活动应用: ${appInfo.name}`);
-      } catch (error) {
-        console.error('获取活动应用信息失败:', error);
-        addDebugLog(`获取活动应用失败: ${error}`);
+      // 使用事件中传递的活动应用信息（这是触发前的原始活动应用）
+      if (event.payload && event.payload.name) {
+        setActiveApp(event.payload);
+        addDebugLog(`原始活动应用: ${event.payload.name}`);
+      } else {
+        // 如果没有传递活动应用信息，则尝试获取（兼容旧版本）
+        try {
+          const appInfo = await invoke<ActiveAppInfo>('get_active_app_info_for_voice');
+          setActiveApp(appInfo);
+          addDebugLog(`获取活动应用: ${appInfo.name}`);
+        } catch (error) {
+          console.error('获取活动应用信息失败:', error);
+          addDebugLog(`获取活动应用失败: ${error}`);
+        }
       }
       
       // 显示窗口并自动开始录音
@@ -120,6 +143,10 @@ const MacOSVoiceInput: React.FC = () => {
       setTimeout(() => {
         addDebugLog('100ms 延迟后开始录音');
         startListening();
+        // 录音开始后重置触发标志，允许下次触发
+        setTimeout(() => {
+          setIsProcessingTrigger(false);
+        }, 1000); // 1秒后允许新触发
       }, 100);
     });
 
@@ -390,7 +417,15 @@ const MacOSVoiceInput: React.FC = () => {
 
   // 停止监听并处理
   const stopListening = async () => {
+    // 防止重复调用
+    if (isProcessing) {
+      addDebugLog('⚠️ 已在处理中，忽略重复调用');
+      return;
+    }
+    
     addDebugLog('⏹️ stopListening 被调用');
+    setIsProcessing(true);
+    
     try {
       clearAllTimeouts();
       setIsRecording(false);
@@ -405,7 +440,7 @@ const MacOSVoiceInput: React.FC = () => {
       setState('processing');
       addDebugLog('🔄 状态切换到 processing，准备停止录音');
       
-      // 设置处理超时 - 10秒后自动重试或失败
+      // 设置处理超时 - 8秒后自动重试或失败
       processingTimeoutRef.current = setTimeout(async () => {
         addDebugLog('⏰ 处理超时，尝试恢复机制');
         retryCountRef.current++;
@@ -453,7 +488,7 @@ const MacOSVoiceInput: React.FC = () => {
             closeWindow();
           }, 2000);
         }
-      }, 10000); // 10秒超时
+      }, 8000); // 8秒超时
       
       // 尝试停止录音并获取转录结果
       const finalText = await invoke<string>('stop_voice_recording');
@@ -481,11 +516,20 @@ const MacOSVoiceInput: React.FC = () => {
           closeWindow();
         }, 1500); // 增加到1.5秒，让用户看到结果
       } else {
-        // 没有识别到内容
-        addDebugLog('⚠️ 转录结果为空，关闭窗口');
-        closeWindow();
+        // 没有识别到内容，显示失败
+        addDebugLog('⚠️ 转录结果为空');
+        setState('idle');
+        setTranscribedText('未识别到语音内容');
+        
+        // 不再重试stop_voice_recording，因为录音已停止
+        setTimeout(() => {
+          closeWindow();
+        }, 2000);
+            
+        // 删除重试逻辑，避免重复调用
       }
     } catch (error) {
+      setIsProcessing(false);
       // 清除处理超时
       if (processingTimeoutRef.current) {
         clearTimeout(processingTimeoutRef.current);
@@ -540,6 +584,8 @@ const MacOSVoiceInput: React.FC = () => {
     setHasAudioInput(false);
     setState('idle');
     setIsRecording(false);
+    setIsProcessing(false);
+    setIsProcessingTrigger(false); // 重置触发标志
     await appWindow.hide();
   };
 
@@ -607,7 +653,7 @@ const MacOSVoiceInput: React.FC = () => {
           borderBottom: '1px solid #00ff00'
         }}>
           <div style={{ marginBottom: '5px', color: '#ffff00' }}>
-            🐛 DEBUG MODE | 状态: {state} | 录音: {isRecording ? '是' : '否'} | 音频: {hasAudioInput ? '有' : '无'}
+            🐛 DEBUG MODE | 状态: {state} | 录音: {isRecording ? '是' : '否'} | 音频: {hasAudioInput ? '有' : '无'} | 模型: {currentModel}
           </div>
           <div style={{ marginBottom: '5px', color: '#00ffff' }}>
             级别: {audioLevel.toFixed(3)} | VAD: {vadStateRef.current} | 静音: {(continuousSilenceDurationRef.current/1000).toFixed(1)}s | 基线: {noiseFloorRef.current.toFixed(3)}

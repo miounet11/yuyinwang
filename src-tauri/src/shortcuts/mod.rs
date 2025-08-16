@@ -86,31 +86,48 @@ impl ShortcutManager {
                         .spawn();
                 }
                 
-                // 显示悬浮输入窗口
-                if let Some(window) = app_handle.get_window("floating-input") {
-                    // 显示窗口
-                    if let Err(e) = window.show() {
-                        eprintln!("❌ 显示窗口失败: {}", e);
-                    }
-                    if let Err(e) = window.set_focus() {
-                        eprintln!("❌ 设置焦点失败: {}", e);
-                    }
-                    // 发送触发事件到窗口
-                    if let Err(e) = window.emit("voice_input_triggered", ()) {
-                        eprintln!("❌ 发送事件失败: {}", e);
-                    }
-                    
-                    // 根据触发模式发送不同的事件
-                    if trigger_mode_clone == "hold" {
-                        window.emit("voice_input_hold_start", ()).unwrap_or_else(|e| {
-                            eprintln!("发送长按开始事件失败: {}", e);
+                let app_handle_clone = app_handle.clone();
+                let trigger_mode_str = trigger_mode_clone.clone();
+                
+                // 使用 tokio::spawn 处理异步操作
+                tokio::spawn(async move {
+                    // 在显示窗口之前先获取当前活动应用
+                    let active_app_info = crate::commands::voice_input::get_active_app_info_for_voice()
+                        .await
+                        .unwrap_or(crate::commands::voice_input::ActiveAppInfo {
+                            name: "Unknown".to_string(),
+                            icon: None,
+                            bundle_id: None,
                         });
+                    
+                    println!("当前活动应用: {}", active_app_info.name);
+                    
+                    // 显示悬浮输入窗口
+                    if let Some(window) = app_handle_clone.get_window("floating-input") {
+                        // 显示窗口
+                        if let Err(e) = window.show() {
+                            eprintln!("❌ 显示窗口失败: {}", e);
+                        }
+                        if let Err(e) = window.set_focus() {
+                            eprintln!("❌ 设置焦点失败: {}", e);
+                        }
+                        // 发送触发事件到窗口，并包含原始活动应用信息
+                        if let Err(e) = window.emit("voice_input_triggered", &active_app_info) {
+                            eprintln!("❌ 发送事件失败: {}", e);
+                        }
+                        
+                        // 根据触发模式发送不同的事件
+                        if trigger_mode_str == "hold" {
+                            window.emit("voice_input_hold_start", ()).unwrap_or_else(|e| {
+                                eprintln!("发送长按开始事件失败: {}", e);
+                            });
+                        }
+                    } else {
+                        eprintln!("❌ 悬浮输入窗口未找到，尝试创建快速输入窗口");
+                        // 回退：创建或显示快速输入窗口
+                        let _ = create_quick_input_window(&app_handle_clone);
                     }
-                } else {
-                    eprintln!("❌ 悬浮输入窗口未找到，尝试创建快速输入窗口");
-                    // 回退：创建或显示快速输入窗口
-                    let _ = create_quick_input_window(&app_handle);
-                }
+                });
             });
             
         match register_result {

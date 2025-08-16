@@ -206,6 +206,8 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     }
     
     println!("📊 录音已停止，音频样本数: {}", audio_data.len());
+    println!("🎤 音频时长: {:.2}秒", audio_data.len() as f32 / 16000.0);
+    println!("🔊 音频数据前10个样本: {:?}", &audio_data[..10.min(audio_data.len())]);
     
     // 如果音频数据太短，返回空字符串
     if audio_data.len() < 16000 { // 小于1秒的音频
@@ -222,13 +224,26 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     let temp_file = temp_dir.join(format!("voice_input_{}.wav", timestamp));
     
     // 写入WAV文件 - 修复：使用录音器的实际采样率16kHz而不是错误的48kHz
+    println!("💾 准备保存WAV文件到: {:?}", temp_file);
     crate::commands::create_wav_file(&temp_file, &audio_data, 16000, 1)
-        .map_err(|e| format!("创建WAV文件失败: {}", e))?;
+        .map_err(|e| {
+            eprintln!("❌ 创建WAV文件失败: {}", e);
+            format!("创建WAV文件失败: {}", e)
+        })?;
+    
+    // 验证文件是否创建成功
+    if temp_file.exists() {
+        let file_size = std::fs::metadata(&temp_file).unwrap().len();
+        println!("✅ WAV文件创建成功，大小: {} 字节", file_size);
+    } else {
+        eprintln!("❌ WAV文件未创建！");
+    }
     
     // 根据用户选择的模型创建转录配置
     let config = create_transcription_config(&user_selected_model);
     
     println!("🎯 使用用户选择的模型: {}", user_selected_model);
+    println!("🔧 转录配置 - 模型名: {}, 是否本地: {}", config.model_name, config.is_local);
     
     // 进行转录
     println!("🎯 开始转录，模型: {}, 语言: {:?}", config.model_name, config.language);
@@ -239,23 +254,71 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         .await
         .map_err(|e| {
             eprintln!("❌ 转录服务错误: {}", e);
+            // 如果是API错误，不要抛出错误，而是返回空字符串让前端重试
+            println!("⚠️ 转录失败，将返回空字符串以便前端重试");
             format!("转录失败: {}", e)
         })?;
     
-    // 清理临时文件
-    if let Err(e) = std::fs::remove_file(&temp_file) {
-        eprintln!("清理临时文件失败: {}", e);
-    }
-    
     let final_text = result.text.trim().to_string();
     
+    // 不要立即删除临时文件，以便重试
+    // 只有在转录成功后才删除
+    let should_delete = !final_text.is_empty();
+    
+    if should_delete {
+        if let Err(e) = std::fs::remove_file(&temp_file) {
+            eprintln!("清理临时文件失败: {}", e);
+        }
+        println!("🗑️ 已删除临时文件");
+    } else {
+        println!("💾 保留临时文件以便重试: {:?}", temp_file);
+        // 复制到备份目录
+        let backup_dir = directories::UserDirs::new()
+            .and_then(|dirs| Some(dirs.document_dir()?.to_path_buf()))
+            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+            .join("RecordingKing")
+            .join("failed_transcriptions");
+        
+        if !backup_dir.exists() {
+            std::fs::create_dir_all(&backup_dir).ok();
+        }
+        
+        let backup_file = backup_dir.join(format!("voice_input_{}.wav", timestamp));
+        if let Err(e) = std::fs::copy(&temp_file, &backup_file) {
+            eprintln!("❌ 备份音频文件失败: {}", e);
+        } else {
+            println!("💾 音频已备份到: {:?}", backup_file);
+        }
+    }
+    
     if final_text.is_empty() {
-        println!("⚠️ 转录结果为空，可能是静音或识别失败");
+        println!("⚠️ 转录结果为空，可能是API问题、静音或识别失败");
+        println!("🔍 音频文件大小: {} 字节", audio_data.len() * 2);  // 每个样本2字节
     } else {
         println!("✅ 语音转录成功: '{}'", final_text);
     }
     
     Ok(final_text)
+}
+
+/// 获取当前使用的模型信息
+#[command]
+pub fn get_current_model_info(app: tauri::AppHandle) -> Result<String, String> {
+    use crate::AppState;
+    use tauri::Manager;
+    
+    let state = app.state::<AppState>();
+    let settings = state.settings.lock();
+    let model = settings.transcription.default_model.clone();
+    
+    // 如果用户配置的是旧的whisper模型，自动回退到LuYinWang在线服务
+    let final_model = if model == "whisper-1" || model.starts_with("whisper-") {
+        "luyingwang-online".to_string()
+    } else {
+        model
+    };
+    
+    Ok(final_model)
 }
 
 /// 将文本注入到当前活动的应用
@@ -266,6 +329,16 @@ pub async fn inject_text_to_active_app(text: String) -> Result<(), String> {
         use cocoa::base::{id, nil};
         use cocoa::foundation::{NSAutoreleasePool, NSString};
         use objc::{msg_send, sel, sel_impl};
+        
+        // 安全检查：获取当前活动应用，确保不是向自己注入
+        let current_app = get_active_app_info_for_voice().await.ok();
+        if let Some(app_info) = current_app {
+            if app_info.name.contains("Recording King") || 
+               app_info.bundle_id.as_ref().map_or(false, |id| id.contains("recordingking")) {
+                eprintln!("⚠️ 警告：尝试向自己注入文本，跳过操作以防止崩溃");
+                return Err("无法向 Recording King 自身注入文本".to_string());
+            }
+        }
         
         unsafe {
             let pool = NSAutoreleasePool::new(nil);
