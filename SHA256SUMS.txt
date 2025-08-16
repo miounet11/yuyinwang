@@ -1,0 +1,1 @@
+512e10804fb7d6891cd25486d585ca13b89f161feecbd2522c23b7e06cb3f23c  src-tauri/target/release/bundle/dmg/Recording King_4.0.1_aarch64.dmg
