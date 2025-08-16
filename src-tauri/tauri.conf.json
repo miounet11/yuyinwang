@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
     "package": {
-      "productName": "LuYinWang",
+      "productName": "Recording King",
       "version": "3.3.4"
     },
   "tauri": {
@@ -54,12 +54,17 @@
     },
     "bundle": {
       "active": true,
-      "identifier": "com.luyinwang.app",
+      "identifier": "com.recordingking.app",
       "targets": "all",
       "copyright": "Copyright © 2025 Recording King. All rights reserved.",
       "category": "Productivity",
-      "shortDescription": "LuYinWang - 录音王",
-      "longDescription": "一个功能强大的实时语音转文字桌面应用，如果你觉得我好用，那么你就叫我-录音王吧！",
+      "shortDescription": "Recording King - AI语音转录工具",
+      "longDescription": "Recording King是一个功能强大的AI语音转录桌面应用，支持实时录音、多模型转录、全局快捷键等高级功能。",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png", 
+        "icons/128x128@2x.png"
+      ],
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.13",
@@ -94,7 +99,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "LuYinWang - 录音王",
+        "title": "Recording King",
         "width": 1100,
         "height": 700,
         "visible": true,
