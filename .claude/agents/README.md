@@ -14,6 +14,26 @@
 - **功能**: 系统性地研究库、框架和技术的使用方法
 - **用途**: 深入了解某个技术栈的最佳实践、API细节和真实案例
 
+### 3. Product Manager
+- **文件**: `product-manager.md`
+- **功能**: 理解用户痛点、定义产品需求、规划功能优先级
+- **用途**: 当需要从产品角度分析需求或规划开发时使用
+
+### 4. UI/UX Interaction Designer
+- **文件**: `ui-ux-designer.md`
+- **功能**: 创建直观交互流程，确保优秀用户体验
+- **用途**: 当需要设计界面或优化交互时使用
+
+### 5. Software Developer
+- **文件**: `software-developer.md`
+- **功能**: 编写高效代码，实现复杂功能，确保质量
+- **用途**: 当需要技术实现或代码审查时使用
+
+### 6. macOS Software Engineer
+- **文件**: `macos-software-engineer.md`
+- **功能**: 处理macOS特定开发，熟悉Rust和TypeScript，与其他agents协作
+- **用途**: 当需要macOS集成、权限管理或系统优化时使用
+
 ## 使用前提
 
 ### Library Usage Researcher 依赖配置
