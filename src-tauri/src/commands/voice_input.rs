@@ -108,8 +108,7 @@ pub async fn start_voice_recording(
     }
     
     // 开始录音
-    recorder.start_recording(Some(device_id))
-        .await
+    recorder.start_recording()
         .map_err(|e| format!("启动录音失败: {}", e))?;
     
     Ok("录音已开始".to_string())
@@ -126,7 +125,6 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     
     // 停止录音并获取音频数据
     let audio_data = recorder.stop_recording()
-        .await
         .map_err(|e| format!("停止录音失败: {}", e))?;
     
     if audio_data.is_empty() {
