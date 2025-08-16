@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
+use crate::types::TranscriptionConfig;
 // 移除未使用的 rand 导入
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,9 +172,30 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     
     let state = app.state::<AppState>();
     
+    // 获取用户选择的模型设置，如果用户设置的是旧模型则回退到LuYinWang
+    let user_selected_model = {
+        let settings = state.settings.lock();
+        let configured_model = settings.transcription.default_model.clone();
+        
+        // 如果用户配置的是旧的whisper模型，自动回退到LuYinWang在线服务
+        if configured_model == "whisper-1" || configured_model.starts_with("whisper-") {
+            println!("⚠️ 检测到旧的模型配置 '{}', 自动使用LuYinWang在线服务", configured_model);
+            "luyingwang-online".to_string()
+        } else {
+            configured_model
+        }
+    };
+    
     // 停止录音并获取音频数据
     let audio_data = {
         let mut recorder = state.audio_recorder.lock();
+        
+        // 检查是否正在录音，如果没有录音就直接返回空
+        if !recorder.is_recording() {
+            println!("⚠️ 当前没有在录音，可能已经停止或未开始");
+            return Ok(String::new());
+        }
+        
         println!("🛑 停止录音");
         recorder.stop_recording()
             .map_err(|e| format!("停止录音失败: {}", e))?
@@ -203,14 +225,10 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     crate::commands::create_wav_file(&temp_file, &audio_data, 16000, 1)
         .map_err(|e| format!("创建WAV文件失败: {}", e))?;
     
-    // 使用默认模型进行转录 - 升级到base模型以提升中文支持
-    let config = TranscriptionConfig {
-        model_name: "whisper-base".to_string(),  // 从tiny升级到base，大幅提升中文转录质量
-        language: Some("zh".to_string()),
-        temperature: Some(0.0),
-        is_local: true,
-        api_endpoint: None,
-    };
+    // 根据用户选择的模型创建转录配置
+    let config = create_transcription_config(&user_selected_model);
+    
+    println!("🎯 使用用户选择的模型: {}", user_selected_model);
     
     // 进行转录
     println!("🎯 开始转录，模型: {}, 语言: {:?}", config.model_name, config.language);
@@ -295,5 +313,43 @@ pub async fn inject_text_to_active_app(text: String) -> Result<(), String> {
     {
         // 其他平台的实现
         Err("当前平台不支持文本注入".to_string())
+    }
+}
+
+/// 根据用户选择的模型创建转录配置
+fn create_transcription_config(model_name: &str) -> TranscriptionConfig {
+    match model_name {
+        "luyingwang-online" => TranscriptionConfig {
+            model_name: "luyin-api".to_string(),
+            language: Some("auto".to_string()),
+            temperature: Some(0.0),
+            is_local: false,
+            api_endpoint: None,
+        },
+        "gpt-4o-mini" => TranscriptionConfig {
+            model_name: "gpt-4o-mini".to_string(),
+            language: Some("auto".to_string()),
+            temperature: Some(0.0),
+            is_local: false,
+            api_endpoint: None,
+        },
+        model_name if model_name.starts_with("whisper-") => TranscriptionConfig {
+            model_name: model_name.to_string(),
+            language: Some("zh".to_string()),
+            temperature: Some(0.0),
+            is_local: true,
+            api_endpoint: None,
+        },
+        _ => {
+            // 默认使用LuYinWang在线转录服务
+            println!("⚠️ 未知模型 '{}', 使用默认的LuYinWang在线服务", model_name);
+            TranscriptionConfig {
+                model_name: "luyin-api".to_string(),
+                language: Some("auto".to_string()),
+                temperature: Some(0.0),
+                is_local: false,
+                api_endpoint: None,
+            }
+        }
     }
 }

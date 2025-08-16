@@ -40,7 +40,7 @@ interface ModelsStore {
 
 export const useModelsStore = create<ModelsStore>((set, get) => ({
   models: transcriptionModels.map(model => ({ ...model })),
-  selectedModelId: 'gpt-4o-mini',
+  selectedModelId: 'luyingwang-online',  // 默认使用LuYinWang在线转录服务
   selectedCategory: 'all',
   searchQuery: '',
   modelConfigs: {},

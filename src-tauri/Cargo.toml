@@ -1,6 +1,6 @@
 [package]
 name = "recording-king"
-version = "4.4.2"
+version = "4.5.1"
 description = "Recording King - AI-powered speech-to-text desktop application"
 authors = ["Recording King Team"]
 edition = "2021"

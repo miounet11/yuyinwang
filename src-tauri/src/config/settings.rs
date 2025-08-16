@@ -68,10 +68,10 @@ impl Default for AppSettings {
                 enable_noise_reduction: false,
             },
             transcription: TranscriptionSettings {
-                default_model: "whisper-1".to_string(),
+                default_model: "luyingwang-online".to_string(),  // 默认使用LuYinWang在线转录服务
                 language: None,
                 temperature: 0.0,
-                enable_local_whisper: true,
+                enable_local_whisper: false,  // 默认不使用本地whisper
                 api_timeout_seconds: 30,
             },
             ai: AiSettings {
@@ -102,7 +102,19 @@ impl AppSettings {
         
         if settings_path.exists() {
             let content = std::fs::read_to_string(settings_path)?;
-            let settings: AppSettings = serde_json::from_str(&content)?;
+            let mut settings: AppSettings = serde_json::from_str(&content)?;
+            
+            // 迁移旧的模型配置到新的默认设置
+            let needs_migration = settings.transcription.default_model == "whisper-1" 
+                || settings.transcription.default_model.starts_with("whisper-");
+            
+            if needs_migration {
+                println!("🔄 迁移旧的转录模型配置: {} → luyingwang-online", settings.transcription.default_model);
+                settings.transcription.default_model = "luyingwang-online".to_string();
+                settings.transcription.enable_local_whisper = false;
+                settings.save()?; // 保存迁移后的配置
+            }
+            
             Ok(settings)
         } else {
             let settings = Self::default();
