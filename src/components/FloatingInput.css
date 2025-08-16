@@ -1,0 +1,350 @@
+/* 悬浮输入框样式 - macOS Spotlight 风格 */
+
+.floating-input-container {
+  width: 100%;
+  height: 100vh;
+  background: transparent;
+  user-select: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 20px;
+}
+
+.floating-input-wrapper {
+  width: 600px;
+  background: rgba(30, 30, 32, 0.98);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4),
+              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 拖动把手 */
+.drag-handle {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: move;
+  z-index: 10;
+}
+
+.drag-dots {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.drag-handle:hover .drag-dots {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 主输入区域 */
+.input-area {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 12px;
+  min-height: 60px;
+}
+
+/* 状态图标 */
+.status-icon {
+  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.floating-input-container.recording .status-icon {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.floating-input-container.processing .status-icon {
+  animation: rotate 1s linear infinite;
+}
+
+.floating-input-container.success .status-icon {
+  animation: bounce 0.5s ease;
+}
+
+/* 文本输入框 */
+.text-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+}
+
+.text-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.text-input:disabled {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mic-button,
+.stop-button,
+.copy-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.mic-button:hover,
+.copy-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.stop-button {
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+}
+
+.stop-button:hover {
+  background: rgba(255, 68, 68, 0.3);
+}
+
+.stop-button.pulse {
+  animation: pulse-red 1s ease-in-out infinite;
+}
+
+/* 关闭按钮 */
+.close-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.2s ease;
+}
+
+.close-button:hover {
+  background: rgba(255, 68, 68, 0.2);
+  color: #ff4444;
+}
+
+/* 提示文本 */
+.hint-text {
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* 处理动画 */
+.processing-animation {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.processing-bar {
+  height: 100%;
+  width: 30%;
+  background: linear-gradient(90deg, 
+    transparent,
+    rgba(102, 126, 234, 0.8),
+    transparent
+  );
+  animation: slide 1.5s ease-in-out infinite;
+}
+
+/* 成功动画 */
+.success-animation {
+  position: absolute;
+  top: 50%;
+  right: 60px;
+  transform: translateY(-50%);
+}
+
+.success-check {
+  color: #4ade80;
+  font-size: 20px;
+  animation: check-mark 0.5s ease;
+}
+
+/* 加载动画 */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top: 2px solid rgba(102, 126, 234, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* 动画定义 */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-red {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(255, 68, 68, 0);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes check-mark {
+  from {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+
+/* 状态样式变化 */
+.floating-input-container.recording {
+  animation: subtle-glow 2s ease-in-out infinite;
+}
+
+.floating-input-container.processing .floating-input-wrapper {
+  background: rgba(30, 30, 32, 0.98);
+}
+
+.floating-input-container.success .floating-input-wrapper {
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4),
+              0 0 20px rgba(74, 222, 128, 0.1);
+}
+
+@keyframes subtle-glow {
+  0%, 100% {
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4),
+                0 0 30px rgba(102, 126, 234, 0.1);
+  }
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .floating-input-container {
+    width: 90%;
+    max-width: 500px;
+  }
+}
+
+/* 深色模式优化 */
+@media (prefers-color-scheme: light) {
+  .floating-input-wrapper {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-input {
+    color: rgba(0, 0, 0, 0.9);
+  }
+  
+  .text-input::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+  }
+  
+  .status-icon,
+  .action-buttons button {
+    color: rgba(0, 0, 0, 0.7);
+  }
+}
