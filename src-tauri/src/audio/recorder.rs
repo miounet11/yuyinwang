@@ -20,6 +20,10 @@ pub struct AudioRecorder {
     // 新增：实时音频流支持
     realtime_buffer: Arc<Mutex<ringbuf::HeapRb<f32>>>,
     stream_listeners: Arc<Mutex<Vec<crossbeam_channel::Sender<Vec<f32>>>>>,
+    // VAD相关字段
+    current_level: Arc<Mutex<f32>>,
+    silence_duration: Arc<Mutex<Duration>>,
+    last_sound_time: Arc<Mutex<Instant>>,
 }
 
 impl AudioRecorder {
@@ -35,6 +39,9 @@ impl AudioRecorder {
             realtime_buffer: Arc::new(Mutex::new(HeapRb::new(realtime_buffer_size))),
             stream_listeners: Arc::new(Mutex::new(Vec::new())),
             config,
+            current_level: Arc::new(Mutex::new(0.0)),
+            silence_duration: Arc::new(Mutex::new(Duration::from_secs(0))),
+            last_sound_time: Arc::new(Mutex::new(Instant::now())),
         }
     }
     
@@ -93,68 +100,6 @@ impl AudioRecorder {
         self.realtime_buffer.lock().clear();
     }
     
-    /// 获取当前音频电平 (0.0 - 1.0)
-    pub fn get_current_audio_level(&self) -> Option<f32> {
-        if !self.is_recording.load(Ordering::Relaxed) {
-            return Some(0.0);
-        }
-        
-        // 从音频数据获取最近的样本来计算电平
-        let audio_data = self.audio_data.lock();
-        if audio_data.is_empty() {
-            return Some(0.0);
-        }
-        
-        // 获取最近的2400个样本（约0.05秒@48kHz）来计算实时电平
-        let sample_count = audio_data.len().min(2400);
-        let start_idx = audio_data.len().saturating_sub(sample_count);
-        
-        // 计算RMS（均方根）- 这是音频电平的标准计算方法
-        let mut sum_squares = 0.0f32;
-        let mut max_sample = 0.0f32;
-        let mut sample_count_above_noise = 0;
-        
-        // 噪音门限 - 过滤掉极低的背景噪音
-        const NOISE_FLOOR: f32 = 0.001; // -60dB 噪音门限
-        
-        for i in start_idx..audio_data.len() {
-            let sample = audio_data[i].abs();
-            
-            // 只统计高于噪音门限的样本
-            if sample > NOISE_FLOOR {
-                max_sample = max_sample.max(sample);
-                sum_squares += sample * sample;
-                sample_count_above_noise += 1;
-            }
-        }
-        
-        // 如果没有有效样本，返回0
-        if sample_count_above_noise == 0 {
-            return Some(0.0);
-        }
-        
-        // 计算有效样本的RMS
-        let rms = (sum_squares / sample_count_above_noise as f32).sqrt();
-        
-        // 直接使用RMS值，不做过度处理
-        // 音频样本范围通常是 -1.0 到 1.0
-        // 正常说话的RMS通常在 0.01 到 0.3 之间
-        // 大声说话可能达到 0.5
-        let level = rms.min(1.0);
-        
-        // 可选：应用温和的对数曲线，使低音量更容易察觉
-        // 但不要过度放大
-        let adjusted_level = if level > 0.0 {
-            // 使用更温和的对数映射
-            let db = 20.0 * level.log10();
-            // 映射 -40dB 到 0dB → 0.0 到 1.0
-            ((db + 40.0) / 40.0).max(0.0).min(1.0)
-        } else {
-            0.0
-        };
-        
-        Some(adjusted_level)
-    }
 
     pub fn start_recording(&mut self) -> AppResult<()> {
         if self.is_recording.load(Ordering::Relaxed) {
@@ -172,6 +117,9 @@ impl AudioRecorder {
         let device_id = self.config.device_id.clone();
         let channels = self.config.channels;
         let duration = self.config.duration_seconds;
+        let current_level = self.current_level.clone();
+        let silence_duration = self.silence_duration.clone();
+        let last_sound_time = self.last_sound_time.clone();
         
         // 在新线程中处理音频流，避免 Send 问题
         std::thread::spawn(move || {
@@ -215,7 +163,10 @@ impl AudioRecorder {
                     audio_data.clone(), 
                     realtime_buffer.clone(),
                     stream_listeners.clone(),
-                    is_recording.clone()
+                    is_recording.clone(),
+                    current_level.clone(),
+                    silence_duration.clone(),
+                    last_sound_time.clone()
                 ),
                 SampleFormat::I16 => build_input_stream::<i16>(
                     &device, 
@@ -223,7 +174,10 @@ impl AudioRecorder {
                     audio_data.clone(),
                     realtime_buffer.clone(),
                     stream_listeners.clone(), 
-                    is_recording.clone()
+                    is_recording.clone(),
+                    current_level.clone(),
+                    silence_duration.clone(),
+                    last_sound_time.clone()
                 ),
                 SampleFormat::U16 => build_input_stream::<u16>(
                     &device, 
@@ -231,7 +185,10 @@ impl AudioRecorder {
                     audio_data.clone(),
                     realtime_buffer.clone(),
                     stream_listeners.clone(),
-                    is_recording.clone()
+                    is_recording.clone(),
+                    current_level.clone(),
+                    silence_duration.clone(),
+                    last_sound_time.clone()
                 ),
                 _ => {
                     eprintln!("不支持的采样格式");
@@ -368,10 +325,32 @@ impl AudioRecorder {
         // 清空音频数据缓存
         self.audio_data.lock().clear();
         
+        // 重置VAD状态
+        *self.current_level.lock() = 0.0;
+        self.reset_silence_detection();
+        
         // 等待任何正在运行的线程结束
         std::thread::sleep(std::time::Duration::from_millis(100));
         
         println!("✅ 录音器状态已重置");
+    }
+    
+    // VAD相关方法
+    pub fn get_current_audio_level(&self) -> Option<f32> {
+        if self.is_recording.load(Ordering::Relaxed) {
+            Some(*self.current_level.lock())
+        } else {
+            None
+        }
+    }
+    
+    pub fn get_silence_duration(&self) -> Duration {
+        *self.silence_duration.lock()
+    }
+    
+    pub fn reset_silence_detection(&self) {
+        *self.silence_duration.lock() = Duration::from_secs(0);
+        *self.last_sound_time.lock() = Instant::now();
     }
 }
 
@@ -383,6 +362,9 @@ fn build_input_stream<T>(
     realtime_buffer: Arc<Mutex<HeapRb<f32>>>,
     stream_listeners: Arc<Mutex<Vec<crossbeam_channel::Sender<Vec<f32>>>>>,
     is_recording: Arc<AtomicBool>,
+    current_level: Arc<Mutex<f32>>,
+    silence_duration: Arc<Mutex<Duration>>,
+    last_sound_time: Arc<Mutex<Instant>>,
 ) -> Result<cpal::Stream, cpal::BuildStreamError>
 where
     T: Sample + cpal::SizedSample + Into<f32>,
@@ -401,6 +383,23 @@ where
             if is_recording.load(Ordering::Relaxed) {
                 // 转换为f32并存储
                 let samples: Vec<f32> = data.iter().map(|&sample| sample.into()).collect();
+                
+                // VAD: 计算音频电平
+                let max_level = samples.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+                *current_level.lock() = max_level;
+                
+                // VAD: 静音检测
+                const SILENCE_THRESHOLD: f32 = 0.01;
+                if max_level < SILENCE_THRESHOLD {
+                    // 静音状态，更新静音持续时间
+                    let now = Instant::now();
+                    let last_sound = *last_sound_time.lock();
+                    *silence_duration.lock() = now.duration_since(last_sound);
+                } else {
+                    // 有声音，重置静音计时
+                    *last_sound_time.lock() = Instant::now();
+                    *silence_duration.lock() = Duration::from_secs(0);
+                }
                 
                 // 更新完整的音频数据
                 {

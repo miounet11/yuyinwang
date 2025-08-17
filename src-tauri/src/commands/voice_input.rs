@@ -1,11 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 use crate::types::TranscriptionConfig;
-use std::path::PathBuf;
-use tokio::fs;
-use uuid::Uuid;
-use chrono::Utc;
-// 移除未使用的 rand 导入
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveAppInfo {
@@ -94,7 +89,7 @@ pub async fn get_active_app_info_for_voice() -> Result<ActiveAppInfo, String> {
     Err("无法获取活动应用信息".to_string())
 }
 
-/// 开始语音录音（支持实时转录）
+/// 开始语音录音（支持实时转录和VAD）
 #[command]
 pub async fn start_voice_recording(
     _device_id: String,
@@ -107,61 +102,127 @@ pub async fn start_voice_recording(
     use std::time::Duration;
     
     let state = app.state::<AppState>();
-    let mut recorder = state.audio_recorder.lock();
     
-    // 开始录音
-    recorder.start_recording()
-        .map_err(|e| format!("启动录音失败: {}", e))?;
+    // 检查是否已在录音
+    {
+        let is_recording = state.is_recording.lock();
+        if *is_recording {
+            println!("⚠️ 已在录音中，跳过重复初始化");
+            return Ok("录音已在进行中".to_string());
+        }
+    }
     
-    println!("🎙️ 语音录音已启动");
+    // 获取录音器并启动录音
+    {
+        let mut recorder = state.audio_recorder.lock();
+        
+        // 重置静音检测
+        recorder.reset_silence_detection();
+        
+        // 开始录音
+        recorder.start_recording()
+            .map_err(|e| format!("启动录音失败: {}", e))?;
+    }
     
-    // 如果是实时模式，启动音频电平监测和实时转录
+    // 设置录音状态
+    {
+        let mut is_recording = state.is_recording.lock();
+        *is_recording = true;
+    }
+    
+    println!("🎙️ 语音录音已启动（VAD模式）");
+    
+    // 启动VAD监测和自动停止
     if realtime {
         let app_handle = app.clone();
         let recorder_clone = Arc::clone(&state.audio_recorder);
+        let is_recording_clone = Arc::clone(&state.is_recording);
         
-        // 启动后台任务监测音频电平
+        // 启动后台任务监测音频电平和静音
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_millis(100));
-            let mut last_transcription_time = std::time::Instant::now();
+            const MAX_SILENCE_DURATION: Duration = Duration::from_secs(2); // 2秒静音后自动停止
+            const MIN_RECORDING_DURATION: Duration = Duration::from_millis(500); // 最少录音0.5秒
+            let start_time = std::time::Instant::now();
+            let mut has_sound = false;
             
             loop {
                 interval.tick().await;
                 
-                // 获取当前音频电平
-                let is_recording = {
+                // 检查是否还在录音
+                let (is_recording, audio_level, silence_duration) = {
                     let recorder = recorder_clone.lock();
-                    recorder.is_recording()
+                    (
+                        recorder.is_recording(),
+                        recorder.get_current_audio_level().unwrap_or(0.0),
+                        recorder.get_silence_duration(),
+                    )
                 };
                 
                 if !is_recording {
+                    println!("🛑 录音已停止（外部触发）");
                     break;
                 }
                 
-                // 获取真实的音频电平并发送到前端
-                let audio_level = {
-                    let recorder = recorder_clone.lock();
-                    // 获取实际的音频电平
-                    recorder.get_current_audio_level().unwrap_or(0.0)
-                };
+                // 检测到声音
+                if audio_level > 0.01 {
+                    has_sound = true;
+                }
                 
-                // 发送音频电平事件
+                // 发送音频电平事件到前端
                 if let Err(e) = app_handle.emit_all("audio_level", audio_level) {
                     eprintln!("发送音频电平事件失败: {}", e);
                 }
                 
-                // 实时转录功能 - 暂时禁用模拟数据
-                // TODO: 实现真实的实时转录
-                // 1. 从录音器获取音频缓冲区片段
-                // 2. 发送到转录服务
-                // 3. 发送转录结果到前端
+                // 检查是否应该自动停止录音
+                let recording_duration = std::time::Instant::now().duration_since(start_time);
                 
-                // 暂时不发送假的转录数据
-                // 只在停止录音时进行完整转录
+                // 条件：录音超过最小时长 + 检测到过声音 + 静音超过阈值
+                if recording_duration > MIN_RECORDING_DURATION 
+                    && has_sound 
+                    && silence_duration > MAX_SILENCE_DURATION {
+                    
+                    println!("🔇 检测到静音超过{}秒，自动停止录音", MAX_SILENCE_DURATION.as_secs());
+                    
+                    // 触发停止录音
+                    if let Err(e) = app_handle.emit_all("auto_stop_recording", true) {
+                        eprintln!("发送自动停止事件失败: {}", e);
+                    }
+                    
+                    // 直接调用停止函数
+                    match crate::commands::stop_voice_recording(app_handle.clone()).await {
+                        Ok(text) => {
+                            println!("✅ 语音输入完成: {}", text);
+                        }
+                        Err(e) => {
+                            eprintln!("❌ 停止录音失败: {}", e);
+                        }
+                    }
+                    
+                    break;
+                }
+                
+                // 发送VAD状态到前端
+                let vad_status = serde_json::json!({
+                    "is_speaking": audio_level > 0.01,
+                    "audio_level": audio_level,
+                    "silence_duration": silence_duration.as_millis(),
+                    "recording_duration": recording_duration.as_millis(),
+                });
+                
+                if let Err(e) = app_handle.emit_all("vad_status", vad_status) {
+                    eprintln!("发送VAD状态失败: {}", e);
+                }
+            }
+            
+            // 确保状态正确重置
+            {
+                let mut is_recording = is_recording_clone.lock();
+                *is_recording = false;
             }
         });
         
-        println!("启动实时语音转录模式");
+        println!("✅ 启动VAD（语音活动检测）模式");
     }
     
     Ok("录音已开始".to_string())
@@ -190,6 +251,15 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         }
     };
     
+    // 检查是否在录音
+    {
+        let is_recording = state.is_recording.lock();
+        if !*is_recording {
+            println!("⚠️ 当前没有在录音");
+            return Ok(String::new());
+        }
+    }
+    
     // 停止录音并获取音频数据和采样率
     let (audio_data, actual_sample_rate) = {
         let mut recorder = state.audio_recorder.lock();
@@ -197,18 +267,18 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         // 获取实际采样率
         let sample_rate = recorder.get_sample_rate();
         
-        // 检查是否正在录音，如果没有录音就直接返回空
-        if !recorder.is_recording() {
-            println!("⚠️ 当前没有在录音，可能已经停止或未开始");
-            return Ok(String::new());
-        }
-        
         println!("🛑 停止录音");
         let audio = recorder.stop_recording()
             .map_err(|e| format!("停止录音失败: {}", e))?;
         
         (audio, sample_rate)
     };
+    
+    // 重置录音状态
+    {
+        let mut is_recording = state.is_recording.lock();
+        *is_recording = false;
+    }
     
     if audio_data.is_empty() {
         return Ok(String::new());

@@ -11,6 +11,9 @@ pub struct AudioRecorder {
     is_recording: Arc<AtomicBool>,
     audio_data: Arc<Mutex<Vec<f32>>>,
     sample_rate: Arc<Mutex<u32>>,
+    current_level: Arc<Mutex<f32>>,
+    silence_duration: Arc<Mutex<std::time::Duration>>,
+    last_sound_time: Arc<Mutex<std::time::Instant>>,
 }
 
 impl AudioRecorder {
@@ -19,6 +22,9 @@ impl AudioRecorder {
             is_recording: Arc::new(AtomicBool::new(false)),
             audio_data: Arc::new(Mutex::new(Vec::new())),
             sample_rate: Arc::new(Mutex::new(44100)),
+            current_level: Arc::new(Mutex::new(0.0)),
+            silence_duration: Arc::new(Mutex::new(std::time::Duration::from_secs(0))),
+            last_sound_time: Arc::new(Mutex::new(std::time::Instant::now())),
         }
     }
 
@@ -33,6 +39,9 @@ impl AudioRecorder {
         let is_recording = self.is_recording.clone();
         let audio_data = self.audio_data.clone();
         let sample_rate = self.sample_rate.clone();
+        let current_level = self.current_level.clone();
+        let silence_duration = self.silence_duration.clone();
+        let last_sound_time = self.last_sound_time.clone();
         
         // 在新线程中处理音频流，避免 Send 问题
         std::thread::spawn(move || {
@@ -63,9 +72,9 @@ impl AudioRecorder {
             
             // 创建音频流
             let stream = match config.sample_format() {
-                SampleFormat::F32 => build_input_stream::<f32>(&device, &config.into(), audio_data.clone(), is_recording.clone()),
-                SampleFormat::I16 => build_input_stream::<i16>(&device, &config.into(), audio_data.clone(), is_recording.clone()),
-                SampleFormat::U16 => build_input_stream::<u16>(&device, &config.into(), audio_data.clone(), is_recording.clone()),
+                SampleFormat::F32 => build_input_stream::<f32>(&device, &config.into(), audio_data.clone(), is_recording.clone(), current_level.clone(), silence_duration.clone(), last_sound_time.clone()),
+                SampleFormat::I16 => build_input_stream::<i16>(&device, &config.into(), audio_data.clone(), is_recording.clone(), current_level.clone(), silence_duration.clone(), last_sound_time.clone()),
+                SampleFormat::U16 => build_input_stream::<u16>(&device, &config.into(), audio_data.clone(), is_recording.clone(), current_level.clone(), silence_duration.clone(), last_sound_time.clone()),
                 _ => {
                     eprintln!("Unsupported sample format");
                     is_recording.store(false, Ordering::Relaxed); // 确保状态重置
@@ -154,6 +163,30 @@ impl AudioRecorder {
     pub fn get_sample_rate(&self) -> u32 {
         *self.sample_rate.lock()
     }
+    
+    pub fn get_current_audio_level(&self) -> Option<f32> {
+        if self.is_recording.load(Ordering::Relaxed) {
+            Some(*self.current_level.lock())
+        } else {
+            None
+        }
+    }
+    
+    pub fn get_silence_duration(&self) -> std::time::Duration {
+        *self.silence_duration.lock()
+    }
+    
+    pub fn reset_silence_detection(&self) {
+        *self.silence_duration.lock() = std::time::Duration::from_secs(0);
+        *self.last_sound_time.lock() = std::time::Instant::now();
+    }
+    
+    pub fn force_reset(&mut self) {
+        self.is_recording.store(false, Ordering::Relaxed);
+        self.audio_data.lock().clear();
+        *self.current_level.lock() = 0.0;
+        self.reset_silence_detection();
+    }
 }
 
 fn build_input_stream<T>(
@@ -161,6 +194,9 @@ fn build_input_stream<T>(
     config: &cpal::StreamConfig,
     audio_data: Arc<Mutex<Vec<f32>>>,
     is_recording: Arc<AtomicBool>,
+    current_level: Arc<Mutex<f32>>,
+    silence_duration: Arc<Mutex<std::time::Duration>>,
+    last_sound_time: Arc<Mutex<std::time::Instant>>,
 ) -> Result<cpal::Stream, String>
 where
     T: Sample + Send + 'static + cpal::SizedSample,
@@ -168,13 +204,34 @@ where
 {
     let err_fn = |err| eprintln!("Audio stream error: {}", err);
     
+    const SILENCE_THRESHOLD: f32 = 0.01;  // 静音阈值
+    
     let stream = device.build_input_stream(
         config,
         move |data: &[T], _: &cpal::InputCallbackInfo| {
             if is_recording.load(Ordering::Relaxed) {
                 let mut audio = audio_data.lock();
+                let mut max_level = 0.0f32;
+                
                 for &sample in data {
-                    audio.push(sample.to_sample::<f32>());
+                    let f32_sample = sample.to_sample::<f32>();
+                    audio.push(f32_sample);
+                    max_level = max_level.max(f32_sample.abs());
+                }
+                
+                // 更新当前音频电平
+                *current_level.lock() = max_level;
+                
+                // 静音检测
+                if max_level < SILENCE_THRESHOLD {
+                    // 如果是静音，更新静音持续时间
+                    let now = std::time::Instant::now();
+                    let last_sound = *last_sound_time.lock();
+                    *silence_duration.lock() = now.duration_since(last_sound);
+                } else {
+                    // 如果有声音，重置静音计时
+                    *last_sound_time.lock() = std::time::Instant::now();
+                    *silence_duration.lock() = std::time::Duration::from_secs(0);
                 }
             }
         },
