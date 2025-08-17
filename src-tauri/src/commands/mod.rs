@@ -55,6 +55,33 @@ fn create_wav_file<P: AsRef<Path>>(
     Ok(())
 }
 
+/// 重采样音频数据
+fn resample_audio(input: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
+    if from_rate == to_rate {
+        return input.to_vec();
+    }
+    
+    let ratio = to_rate as f32 / from_rate as f32;
+    let output_len = (input.len() as f32 * ratio) as usize;
+    let mut output = Vec::with_capacity(output_len);
+    
+    // 简单的线性插值重采样
+    for i in 0..output_len {
+        let src_pos = i as f32 / ratio;
+        let src_idx = src_pos as usize;
+        
+        if src_idx >= input.len() - 1 {
+            output.push(input[input.len() - 1]);
+        } else {
+            let frac = src_pos - src_idx as f32;
+            let sample = input[src_idx] * (1.0 - frac) + input[src_idx + 1] * frac;
+            output.push(sample);
+        }
+    }
+    
+    output
+}
+
 // 基础功能命令
 
 #[tauri::command]
@@ -82,7 +109,7 @@ pub async fn transcribe_file(
                 timestamp: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_secs() as i64,
+                    .as_millis() as i64,
                 duration: 0.0,
                 model: model,
                 confidence: 0.95,
@@ -288,10 +315,14 @@ pub async fn stop_recording(
     // 获取录音器引用并停止录音
     let mut recorder = state.audio_recorder.lock();
     
+    // 获取实际的采样率
+    let actual_sample_rate = recorder.get_sample_rate();
+    
     match recorder.stop_recording() {
         Ok(audio_data) => {
             *is_recording = false;
             println!("🛑 录音已停止，捕获了 {} 个音频样本", audio_data.len());
+            println!("📊 实际采样率: {} Hz", actual_sample_rate);
             
             // 自动进行转录
             if !audio_data.is_empty() {
@@ -316,8 +347,17 @@ pub async fn stop_recording(
                     println!("⚠️ 警告：音频信号较弱 (RMS={:.4})，建议提高麦克风音量或靠近说话", audio_rms);
                 }
                 
-                // 创建WAV文件 - 修复：使用正确的16kHz采样率
-                match crate::commands::create_wav_file(&temp_file, &audio_data, 16000, 1) {
+                // 如果采样率不是16kHz，进行重采样以兼容转录服务
+                let (audio_for_transcription, transcription_sample_rate) = if actual_sample_rate != 16000 {
+                    println!("🔄 重采样音频从 {} Hz 到 16000 Hz 以兼容转录服务", actual_sample_rate);
+                    let resampled = crate::commands::resample_audio(&audio_data, actual_sample_rate, 16000);
+                    (resampled, 16000)
+                } else {
+                    (audio_data.clone(), actual_sample_rate)
+                };
+                
+                // 创建WAV文件 - 使用16kHz采样率以兼容转录服务
+                match crate::commands::create_wav_file(&temp_file, &audio_for_transcription, transcription_sample_rate, 1) {
                     Ok(_) => {
                         println!("📁 音频文件已保存: {:?}", temp_file);
                         
@@ -373,7 +413,7 @@ pub async fn stop_recording(
                                         timestamp: std::time::SystemTime::now()
                                             .duration_since(std::time::UNIX_EPOCH)
                                             .unwrap()
-                                            .as_secs() as i64,
+                                            .as_millis() as i64,
                                         duration: 0.0,
                                         model: config.model_name,
                                         confidence: 0.95,
@@ -422,7 +462,7 @@ pub async fn stop_recording(
                 }
             }
             
-            Ok(format!("录音已停止，录制了 {:.2} 秒音频，正在转录...", audio_data.len() as f32 / 16000.0))
+            Ok(format!("录音已停止，录制了 {:.2} 秒音频，正在转录...", audio_data.len() as f32 / actual_sample_rate as f32))
         },
         Err(e) => {
             *is_recording = false; // 确保状态正确

@@ -852,10 +852,11 @@ const PageContent: React.FC<{
               </div>
             ) : (
               filteredAndSortedHistory.map((entry) => {
-                const timeAgo = Math.floor((Date.now() - entry.timestamp * 1000) / 1000);
+                const timeAgo = Math.floor((Date.now() - entry.timestamp) / 1000);
                 const timeLabel = timeAgo < 60 ? `${timeAgo}s ago` : 
                                  timeAgo < 3600 ? `${Math.floor(timeAgo / 60)}m ago` : 
-                                 `${Math.floor(timeAgo / 3600)}h ago`;
+                                 timeAgo < 86400 ? `${Math.floor(timeAgo / 3600)}h ago` :
+                                 `${Math.floor(timeAgo / 86400)}d ago`;
                 
                 return (
                   <div key={entry.id} className="history-item">

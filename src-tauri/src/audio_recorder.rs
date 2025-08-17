@@ -150,6 +150,10 @@ impl AudioRecorder {
     pub fn is_recording(&self) -> bool {
         self.is_recording.load(Ordering::Relaxed)
     }
+    
+    pub fn get_sample_rate(&self) -> u32 {
+        *self.sample_rate.lock()
+    }
 }
 
 fn build_input_stream<T>(

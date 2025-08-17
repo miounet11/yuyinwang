@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 use crate::types::TranscriptionConfig;
+use std::path::PathBuf;
+use tokio::fs;
+use uuid::Uuid;
+use chrono::Utc;
 // 移除未使用的 rand 导入
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -186,9 +190,12 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         }
     };
     
-    // 停止录音并获取音频数据
-    let audio_data = {
+    // 停止录音并获取音频数据和采样率
+    let (audio_data, actual_sample_rate) = {
         let mut recorder = state.audio_recorder.lock();
+        
+        // 获取实际采样率
+        let sample_rate = recorder.get_sample_rate();
         
         // 检查是否正在录音，如果没有录音就直接返回空
         if !recorder.is_recording() {
@@ -197,8 +204,10 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         }
         
         println!("🛑 停止录音");
-        recorder.stop_recording()
-            .map_err(|e| format!("停止录音失败: {}", e))?
+        let audio = recorder.stop_recording()
+            .map_err(|e| format!("停止录音失败: {}", e))?;
+        
+        (audio, sample_rate)
     };
     
     if audio_data.is_empty() {
@@ -206,12 +215,13 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     }
     
     println!("📊 录音已停止，音频样本数: {}", audio_data.len());
-    println!("🎤 音频时长: {:.2}秒", audio_data.len() as f32 / 16000.0);
+    println!("🎤 音频时长: {:.2}秒", audio_data.len() as f32 / actual_sample_rate as f32);
+    println!("📊 实际采样率: {} Hz", actual_sample_rate);
     println!("🔊 音频数据前10个样本: {:?}", &audio_data[..10.min(audio_data.len())]);
     
-    // 如果音频数据太短，返回空字符串
-    if audio_data.len() < 16000 { // 小于1秒的音频
-        println!("⚠️ 音频太短，跳过转录");
+    // 如果音频数据太短，返回空字符串（基于实际采样率判断）
+    if audio_data.len() < actual_sample_rate as usize { // 小于1秒的音频
+        println!("⚠️ 音频太短（小于1秒），跳过转录");
         return Ok(String::new());
     }
     
@@ -223,9 +233,18 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         .as_secs();
     let temp_file = temp_dir.join(format!("voice_input_{}.wav", timestamp));
     
-    // 写入WAV文件 - 修复：使用录音器的实际采样率16kHz而不是错误的48kHz
+    // 如果采样率不是16kHz，进行重采样以兼容转录服务
+    let (audio_for_transcription, transcription_sample_rate) = if actual_sample_rate != 16000 {
+        println!("🔄 重采样音频从 {} Hz 到 16000 Hz 以兼容转录服务", actual_sample_rate);
+        let resampled = crate::commands::resample_audio(&audio_data, actual_sample_rate, 16000);
+        (resampled, 16000)
+    } else {
+        (audio_data.clone(), actual_sample_rate)
+    };
+    
+    // 写入WAV文件 - 使用16kHz采样率以兼容转录服务
     println!("💾 准备保存WAV文件到: {:?}", temp_file);
-    crate::commands::create_wav_file(&temp_file, &audio_data, 16000, 1)
+    crate::commands::create_wav_file(&temp_file, &audio_for_transcription, transcription_sample_rate, 1)
         .map_err(|e| {
             eprintln!("❌ 创建WAV文件失败: {}", e);
             format!("创建WAV文件失败: {}", e)
@@ -261,34 +280,49 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
     
     let final_text = result.text.trim().to_string();
     
-    // 不要立即删除临时文件，以便重试
-    // 只有在转录成功后才删除
-    let should_delete = !final_text.is_empty();
+    // 备份机制：无论成功与否都先备份，方便调试
+    let backup_dir = directories::UserDirs::new()
+        .and_then(|dirs| Some(dirs.document_dir()?.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join("RecordingKing")
+        .join(if final_text.is_empty() { "failed_transcriptions" } else { "successful_transcriptions" });
     
-    if should_delete {
+    if !backup_dir.exists() {
+        std::fs::create_dir_all(&backup_dir).ok();
+    }
+    
+    let backup_file = backup_dir.join(format!("voice_input_{}.wav", timestamp));
+    if let Err(e) = std::fs::copy(&temp_file, &backup_file) {
+        eprintln!("❌ 备份音频文件失败: {}", e);
+    } else {
+        println!("💾 音频已备份到: {:?}", backup_file);
+        
+        // 同时保存转录结果到文本文件
+        let result_file = backup_dir.join(format!("voice_input_{}_result.txt", timestamp));
+        let result_content = if final_text.is_empty() {
+            format!("转录失败\n时间: {}\n模型: {}\n音频大小: {} bytes", 
+                    timestamp, user_selected_model, audio_data.len() * 2)
+        } else {
+            format!("转录成功\n时间: {}\n模型: {}\n音频大小: {} bytes\n结果: {}", 
+                    timestamp, user_selected_model, audio_data.len() * 2, final_text)
+        };
+        
+        if let Err(e) = std::fs::write(&result_file, result_content) {
+            eprintln!("❌ 保存结果文件失败: {}", e);
+        } else {
+            println!("📝 结果已保存到: {:?}", result_file);
+        }
+    }
+    
+    // 只有在转录成功后才删除临时文件
+    if !final_text.is_empty() {
         if let Err(e) = std::fs::remove_file(&temp_file) {
             eprintln!("清理临时文件失败: {}", e);
+        } else {
+            println!("🗑️ 已删除临时文件");
         }
-        println!("🗑️ 已删除临时文件");
     } else {
         println!("💾 保留临时文件以便重试: {:?}", temp_file);
-        // 复制到备份目录
-        let backup_dir = directories::UserDirs::new()
-            .and_then(|dirs| Some(dirs.document_dir()?.to_path_buf()))
-            .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-            .join("RecordingKing")
-            .join("failed_transcriptions");
-        
-        if !backup_dir.exists() {
-            std::fs::create_dir_all(&backup_dir).ok();
-        }
-        
-        let backup_file = backup_dir.join(format!("voice_input_{}.wav", timestamp));
-        if let Err(e) = std::fs::copy(&temp_file, &backup_file) {
-            eprintln!("❌ 备份音频文件失败: {}", e);
-        } else {
-            println!("💾 音频已备份到: {:?}", backup_file);
-        }
     }
     
     if final_text.is_empty() {
@@ -296,6 +330,39 @@ pub async fn stop_voice_recording(app: tauri::AppHandle) -> Result<String, Strin
         println!("🔍 音频文件大小: {} 字节", audio_data.len() * 2);  // 每个样本2字节
     } else {
         println!("✅ 语音转录成功: '{}'", final_text);
+        
+        // 发送转录结果事件到前端，以便添加到历史记录
+        // 注意：不设置 audio_file_path，这样会被分类为 LIVE（实时听写）
+        let transcription_entry = crate::types::TranscriptionEntry {
+            id: uuid::Uuid::new_v4().to_string(),
+            text: final_text.clone(),
+            timestamp: chrono::Utc::now().timestamp_millis(),
+            duration: audio_data.len() as f64 / actual_sample_rate as f64,
+            model: user_selected_model.clone(),
+            confidence: 0.95,
+            audio_file_path: None,  // 重要：设置为 None 以标记为 LIVE 类型
+            created_at: Some(chrono::Utc::now().to_rfc3339()),
+            updated_at: Some(chrono::Utc::now().to_rfc3339()),
+            tags: None,
+            metadata: None,
+        };
+        
+        // 保存到数据库
+        {
+            let db_manager = state.database.clone();
+            if let Err(e) = db_manager.insert_transcription(&transcription_entry) {
+                eprintln!("❌ 保存语音输入历史记录失败: {}", e);
+            } else {
+                println!("✅ 语音输入历史记录已保存");
+            }
+        }
+        
+        // 发送事件到前端
+        if let Err(e) = app.emit_all("transcription_result", &transcription_entry) {
+            eprintln!("❌ 发送语音输入转录结果事件失败: {}", e);
+        } else {
+            println!("✅ 语音输入转录结果事件已发送到前端");
+        }
     }
     
     Ok(final_text)
