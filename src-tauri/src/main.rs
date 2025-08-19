@@ -318,6 +318,10 @@ fn main() {
             commands::trigger_voice_input_test,
             commands::show_floating_input,
             commands::debug_shortcut_status,
+            // 调试命令
+            commands::voice_input::diagnose_text_injection,
+            commands::voice_input::debug_inject_text,
+            commands::voice_input::simple_text_injection_test,
             // 悬浮助手命令
             commands::show_main_window,
             commands::show_settings,
@@ -337,6 +341,7 @@ fn main() {
             commands::stop_voice_recording,
             commands::get_current_model_info,
             commands::inject_text_to_active_app,
+            commands::activate_app_by_bundle_id,
         ])
         .setup(|app| {
             let app_handle = app.handle();

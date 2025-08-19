@@ -9,6 +9,12 @@ interface QuickVoiceInputProps {
   onTextReady?: (text: string) => void;
 }
 
+interface ActiveAppInfo {
+  name: string;
+  bundle_id?: string;
+  icon?: string;
+}
+
 const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -16,8 +22,9 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
   const [audioLevel, setAudioLevel] = useState(0);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [error, setError] = useState('');
+  const [originalApp, setOriginalApp] = useState<ActiveAppInfo | null>(null);
   
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const silenceStartRef = useRef<number>(0);
@@ -27,6 +34,15 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
     // 设置窗口属性
     const setupWindow = async () => {
       try {
+        // 在显示窗口之前，先保存当前活动的应用
+        try {
+          const activeApp = await invoke<ActiveAppInfo>('get_active_app_info_for_voice');
+          setOriginalApp(activeApp);
+          console.log('保存原始应用:', activeApp);
+        } catch (e) {
+          console.error('获取活动应用信息失败:', e);
+        }
+
         // 设置窗口始终在最前
         await appWindow.setAlwaysOnTop(true);
         // 设置窗口装饰（无标题栏）
@@ -35,22 +51,22 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
         await appWindow.setSize(new LogicalSize(400, 150));
         
         // 获取屏幕尺寸并居中显示
-        const screenSize = await appWindow.currentMonitor();
-        if (screenSize) {
-          const screenWidth = screenSize.size.width;
-          const screenHeight = screenSize.size.height;
-          // 固定在屏幕中间位置
-          const x = Math.floor(screenWidth / 2 - 200);
-          const y = Math.floor(screenHeight / 2 - 75);
-          await appWindow.setPosition(new LogicalPosition(x, y));
-        } else {
-          // 如果无法获取屏幕尺寸，使用默认位置
-          await appWindow.setPosition(new LogicalPosition(window.screen.width / 2 - 200, window.screen.height / 2 - 75));
-        }
+        const screenWidth = window.screen.width;
+        const screenHeight = window.screen.height;
+        // 固定在屏幕中间位置
+        const x = Math.floor(screenWidth / 2 - 200);
+        const y = Math.floor(screenHeight / 2 - 75);
+        await appWindow.setPosition(new LogicalPosition(x, y));
       } catch (error) {
         console.error('设置窗口属性失败:', error);
       }
     };
+
+    // 监听从后端发送的原始应用信息
+    const unlistenAppInfo = listen<ActiveAppInfo>('voice_input_triggered', (event) => {
+      console.log('接收到原始应用信息:', event.payload);
+      setOriginalApp(event.payload);
+    });
 
     setupWindow();
     
@@ -73,6 +89,7 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
+      unlistenAppInfo.then(fn => fn());
       unlistenKeyRelease.then(fn => fn());
       document.removeEventListener('keydown', handleKeyDown);
       if (timerRef.current) {
@@ -105,7 +122,7 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
       });
 
       // 启动计时器和音频电平监控
-      timerRef.current = setInterval(async () => {
+      timerRef.current = window.setInterval(async () => {
         const duration = (Date.now() - startTimeRef.current) / 1000;
         setRecordingDuration(duration);
         
@@ -165,25 +182,70 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
       setIsTranscribing(false);
       setTranscriptionText(result);
 
-      // 自动插入文本到当前应用
+      // 自动插入文本到原始应用
       if (result) {
-        // 调用后端插入文本到当前应用
         try {
-          await invoke('insert_text_to_app', { text: result });
-          console.log('文本已插入到当前应用');
+          console.log('准备注入文本，原始应用:', originalApp);
+          
+          // 1. 先隐藏窗口
+          await appWindow.hide();
+          console.log('窗口已隐藏');
+          
+          // 2. 等待窗口完全隐藏
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // 3. 激活原始应用（如果有）
+          if (originalApp && originalApp.bundle_id) {
+            console.log('尝试激活原始应用:', originalApp.bundle_id);
+            try {
+              await invoke('activate_app_by_bundle_id', { bundleId: originalApp.bundle_id });
+              console.log('原始应用已激活');
+              // 等待应用完全获得焦点
+              await new Promise(resolve => setTimeout(resolve, 500));
+            } catch (e) {
+              console.error('激活原始应用失败:', e);
+              // 即使失败也继续尝试注入
+            }
+          } else {
+            console.log('没有原始应用信息，等待系统自动恢复焦点');
+            // 给系统更多时间恢复焦点
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          
+          // 4. 注入文本
+          console.log('开始注入文本:', result);
+          await invoke('inject_text_to_active_app', { 
+            text: result, 
+            targetBundleId: originalApp?.bundle_id 
+          });
+          console.log('✅ 文本注入成功');
+          
+          // 5. 调用回调（如果有）
+          if (onTextReady) {
+            onTextReady(result);
+          }
+          
+          // 6. 延迟关闭窗口
+          setTimeout(() => {
+            handleClose();
+          }, 300);
         } catch (error) {
-          console.error('插入文本失败:', error);
+          console.error('❌ 文本注入失败:', error);
+          setError(`插入文本失败: ${error}`);
+          
+          // 重新显示窗口以便用户看到错误和转录结果
+          await appWindow.show();
+          
+          // 提供手动复制选项
+          if (navigator.clipboard) {
+            try {
+              await navigator.clipboard.writeText(result);
+              setError(`文本已复制到剪贴板，请手动粘贴: ${error}`);
+            } catch (clipErr) {
+              console.error('复制到剪贴板也失败:', clipErr);
+            }
+          }
         }
-        
-        // 如果有回调，也调用回调
-        if (onTextReady) {
-          onTextReady(result);
-        }
-        
-        // 插入文本后自动关闭
-        setTimeout(() => {
-          handleClose();
-        }, 500);
       }
     } catch (error) {
       console.error('停止录音失败:', error);
@@ -248,6 +310,7 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
           ) : transcriptionText ? (
             <div className="transcription-result">
               <span className="result-text">{transcriptionText}</span>
+              {error && <div className="error-text">{error}</div>}
             </div>
           ) : error ? (
             <div className="error-info">
@@ -265,6 +328,7 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
       {/* 快捷键提示 */}
       <div className="shortcut-hint">
         <kbd>ESC</kbd> 取消 · <kbd>按住快捷键</kbd> 录音
+        {originalApp && <span className="app-info"> · 目标: {originalApp.name}</span>}
       </div>
     </div>
   );

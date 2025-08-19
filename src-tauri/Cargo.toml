@@ -1,6 +1,6 @@
 [package]
 name = "recording-king"
-version = "4.6.8"
+version = "4.6.9"
 description = "Recording King - AI-powered speech-to-text desktop application"
 authors = ["Recording King Team"]
 edition = "2021"
@@ -28,6 +28,7 @@ futures-util = "0.3"
 sysinfo = "0.30"
 cocoa = "0.25"
 objc = "0.2"
+core-graphics = "0.23"
 whisper-rs = { version = "0.12", features = ["metal"] }
 rusqlite = { version = "0.37", features = ["bundled", "chrono"] }
 notify = "5.0"

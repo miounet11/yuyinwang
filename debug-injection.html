@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本注入调试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007AFF;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #007AFF;
+        }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0056CC;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .test-button {
+            background: #28A745;
+        }
+        .test-button:hover {
+            background: #1E7E34;
+        }
+        .danger-button {
+            background: #DC3545;
+        }
+        .danger-button:hover {
+            background: #C82333;
+        }
+        textarea, input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+        .log-area {
+            height: 300px;
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+        .flex-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .flex-row input {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Recording King 文本注入调试工具</h1>
+        
+        <div class="section">
+            <h3>🩺 系统诊断</h3>
+            <p>运行完整的文本注入功能诊断，检查权限、剪贴板、CGEvent和AppleScript功能。</p>
+            <button onclick="runDiagnostics()" id="diagBtn">运行系统诊断</button>
+            <div id="diagStatus"></div>
+        </div>
+
+        <div class="section">
+            <h3>🧪 文本注入测试</h3>
+            <p>测试文本注入功能，查看详细的调试日志。</p>
+            <div class="flex-row">
+                <input type="text" id="testText" placeholder="输入要测试的文本..." value="这是一个测试文本123">
+                <input type="text" id="targetBundle" placeholder="目标应用 Bundle ID (可选)" value="">
+            </div>
+            <button onclick="testTextInjection()" id="testBtn" class="test-button">测试文本注入</button>
+            <div id="testStatus"></div>
+        </div>
+
+        <div class="section">
+            <h3>📱 应用信息</h3>
+            <p>获取当前活动应用的信息。</p>
+            <button onclick="getCurrentApp()" id="appBtn">获取当前应用</button>
+            <div id="appStatus"></div>
+        </div>
+
+        <div class="section">
+            <h3>🔍 实时日志</h3>
+            <div class="log-area" id="logArea"></div>
+            <button onclick="clearLog()" class="danger-button">清空日志</button>
+        </div>
+    </div>
+
+    <script type="module">
+        const { invoke } = window.__TAURI__.tauri;
+        let logCounter = 0;
+
+        function addLog(message, type = 'info') {
+            logCounter++;
+            const timestamp = new Date().toLocaleTimeString();
+            const logArea = document.getElementById('logArea');
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+            logArea.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        async function runDiagnostics() {
+            const btn = document.getElementById('diagBtn');
+            btn.disabled = true;
+            btn.textContent = '诊断中...';
+            
+            addLog('开始系统诊断...');
+            showStatus('diagStatus', '正在运行系统诊断...', 'info');
+
+            try {
+                const result = await invoke('diagnose_text_injection');
+                addLog('系统诊断完成');
+                addLog(result);
+                showStatus('diagStatus', '系统诊断完成，请查看日志获取详细信息。', 'success');
+            } catch (error) {
+                addLog(`系统诊断失败: ${error}`, 'error');
+                showStatus('diagStatus', `系统诊断失败: ${error}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '运行系统诊断';
+            }
+        }
+
+        async function testTextInjection() {
+            const btn = document.getElementById('testBtn');
+            const text = document.getElementById('testText').value;
+            const bundleId = document.getElementById('targetBundle').value;
+            
+            if (!text) {
+                showStatus('testStatus', '请输入要测试的文本', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = '测试中...';
+            
+            addLog(`开始测试文本注入: "${text}"`);
+            if (bundleId) {
+                addLog(`目标应用: ${bundleId}`);
+            }
+            
+            showStatus('testStatus', '正在测试文本注入...', 'info');
+
+            try {
+                const result = await invoke('debug_inject_text', { 
+                    text: text,
+                    targetBundleId: bundleId || null
+                });
+                addLog('文本注入测试完成');
+                addLog(result);
+                showStatus('testStatus', '文本注入测试完成，请查看日志获取详细信息。', 'success');
+            } catch (error) {
+                addLog(`文本注入测试失败: ${error}`, 'error');
+                showStatus('testStatus', `文本注入测试失败: ${error}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '测试文本注入';
+            }
+        }
+
+        async function getCurrentApp() {
+            const btn = document.getElementById('appBtn');
+            btn.disabled = true;
+            btn.textContent = '获取中...';
+            
+            addLog('获取当前活动应用信息...');
+            showStatus('appStatus', '正在获取当前活动应用...', 'info');
+
+            try {
+                const result = await invoke('get_active_app_info_for_voice');
+                addLog(`当前应用: ${result.name} (${result.bundle_id || '无Bundle ID'})`);
+                showStatus('appStatus', `当前应用: ${result.name}<br>Bundle ID: ${result.bundle_id || '无'}`, 'success');
+            } catch (error) {
+                addLog(`获取应用信息失败: ${error}`, 'error');
+                showStatus('appStatus', `获取应用信息失败: ${error}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '获取当前应用';
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('logArea').textContent = '';
+            logCounter = 0;
+            addLog('日志已清空');
+        }
+
+        // 导出函数到全局作用域
+        window.runDiagnostics = runDiagnostics;
+        window.testTextInjection = testTextInjection;
+        window.getCurrentApp = getCurrentApp;
+        window.clearLog = clearLog;
+
+        // 初始化
+        addLog('文本注入调试工具已启动');
+        addLog('请确保 Recording King 应用正在运行');
+    </script>
+</body>
+</html>

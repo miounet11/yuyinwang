@@ -458,22 +458,108 @@ pub fn get_current_model_info(app: tauri::AppHandle) -> Result<String, String> {
     Ok(final_model)
 }
 
-/// 将文本注入到当前活动的应用
+/// 通过 bundle_id 激活应用
 #[command]
-pub async fn inject_text_to_active_app(text: String) -> Result<(), String> {
+pub async fn activate_app_by_bundle_id(bundle_id: String) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         use cocoa::base::{id, nil};
         use cocoa::foundation::{NSAutoreleasePool, NSString};
         use objc::{msg_send, sel, sel_impl};
         
-        // 安全检查：获取当前活动应用，确保不是向自己注入
-        let current_app = get_active_app_info_for_voice().await.ok();
-        if let Some(app_info) = current_app {
-            if app_info.name.contains("Recording King") || 
-               app_info.bundle_id.as_ref().map_or(false, |id| id.contains("recordingking")) {
-                eprintln!("⚠️ 警告：尝试向自己注入文本，跳过操作以防止崩溃");
+        unsafe {
+            let pool = NSAutoreleasePool::new(nil);
+            
+            // 获取 NSWorkspace
+            let workspace_class = objc::class!(NSWorkspace);
+            let workspace: id = msg_send![workspace_class, sharedWorkspace];
+            
+            // 获取所有运行的应用
+            let running_apps: id = msg_send![workspace, runningApplications];
+            let count: usize = msg_send![running_apps, count];
+            
+            for i in 0..count {
+                let app: id = msg_send![running_apps, objectAtIndex:i];
+                let app_bundle_id: id = msg_send![app, bundleIdentifier];
+                
+                if app_bundle_id != nil {
+                    let bundle_str = NSString::UTF8String(app_bundle_id);
+                    if !bundle_str.is_null() {
+                        let bundle = std::ffi::CStr::from_ptr(bundle_str)
+                            .to_string_lossy()
+                            .to_string();
+                        
+                        if bundle == bundle_id {
+                            // 找到目标应用，强制激活它并确保获得焦点
+                            let success: bool = msg_send![app, activateWithOptions:0];
+                            println!("🔄 激活应用 {}: {}", bundle_id, if success { "成功" } else { "失败" });
+                            
+                            if success {
+                                // 确保应用真正获得焦点 - 使用多种方法
+                                std::thread::sleep(std::time::Duration::from_millis(200));
+                                
+                                // 再次尝试激活
+                                let _: bool = msg_send![app, activateWithOptions:1]; // NSApplicationActivateIgnoringOtherApps
+                                
+                                // 额外等待确保焦点切换完成
+                                std::thread::sleep(std::time::Duration::from_millis(300));
+                                
+                                println!("✅ 应用激活完成，已等待焦点切换: {}", bundle_id);
+                            }
+                            
+                            pool.drain();
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+            
+            pool.drain();
+            Err(format!("未找到 bundle_id 为 {} 的应用", bundle_id))
+        }
+    }
+    
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("当前平台不支持应用激活".to_string())
+    }
+}
+
+/// 将文本注入到当前活动的应用
+#[command] 
+pub async fn inject_text_to_active_app(text: String, target_bundle_id: Option<String>) -> Result<(), String> {
+    println!("🔤 开始注入文本: '{}'", text);
+    if let Some(ref bundle_id) = target_bundle_id {
+        println!("🎯 目标应用 bundle_id: {}", bundle_id);
+    }
+    println!("📍 当前线程: {:?}", std::thread::current().id());
+    
+    #[cfg(target_os = "macos")]
+    {
+        use cocoa::base::{id, nil};
+        use cocoa::foundation::{NSAutoreleasePool, NSString};
+        use objc::{msg_send, sel, sel_impl};
+        
+        // 安全检查：确保不是向 Recording King 自己注入
+        if let Some(ref bundle_id) = target_bundle_id {
+            if bundle_id.contains("recordingking") || bundle_id.contains("recording-king") {
+                eprintln!("⚠️ 警告：尝试向 Recording King 自身注入文本，跳过操作");
                 return Err("无法向 Recording King 自身注入文本".to_string());
+            }
+            println!("✅ 目标应用安全检查通过: {}", bundle_id);
+        } else {
+            // 如果没有指定目标应用，检查当前活动应用
+            let current_app = get_active_app_info_for_voice().await.ok();
+            if let Some(app_info) = current_app {
+                println!("📱 当前活动应用: {} ({})", app_info.name, app_info.bundle_id.as_ref().unwrap_or(&"unknown".to_string()));
+                
+                if app_info.name.contains("Recording King") || 
+                   app_info.bundle_id.as_ref().map_or(false, |id| id.contains("recordingking")) {
+                    eprintln!("⚠️ 警告：当前活动应用是 Recording King，可能注入失败");
+                    // 不返回错误，继续尝试，因为可能应用切换还在进行中
+                }
+            } else {
+                println!("⚠️ 无法获取当前活动应用信息，继续执行注入操作");
             }
         }
         
@@ -485,37 +571,137 @@ pub async fn inject_text_to_active_app(text: String) -> Result<(), String> {
             let pasteboard_class = objc::class!(NSPasteboard);
             let general_pasteboard: id = msg_send![pasteboard_class, generalPasteboard];
             
-            // NSPasteboardTypeString 常量
-            let string_type = NSString::alloc(nil).init_str("public.utf8-plain-text");
+            println!("📋 步骤1: 备份剪贴板内容");
+            
+            // NSPasteboardTypeString 常量 - 使用标准的字符串类型
+            let string_type = NSString::alloc(nil).init_str("NSStringPboardType");
             let old_contents: id = msg_send![general_pasteboard, stringForType:string_type];
             
             // 2. 将文本写入剪贴板
+            println!("📋 步骤2: 写入文本到剪贴板");
             let text_string = NSString::alloc(nil).init_str(&text);
             let _: () = msg_send![general_pasteboard, clearContents];
-            let _: bool = msg_send![general_pasteboard, setString:text_string forType:string_type];
+            let success: bool = msg_send![general_pasteboard, setString:text_string forType:string_type];
             
-            // 3. 使用Cmd+V粘贴 - 比keystroke更可靠
-            let script = r#"tell application "System Events" to key code 9 using command down"#;
+            if !success {
+                eprintln!("❌ 写入剪贴板失败");
+                pool.drain();
+                return Err("写入剪贴板失败".to_string());
+            }
             
-            let ns_script_class = objc::class!(NSAppleScript);
-            let ns_script: id = msg_send![ns_script_class, alloc];
-            let script_string = NSString::alloc(nil).init_str(script);
-            let ns_script: id = msg_send![ns_script, initWithSource:script_string];
+            println!("✅ 文本已写入剪贴板");
             
-            if ns_script != nil {
-                let _: id = msg_send![ns_script, executeAndReturnError:nil];
+            // 3. 等待一下确保剪贴板内容已更新
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            
+            // 4. 使用多种方法尝试粘贴文本 - 更可靠的注入
+            println!("⌨️ 步骤3: 执行粘贴操作 (尝试多种方法)");
+            
+            // 方法1: 增强的CGEvent实现（更可靠）
+            println!("🔄 方法1: 使用增强CGEvent直接发送Cmd+V");
+            use core_graphics::event::{CGEvent, CGEventFlags};
+            use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+            
+            let mut paste_success = false;
+            
+            if let Ok(source) = CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+                println!("📝 等待应用获得焦点...");
+                // 增加延迟确保应用完全获得焦点
+                std::thread::sleep(std::time::Duration::from_millis(300));
                 
-                // 4. 延迟一点后恢复剪贴板内容（如果之前有内容）
-                std::thread::sleep(std::time::Duration::from_millis(100));
-                if old_contents != nil {
-                    let _: () = msg_send![general_pasteboard, clearContents];
-                    let _: bool = msg_send![general_pasteboard, setString:old_contents forType:string_type];
+                // 多次尝试发送按键事件以提高成功率
+                for attempt in 1..=3 {
+                    println!("🔄 CGEvent尝试 #{}", attempt);
+                    
+                    // 发送 Cmd+V 按键事件
+                    if let Ok(key_down) = CGEvent::new_keyboard_event(source.clone(), 9, true) { // 9 是 V 键的 keycode
+                        key_down.set_flags(CGEventFlags::CGEventFlagCommand);
+                        key_down.post(core_graphics::event::CGEventTapLocation::HID);
+                        
+                        // 适当延迟
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                        
+                        // 释放按键
+                        if let Ok(key_up) = CGEvent::new_keyboard_event(source.clone(), 9, false) {
+                            key_up.set_flags(CGEventFlags::CGEventFlagCommand);
+                            key_up.post(core_graphics::event::CGEventTapLocation::HID);
+                            paste_success = true;
+                            println!("✅ CGEvent方法第{}次尝试执行完成", attempt);
+                            break; // 成功后跳出循环
+                        }
+                    }
+                    
+                    // 如果不是最后一次尝试，等待一下再试
+                    if attempt < 3 {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
                 }
+            }
+            
+            // 如果第一次CGEvent失败，再尝试几次不同的方法
+            if !paste_success {
+                println!("🔄 方法2: 尝试增强CGEvent方法");
+                
+                // 方法2: 尝试不同的事件发送方式
+                for attempt in 1..=3 {
+                    println!("🔄 增强CGEvent尝试 #{}", attempt);
+                    
+                    // 等待更长时间确保应用完全激活
+                    std::thread::sleep(std::time::Duration::from_millis(300));
+                    
+                    if let Ok(source) = CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+                        // 尝试发送更精确的按键事件
+                        if let Ok(key_down) = CGEvent::new_keyboard_event(source.clone(), 9, true) {
+                            // 设置更多标志
+                            key_down.set_flags(CGEventFlags::CGEventFlagCommand);
+                            key_down.set_integer_value_field(
+                                core_graphics::event::EventField::KEYBOARD_EVENT_AUTOREPEAT, 0
+                            );
+                            
+                            // 发送到不同的目标
+                            key_down.post(core_graphics::event::CGEventTapLocation::HID);
+                            
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            
+                            if let Ok(key_up) = CGEvent::new_keyboard_event(source, 9, false) {
+                                key_up.set_flags(CGEventFlags::CGEventFlagCommand);
+                                key_up.post(core_graphics::event::CGEventTapLocation::HID);
+                                
+                                paste_success = true;
+                                println!("✅ 增强CGEvent方法第{}次尝试成功", attempt);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 如果不是最后一次尝试，等待一下
+                    if attempt < 3 {
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+                }
+            }
+            
+            // 5. 延迟一点后恢复剪贴板内容（如果之前有内容）
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            
+            if old_contents != nil {
+                println!("📋 步骤4: 恢复原剪贴板内容");
+                let _: () = msg_send![general_pasteboard, clearContents];
+                let _: bool = msg_send![general_pasteboard, setString:old_contents forType:string_type];
+            }
+            
+            if !paste_success {
+                eprintln!("❌ 所有文本注入方法都失败了");
+                pool.drain();
+                return Err("文本注入失败".to_string());
+            } else {
+                println!("✅ 文本注入成功");
             }
             
             pool.drain();
         }
         
+        println!("✅ 文本注入完成");
         Ok(())
     }
     
@@ -523,6 +709,179 @@ pub async fn inject_text_to_active_app(text: String) -> Result<(), String> {
     {
         // 其他平台的实现
         Err("当前平台不支持文本注入".to_string())
+    }
+}
+
+/// 专门用于调试文本注入问题的诊断命令
+#[command]
+pub async fn diagnose_text_injection() -> Result<String, String> {
+    let mut report = String::new();
+    report.push_str("=== 文本注入诊断报告 ===\n");
+    
+    // 1. 检查当前活动应用
+    report.push_str("\n1. 当前活动应用检查:\n");
+    match get_active_app_info_for_voice().await {
+        Ok(app_info) => {
+            report.push_str(&format!("   ✅ 名称: {}\n", app_info.name));
+            report.push_str(&format!("   ✅ Bundle ID: {}\n", 
+                app_info.bundle_id.as_ref().unwrap_or(&"无".to_string())));
+        }
+        Err(e) => {
+            report.push_str(&format!("   ❌ 获取失败: {}\n", e));
+        }
+    }
+    
+    // 2. 测试文本注入功能
+    report.push_str("\n2. 文本注入功能检查:\n");
+    match inject_text_to_active_app("诊断测试".to_string(), None).await {
+        Ok(()) => {
+            report.push_str("   ✅ 文本注入功能正常\n");
+        }
+        Err(e) => {
+            report.push_str(&format!("   ❌ 文本注入失败: {}\n", e));
+        }
+    }
+                
+                if success {
+                    report.push_str("   ✅ 可以写入剪贴板\n");
+                    
+                    // 测试读取剪贴板
+                    let read_content: id = msg_send![general_pasteboard, stringForType:string_type];
+                    if read_content != nil {
+                        let content_str = NSString::UTF8String(read_content);
+                        if !content_str.is_null() {
+                            let content = std::ffi::CStr::from_ptr(content_str).to_string_lossy();
+                            if content == test_text {
+                                report.push_str("   ✅ 剪贴板读写正常\n");
+                            } else {
+                                report.push_str(&format!("   ❌ 剪贴板内容不匹配: 期望='{}', 实际='{}'\n", test_text, content));
+                            }
+                        } else {
+                            report.push_str("   ❌ 无法读取剪贴板内容\n");
+                        }
+                    } else {
+                        report.push_str("   ❌ 剪贴板为空\n");
+                    }
+                } else {
+                    report.push_str("   ❌ 无法写入剪贴板\n");
+                }
+            } else {
+                report.push_str("   ❌ 无法访问系统剪贴板\n");
+            }
+            
+            // 3. 测试 CGEvent 功能
+            report.push_str("\n3. CGEvent 键盘事件检查:\n");
+            use core_graphics::event::{CGEvent, CGEventFlags};
+            use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+            
+            match CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+                Ok(source) => {
+                    report.push_str("   ✅ 可以创建 CGEvent 源\n");
+                    
+                    match CGEvent::new_keyboard_event(source, 9, true) { // V键
+                        Ok(_) => {
+                            report.push_str("   ✅ 可以创建键盘事件\n");
+                        }
+                        Err(e) => {
+                            report.push_str(&format!("   ❌ 无法创建键盘事件: {:?}\n", e));
+                        }
+                    }
+                }
+                Err(e) => {
+                    report.push_str(&format!("   ❌ 无法创建 CGEvent 源: {:?}\n", e));
+                }
+            }
+            
+            // 4. 测试 AppleScript 功能
+            report.push_str("\n4. AppleScript 功能检查:\n");
+            let simple_script = "tell application \"System Events\" to return \"test\"";
+            let ns_script_class = objc::class!(NSAppleScript);
+            let ns_script: id = msg_send![ns_script_class, alloc];
+            let script_string = NSString::alloc(nil).init_str(simple_script);
+            let ns_script: id = msg_send![ns_script, initWithSource:script_string];
+            
+            if ns_script != nil {
+                let error: id = nil;
+                let result: id = msg_send![ns_script, executeAndReturnError:&error];
+                
+                if error == nil && result != nil {
+                    report.push_str("   ✅ AppleScript 执行正常\n");
+                } else {
+                    report.push_str("   ❌ AppleScript 执行失败\n");
+                }
+            } else {
+                report.push_str("   ❌ 无法创建 AppleScript\n");
+            }
+            
+            // 5. 权限检查建议
+            report.push_str("\n5. 权限检查建议:\n");
+            report.push_str("   📝 请检查以下系统权限:\n");
+            report.push_str("   - 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能\n");
+            report.push_str("   - 确保 'Recording King' 已被授权\n");
+            report.push_str("   - 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控\n");
+            report.push_str("   - 确保 'Recording King' 已被授权\n");
+            
+            pool.drain();
+        }
+    }
+    
+    #[cfg(not(target_os = "macos"))]
+    {
+        report.push_str("当前不在 macOS 系统上，跳过诊断\n");
+    }
+    
+    Ok(report)
+}
+
+/// 简化版文本注入测试命令（用于调试）
+#[command]
+pub async fn debug_inject_text(text: String, target_bundle_id: Option<String>) -> Result<String, String> {
+    let mut debug_log = String::new();
+    debug_log.push_str(&format!("=== 调试文本注入: '{}' ===\n", text));
+    
+    if let Some(ref bundle_id) = target_bundle_id {
+        debug_log.push_str(&format!("目标应用: {}\n", bundle_id));
+    } else {
+        debug_log.push_str("目标应用: 当前活动应用\n");
+    }
+    
+    // 步骤1：获取当前活动应用
+    debug_log.push_str("\n步骤1: 检查当前活动应用\n");
+    match get_active_app_info_for_voice().await {
+        Ok(app_info) => {
+            debug_log.push_str(&format!("当前活动: {} ({})\n", 
+                app_info.name, 
+                app_info.bundle_id.as_ref().unwrap_or(&"无".to_string())));
+        }
+        Err(e) => {
+            debug_log.push_str(&format!("获取失败: {}\n", e));
+        }
+    }
+    
+    // 步骤2：直接测试文本注入
+    debug_log.push_str("\n步骤2: 测试文本注入\n");
+    match inject_text_to_active_app(text.clone(), target_bundle_id).await {
+        Ok(()) => {
+            debug_log.push_str("✅ 文本注入成功\n");
+        }
+        Err(e) => {
+            debug_log.push_str(&format!("❌ 文本注入失败: {}\n", e));
+        }
+    }
+    
+    debug_log.push_str("\n=== 调试完成 ===\n");
+    
+    Ok(debug_log)
+}
+
+/// 简化的测试命令，直接测试文本注入（绕过所有其他逻辑）
+#[command]
+pub async fn simple_text_injection_test(text: String) -> Result<String, String> {
+    println!("🧪 简化测试：直接注入文本 '{}'", text);
+    
+    match inject_text_to_active_app(text, None).await {
+        Ok(()) => Ok("文本注入成功".to_string()),
+        Err(e) => Err(format!("文本注入失败: {}", e))
     }
 }
 

@@ -465,12 +465,32 @@ const MacOSVoiceInput: React.FC = () => {
               setTranscribedText(retryText);
               addDebugLog(`✅ 重试成功: "${retryText}"`);
               
-              await invoke('inject_text_to_active_app', { text: retryText });
+              // 先隐藏窗口，恢复原始应用焦点，然后注入文本
+              await appWindow.hide();
+              addDebugLog('窗口已隐藏');
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // 如果有原始应用信息，激活它
+              if (activeApp && activeApp.bundleId) {
+                addDebugLog(`激活原始应用: ${activeApp.name} (${activeApp.bundleId})`);
+                await invoke('activate_app_by_bundle_id', { bundleId: activeApp.bundleId });
+                await new Promise(resolve => setTimeout(resolve, 500));
+              }
+              
+              await invoke('inject_text_to_active_app', { 
+                text: retryText, 
+                targetBundleId: activeApp.bundleId 
+              });
               addDebugLog('✅ 文本注入成功');
               
-              autoCloseTimeoutRef.current = setTimeout(() => {
-                closeWindow();
-              }, 1500);
+              // 窗口已隐藏，直接清理状态
+              setTimeout(() => {
+                setTranscribedText('');
+                setHasAudioInput(false);
+                setState('idle');
+                setIsProcessing(false);
+                setIsProcessingTrigger(false);
+              }, 100);
             } else {
               addDebugLog('⚠️ 重试后转录结果仍为空');
               closeWindow();
@@ -505,16 +525,56 @@ const MacOSVoiceInput: React.FC = () => {
         setState('injecting');
         setTranscribedText(finalText);
         addDebugLog(`💉 准备注入文本: "${finalText}"`);
+        addDebugLog(`原始应用信息: ${activeApp.name} (${activeApp.bundleId})`);
         
-        // 注入文本到当前应用
-        await invoke('inject_text_to_active_app', { text: finalText });
-        addDebugLog('✅ 文本注入成功');
+        // 先隐藏窗口
+        await appWindow.hide();
+        addDebugLog('窗口已隐藏');
         
-        // 显示成功状态后自动关闭（给用户更多时间看到结果）
-        autoCloseTimeoutRef.current = setTimeout(() => {
-          addDebugLog('🚪 准备关闭窗口');
-          closeWindow();
-        }, 1500); // 增加到1.5秒，让用户看到结果
+        // 等待一小段时间确保窗口完全隐藏
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // 如果有原始应用信息，激活它
+        if (activeApp && activeApp.bundleId) {
+          addDebugLog(`🎯 开始激活原始应用: ${activeApp.name} (${activeApp.bundleId})`);
+          try {
+            await invoke('activate_app_by_bundle_id', { bundleId: activeApp.bundleId });
+            addDebugLog('📱 应用激活命令已发送');
+            // 增加等待时间确保应用完全激活
+            await new Promise(resolve => setTimeout(resolve, 800));
+            addDebugLog('⏰ 应用激活等待完成');
+          } catch (error) {
+            addDebugLog(`❌ 激活应用失败: ${error}`);
+          }
+        } else {
+          addDebugLog('⚠️ 没有原始应用信息，跳过激活步骤');
+        }
+        
+        // 注入文本到当前活动应用
+        addDebugLog(`💉 开始注入文本: "${finalText}"`);
+        try {
+          await invoke('inject_text_to_active_app', { 
+            text: finalText, 
+            targetBundleId: activeApp.bundleId 
+          });
+          addDebugLog('✅ 文本注入命令执行成功');
+          
+          // 额外验证：等待一下看是否真的成功
+          await new Promise(resolve => setTimeout(resolve, 300));
+          addDebugLog('🔍 文本注入验证等待完成');
+        } catch (error) {
+          addDebugLog(`❌ 文本注入失败: ${error}`);
+          throw error; // 重新抛出错误以便上层处理
+        }
+        
+        // 窗口已隐藏，直接清理状态
+        setTimeout(() => {
+          setTranscribedText('');
+          setHasAudioInput(false);
+          setState('idle');
+          setIsProcessing(false);
+          setIsProcessingTrigger(false);
+        }, 100);
       } else {
         // 没有识别到内容，显示失败
         addDebugLog('⚠️ 转录结果为空');

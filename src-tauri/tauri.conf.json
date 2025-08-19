@@ -7,7 +7,7 @@
   },
     "package": {
       "productName": "Recording King",
-      "version": "4.6.8"
+      "version": "4.6.9"
     },
   "tauri": {
     "allowlist": {
