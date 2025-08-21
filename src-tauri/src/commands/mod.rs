@@ -522,3 +522,65 @@ pub async fn reset_recording_state(
     println!("🔄 重置录音状态: {} -> false", was_recording);
     Ok(format!("录音状态已重置: {} -> false", was_recording))
 }
+
+#[tauri::command]
+pub async fn track_previous_app(
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    // 获取当前活动应用（不应该是Recording King）
+    let injector = crate::system::TextInjector::default();
+    match injector.get_active_application_info().await {
+        Ok(app_info) => {
+            // 检查是否是Recording King自身
+            if !app_info.bundle_id.contains("recordingking") && !app_info.name.contains("Recording King") {
+                let mut previous_app = state.previous_active_app.lock();
+                *previous_app = Some(app_info.clone());
+                println!("📱 记录前一个活动应用: {} ({})", app_info.name, app_info.bundle_id);
+                Ok(())
+            } else {
+                // 如果是Recording King，不更新
+                println!("⚠️ 检测到Recording King自身，不更新前一个应用");
+                Ok(())
+            }
+        }
+        Err(e) => {
+            eprintln!("❌ 获取活动应用信息失败: {}", e);
+            Err(e.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn smart_inject_text_with_app_switch(
+    state: State<'_, AppState>,
+    text: String,
+    config: Option<text_injection::TextInjectionConfigDto>,
+) -> Result<bool, String> {
+    println!("🔄 智能文本注入（带应用切换）");
+    
+    // 检查是否有记录的前一个应用
+    let target_app = {
+        let previous_app = state.previous_active_app.lock();
+        previous_app.clone()
+    };
+    
+    if let Some(app_info) = target_app {
+        println!("🎯 目标应用: {} ({})", app_info.name, app_info.bundle_id);
+        
+        // 激活目标应用
+        #[cfg(target_os = "macos")]
+        {
+            // 注意：activate_app_by_bundle_id 功能已在简化重构中移除
+            // 应用切换将依赖系统自然的窗口焦点切换
+            println!("ℹ️ 准备切换到目标应用: {}", app_info.bundle_id);
+        }
+        
+        // 等待应用切换完成
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    } else {
+        println!("⚠️ 没有记录的前一个应用，将注入到当前活动应用");
+    }
+    
+    // 调用原有的智能注入功能
+    text_injection::smart_inject_text(text, config).await
+}

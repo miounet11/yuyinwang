@@ -746,19 +746,19 @@ const PageContent: React.FC<{
               </button>
             </div>
             <div className="history-actions">
-              <button className="action-btn unified-settings-btn" onClick={() => setShowUnifiedSettings(true)}>
+              <button className="action-btn unified-settings-btn" onClick={() => setShowUnifiedSettings?.(true)}>
                 <span>⚙️</span>
                 统一设置
               </button>
-              <button className="action-btn enhanced-history-btn" onClick={() => setShowEnhancedHistory(true)}>
+              <button className="action-btn enhanced-history-btn" onClick={() => setShowEnhancedHistory?.(true)}>
                 <span>🚀</span>
                 增强搜索
               </button>
-              <button className="action-btn text-injection-btn" onClick={() => setShowTextInjectionSettings(true)}>
+              <button className="action-btn text-injection-btn" onClick={() => setShowTextInjectionSettings?.(true)}>
                 <span>🎯</span>
                 文本注入
               </button>
-              <button className="action-btn voice-shortcut-btn" onClick={() => setShowVoiceShortcutSettings(true)}>
+              <button className="action-btn voice-shortcut-btn" onClick={() => setShowVoiceShortcutSettings?.(true)}>
                 <span>🎤</span>
                 语音快捷键
               </button>
@@ -1106,7 +1106,23 @@ function App() {
     maxStorageSize: 1000,
     groupByDate: true,
     showSummaries: true,
-    exportFormat: 'txt' as const
+    exportFormat: 'txt' as const,
+    searchHistoryEnabled: true,
+    showConfidenceScores: true,
+    showDurations: true,
+    enableAutoBackup: false,
+    backupInterval: 24
+  });
+
+  // 文本注入设置
+  const [textInjectionConfig, setTextInjectionConfig] = useState({
+    auto_inject_enabled: false,
+    inject_delay_ms: 100,
+    use_keyboard_simulation: false,
+    preserve_clipboard: true,
+    duplicate_detection: true,
+    shortcut_delay_ms: 50,
+    target_app_filter: [] as string[]
   });
 
   // 初始化状态标记，防止重复同步
@@ -1162,7 +1178,12 @@ function App() {
   // 权限检查和管理
   const checkPermissions = async () => {
     try {
-      const permissionInfo = await invoke('check_all_permissions');
+      const permissionInfo = await invoke('check_all_permissions') as {
+        status: {
+          all_granted: boolean;
+          input_monitoring: boolean;
+        }
+      };
       const hasAll = permissionInfo.status.all_granted;
       const hasCritical = permissionInfo.status.input_monitoring;
       
@@ -1203,6 +1224,23 @@ function App() {
         const history = await invoke<TranscriptionEntry[]>('get_transcription_history');
         setTranscriptionHistory(history);
 
+        // 加载文本注入配置
+        try {
+          const injectionConfig = await invoke<{
+            auto_inject_enabled: boolean;
+            inject_delay_ms: number;
+            use_keyboard_simulation: boolean;
+            preserve_clipboard: boolean;
+            duplicate_detection: boolean;
+            shortcut_delay_ms: number;
+            target_app_filter: string[];
+          }>('get_default_text_injection_config');
+          console.log('加载文本注入配置:', injectionConfig);
+          setTextInjectionConfig(injectionConfig);
+        } catch (error) {
+          console.error('加载文本注入配置失败:', error);
+        }
+
         // 获取支持的文件格式 - 使用默认值，命令不存在
         const formats = ['mp3', 'wav', 'm4a', 'flac', 'mp4', 'mov', 'm4v', 'webm', 'ogg'];
         logger.info('应用初始化完成');
@@ -1237,12 +1275,18 @@ function App() {
         saveModelConfig('luyingwang-online', luyinwangConfig);
         logger.info('✅ LuYinWang 模型配置已初始化 - Bearer Token 已设置');
       } catch (error) {
-        logger.error('❌ 初始化 LuYinWang 配置失败:', error);
+        logger.error('❌ 初始化 LuYinWang 配置失败:', error as Error);
       }
     };
 
     // 检查 TTS 试用状态
     const checkTTSTrialStatus = () => {
+      // 暂时设置为永久Pro版本，避免试用期弹窗
+      setTrialInfo({ isPro: true, daysLeft: -1, message: 'Pro 版本' });
+      return;
+      
+      // 原始试用检查逻辑
+      /*
       const info = ttsService.getTrialInfo();
       setTrialInfo(info);
       
@@ -1252,6 +1296,7 @@ function App() {
           setShowSubscriptionManager(true);
         }, 3000);
       }
+      */
     };
 
 
@@ -1260,12 +1305,31 @@ function App() {
       try {
         console.log('🚀 开始设置所有监听器...');
         // 监听录音转录结果（从 stop_recording 命令发出）
-        const unlisten1 = await listen<TranscriptionEntry>('transcription_result', (event) => {
+        const unlisten1 = await listen<TranscriptionEntry>('transcription_result', async (event) => {
           const entry = event.payload;
           logger.transcription('收到录音转录结果', entry);
           setTranscription(entry.text);
           addTranscriptionEntry(entry);
           // setIsTranscribing(false); // 转录完成，清除进度状态
+          
+          // 检查是否启用自动注入
+          if (textInjectionConfig.auto_inject_enabled && entry.text) {
+            try {
+              console.log('执行自动文本注入...');
+              // 使用带应用切换的智能注入
+              const injected = await invoke<boolean>('smart_inject_text_with_app_switch', {
+                text: entry.text,
+                config: textInjectionConfig
+              });
+              if (injected) {
+                console.log('✅ 文本自动注入成功');
+              } else {
+                console.log('ℹ️ 文本注入被跳过（可能是重复或目标应用不匹配）');
+              }
+            } catch (error) {
+              console.error('❌ 自动文本注入失败:', error);
+            }
+          }
           
           // 如果AI处理处于激活状态且在AI提示页面，处理语音转录
           // if (currentPage === 'ai-prompts' && aiPromptsRef?.processWithAgents) {
@@ -1339,28 +1403,52 @@ function App() {
       }
     };
 
+    // 设置窗口焦点监听器来跟踪前一个应用
+    const setupWindowFocusListener = async () => {
+      try {
+        const { appWindow } = await import('@tauri-apps/api/window');
+        
+        // 当窗口失去焦点时，记录当前活动的应用
+        await appWindow.onFocusChanged(({ payload: focused }) => {
+          if (!focused) {
+            // Recording King失去焦点，记录新的活动应用
+            console.log('🔄 Recording King失去焦点，记录新的活动应用');
+            invoke('track_previous_app').catch(err => {
+              console.error('记录前一个应用失败:', err);
+            });
+          } else {
+            console.log('✅ Recording King获得焦点');
+          }
+        });
+      } catch (error) {
+        console.error('设置窗口焦点监听器失败:', error);
+      }
+    };
+
     initializeApp();
     setupListeners();
+    setupWindowFocusListener();
 
     // 清理函数
     return () => {
       // 使用Tauri API的unregisterAll方法清理所有快捷键
       unregisterAll().catch(console.error);
     };
-  }, [setDevices, setTranscriptionHistory, setTranscription, addTranscriptionEntry]);
+  }, [setDevices, setTranscriptionHistory, setTranscription, addTranscriptionEntry, textInjectionConfig]);
 
   // 处理悬浮对话框的录音切换
   // 检查首次启动
   const checkFirstLaunch = () => {
     // 暂时跳过向导，直接进入主界面
-    const hasCompletedSetup = true; // localStorage.getItem('spokenly_setup_completed');
-    const hasSeenWizard = true; // localStorage.getItem('spokenly_wizard_seen');
-    const hasSeenSubscription = true; // localStorage.getItem('spokenly_subscription_seen');
-    
     logger.info('跳过向导，直接进入主界面');
     setShowFirstLaunchWizard(false);
     setShowSubscriptionManager(false);
-    return;
+    
+    // 下面的代码暂时注释掉，保留以备后用
+    /*
+    const hasCompletedSetup = localStorage.getItem('spokenly_setup_completed');
+    const hasSeenWizard = localStorage.getItem('spokenly_wizard_seen');
+    const hasSeenSubscription = localStorage.getItem('spokenly_subscription_seen');
     
     // 开发模式下的快捷重置功能 (Shift+Cmd+R+E+S+E+T)
     const setupDevKeyListener = () => {
@@ -1393,7 +1481,7 @@ function App() {
     try {
       setupDevKeyListener();
     } catch (error) {
-      logger.error('开发者重置功能初始化失败', error);
+      logger.error('开发者重置功能初始化失败', error as Error);
     }
     
     // 如果从未完成设置向导，显示首次启动向导
@@ -1411,6 +1499,7 @@ function App() {
         setShowSubscriptionManager(true);
       }, 2000);
     }
+    */
   };
   
 
@@ -1559,7 +1648,23 @@ function App() {
       setTranscription(enhancedText);
       
       // 自动输入到目标应用（如果需要）
-      // await invoke('auto_input_text', { text: enhancedText });
+      if (textInjectionConfig.auto_inject_enabled && enhancedText) {
+        try {
+          console.log('执行AI增强文本自动注入...');
+          // 使用带应用切换的智能注入
+          const injected = await invoke<boolean>('smart_inject_text_with_app_switch', {
+            text: enhancedText,
+            config: textInjectionConfig
+          });
+          if (injected) {
+            console.log('✅ AI增强文本自动注入成功');
+          } else {
+            console.log('ℹ️ AI增强文本注入被跳过');
+          }
+        } catch (error) {
+          console.error('❌ AI增强文本自动注入失败:', error);
+        }
+      }
       
       // 重置AI处理状态
       // setAiProcessingActive(false);
@@ -1609,7 +1714,7 @@ function App() {
           <div className="upgrade-link" onClick={() => setShowSubscriptionManager(true)}>
             升级 Pro
           </div>
-          <div className="version-info" onClick={() => setShowTestPanel(true)} style={{ cursor: 'pointer' }}>v2.12.10</div>
+          <div className="version-info" onClick={() => setShowTestPanel(true)} style={{ cursor: 'pointer' }}>v5.5.1</div>
         </div>
       </div>
 
@@ -1734,6 +1839,7 @@ function App() {
         onClose={() => setShowTextInjectionSettings(false)}
         onConfigChange={(config) => {
           console.log('文本注入配置更新:', config);
+          setTextInjectionConfig(config);
         }}
       />
 
@@ -1775,7 +1881,7 @@ function App() {
         showFloating={false}
         position="bottom-right"
         audioDevices={audioDevices}
-        currentDevice={selectedDevice}
+        currentDevice={selectedDevice || undefined}
       />
 
       {/* 增强快捷键管理器 */}

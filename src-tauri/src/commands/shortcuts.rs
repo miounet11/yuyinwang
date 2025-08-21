@@ -149,7 +149,6 @@ pub async fn show_floating_input(
         .await
         .unwrap_or(crate::commands::voice_input::ActiveAppInfo {
             name: "Unknown".to_string(),
-            icon: None,
             bundle_id: None,
         });
     

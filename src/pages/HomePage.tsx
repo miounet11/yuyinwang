@@ -32,6 +32,7 @@ const HomePage: React.FC<HomePageProps> = memo(({
 
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [testInputText, setTestInputText] = useState('');
 
   // 优化的录音处理函数 - 使用统一的录音逻辑
   const handleStartRecording = useCallback(async () => {
@@ -155,6 +156,33 @@ const HomePage: React.FC<HomePageProps> = memo(({
                 readOnly
                 placeholder="转录文本将在这里显示..."
               />
+            </div>
+          </div>
+
+          {/* 文本注入测试区 */}
+          <div className="text-injection-test">
+            <h3>文本注入测试:</h3>
+            <div className="test-input-container">
+              <input
+                type="text"
+                className="test-input"
+                value={testInputText}
+                onChange={(e) => setTestInputText(e.target.value)}
+                placeholder="在这里输入测试文本..."
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  fontSize: '14px',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  backgroundColor: '#333',
+                  color: '#fff',
+                  marginBottom: '10px'
+                }}
+              />
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
+                提示：点击上方输入框，语音输入的文本将自动注入到这里
+              </p>
             </div>
           </div>
         </div>

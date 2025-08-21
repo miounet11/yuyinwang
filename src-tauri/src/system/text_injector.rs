@@ -3,10 +3,18 @@
 
 use std::time::Duration;
 use std::process::Command;
-use crate::errors::{AppError, AppResult};
 
 #[cfg(target_os = "macos")]
-use cocoa::foundation::{NSString, NSAutoreleasePool};
+use cocoa::base::{id, nil};
+#[cfg(target_os = "macos")]
+use cocoa::foundation::{NSAutoreleasePool, NSString};
+#[cfg(target_os = "macos")]
+use core_graphics::event::{CGEvent, CGEventFlags, CGKeyCode};
+#[cfg(target_os = "macos")]
+use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+#[cfg(target_os = "macos")]
+use objc::{msg_send, sel, sel_impl};
+use crate::errors::{AppError, AppResult};
 
 /// 文本注入配置
 #[derive(Debug, Clone)]
@@ -260,49 +268,112 @@ impl TextInjector {
     
     /// macOS: 模拟 Cmd+V 快捷键
     async fn simulate_paste_shortcut_macos(&self) -> AppResult<()> {
-        // 使用 AppleScript 模拟 Cmd+V
-        let script = r#"
-            tell application "System Events"
-                key code 9 using {command down}
-            end tell
-        "#;
-        
-        let output = Command::new("osascript")
-            .arg("-e")
-            .arg(script)
-            .output()
-            .map_err(|e| AppError::SystemIntegrationError(format!("执行AppleScript失败: {}", e)))?;
-        
-        if !output.status.success() {
-            let error_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(AppError::SystemIntegrationError(format!("模拟粘贴失败: {}", error_msg)));
+        // 使用 CGEvent 而不是 AppleScript
+        #[cfg(target_os = "macos")]
+        {
+            use cocoa::base::{id, nil};
+            use cocoa::foundation::NSAutoreleasePool;
+            use core_graphics::event::{CGEvent, CGEventFlags};
+            use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+            
+            unsafe {
+                let pool = NSAutoreleasePool::new(nil);
+                
+                // 创建事件源
+                match CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+                    Ok(source) => {
+                        // 增加延迟确保应用完全获得焦点
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        
+                        // 发送 Cmd+V 按键事件
+                        if let Ok(key_down) = CGEvent::new_keyboard_event(source.clone(), 9, true) { // 9 是 V 键的 keycode
+                            key_down.set_flags(CGEventFlags::CGEventFlagCommand);
+                            key_down.post(core_graphics::event::CGEventTapLocation::HID);
+                            
+                            // 适当延迟
+                            std::thread::sleep(std::time::Duration::from_millis(50));
+                            
+                            // 释放按键
+                            if let Ok(key_up) = CGEvent::new_keyboard_event(source, 9, false) {
+                                key_up.set_flags(CGEventFlags::CGEventFlagCommand);
+                                key_up.post(core_graphics::event::CGEventTapLocation::HID);
+                                
+                                pool.drain();
+                                return Ok(());
+                            }
+                        }
+                        
+                        pool.drain();
+                        Err(AppError::SystemIntegrationError("无法创建键盘事件".to_string()))
+                    }
+                    Err(_) => {
+                        pool.drain();
+                        Err(AppError::SystemIntegrationError("无法创建CGEvent源".to_string()))
+                    }
+                }
+            }
         }
         
-        Ok(())
+        #[cfg(not(target_os = "macos"))]
+        {
+            // 对于非macOS平台，使用原来的实现
+            let script = r#"
+                tell application "System Events"
+                    key code 9 using {command down}
+                end tell
+            "#;
+            
+            let output = Command::new("osascript")
+                .arg("-e")
+                .arg(script)
+                .output()
+                .map_err(|e| AppError::SystemIntegrationError(format!("执行AppleScript失败: {}", e)))?;
+            
+            if !output.status.success() {
+                let error_msg = String::from_utf8_lossy(&output.stderr);
+                return Err(AppError::SystemIntegrationError(format!("模拟粘贴失败: {}", error_msg)));
+            }
+            
+            Ok(())
+        }
     }
     
     /// macOS: 模拟单个按键
     async fn simulate_key_press_macos(&self, ch: char) -> AppResult<()> {
-        // 对于简单字符，使用AppleScript输入
-        let escaped_char = ch.to_string().replace("\"", "\\\"").replace("\\", "\\\\");
-        let script = format!(r#"
-            tell application "System Events"
-                keystroke "{}"
-            end tell
-        "#, escaped_char);
-        
-        let output = Command::new("osascript")
-            .arg("-e")
-            .arg(&script)
-            .output()
-            .map_err(|e| AppError::SystemIntegrationError(format!("执行AppleScript失败: {}", e)))?;
-        
-        if !output.status.success() {
-            let error_msg = String::from_utf8_lossy(&output.stderr);
-            return Err(AppError::SystemIntegrationError(format!("模拟按键失败: {}", error_msg)));
+        // 使用 CGEvent 而不是 AppleScript
+        unsafe {
+            let pool = NSAutoreleasePool::new(nil);
+            
+            // 创建事件源
+            match CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+                Ok(source) => {
+                    // 将字符转换为字符串
+                    let text_string = NSString::alloc(nil).init_str(&ch.to_string());
+                    
+                    // 创建键盘事件（使用Unicode文本而不是keycode）
+                    if let Ok(mut event) = CGEvent::new_keyboard_event(source.clone(), 0, true) {
+                        // 设置要输入的文本
+                        event.set_string(&ch.to_string());
+                        
+                        // 发送事件
+                        event.post(core_graphics::event::CGEventTapLocation::HID);
+                        
+                        // 短暂延迟
+                        std::thread::sleep(std::time::Duration::from_millis(10));
+                        
+                        pool.drain();
+                        return Ok(());
+                    }
+                    
+                    pool.drain();
+                    Err(AppError::SystemIntegrationError("无法创建键盘事件".to_string()))
+                }
+                Err(_) => {
+                    pool.drain();
+                    Err(AppError::SystemIntegrationError("无法创建CGEvent源".to_string()))
+                }
+            }
         }
-        
-        Ok(())
     }
     
     /// macOS: 检查辅助功能权限

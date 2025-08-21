@@ -155,7 +155,7 @@ export default function TextInjectionSettings({ isVisible, onClose, onConfigChan
     setLoading(true);
 
     try {
-      const injected = await invoke<boolean>('smart_inject_text', { 
+      const injected = await invoke<boolean>('smart_inject_text_with_app_switch', { 
         text: testText,
         config 
       });

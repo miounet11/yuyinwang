@@ -63,6 +63,7 @@ pub struct AppState {
     pub folder_watcher: Arc<folder_watcher::FolderWatcher>,
     pub performance_optimizer: Arc<Mutex<performance_optimizer::PerformanceOptimizer>>,
     pub smart_text_injector: Arc<system::SmartTextInjector>,
+    pub previous_active_app: Arc<Mutex<Option<system::ApplicationInfo>>>,
 }
 
 impl AppState {
@@ -128,6 +129,7 @@ impl AppState {
             folder_watcher: Arc::new(folder_watcher::FolderWatcher::new()),
             performance_optimizer: Arc::new(Mutex::new(performance_optimizer::PerformanceOptimizer::new())),
             smart_text_injector: Arc::new(smart_text_injector),
+            previous_active_app: Arc::new(Mutex::new(None)),
         })
     }
 }
@@ -308,6 +310,8 @@ fn main() {
             // 录音状态管理命令
             commands::get_recording_state,
             commands::reset_recording_state,
+            commands::track_previous_app,
+            commands::smart_inject_text_with_app_switch,
             // 语音输入快捷键命令
             commands::register_voice_shortcut,
             commands::unregister_all_voice_shortcuts,
@@ -318,10 +322,6 @@ fn main() {
             commands::trigger_voice_input_test,
             commands::show_floating_input,
             commands::debug_shortcut_status,
-            // 调试命令
-            commands::voice_input::diagnose_text_injection,
-            commands::voice_input::debug_inject_text,
-            commands::voice_input::simple_text_injection_test,
             // 悬浮助手命令
             commands::show_main_window,
             commands::show_settings,
@@ -339,9 +339,6 @@ fn main() {
             commands::get_active_app_info_for_voice,
             commands::start_voice_recording,
             commands::stop_voice_recording,
-            commands::get_current_model_info,
-            commands::inject_text_to_active_app,
-            commands::activate_app_by_bundle_id,
         ])
         .setup(|app| {
             let app_handle = app.handle();
