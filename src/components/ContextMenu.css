@@ -1,0 +1,188 @@
+/* Context Menu Styles - macOS Style */
+.context-menu {
+  position: fixed;
+  z-index: 10000;
+  background: var(--vscode-menu-background, #2d2d30);
+  border: 1px solid var(--vscode-menu-border, #454545);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35),
+              0 2px 16px rgba(0, 0, 0, 0.25),
+              0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  padding: 4px 0;
+  min-width: 160px;
+  max-width: 280px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  animation: contextMenuSlide 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top left;
+  user-select: none;
+}
+
+@keyframes contextMenuSlide {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Light theme support */
+@media (prefers-color-scheme: light) {
+  .context-menu {
+    background: var(--vscode-menu-background, rgba(255, 255, 255, 0.95));
+    border-color: var(--vscode-menu-border, rgba(0, 0, 0, 0.1));
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15),
+                0 2px 16px rgba(0, 0, 0, 0.1),
+                0 0 0 1px rgba(0, 0, 0, 0.05) inset;
+  }
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  cursor: pointer;
+  color: var(--vscode-menu-foreground, #cccccc);
+  transition: all 0.1s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  border-radius: 0;
+}
+
+.context-menu-item:hover,
+.context-menu-item.focused {
+  background: var(--vscode-menu-selectionBackground, #094771);
+  color: var(--vscode-menu-selectionForeground, #ffffff);
+}
+
+.context-menu-item.disabled {
+  color: var(--vscode-disabledForeground, #656565);
+  cursor: default;
+  opacity: 0.5;
+}
+
+.context-menu-item.disabled:hover,
+.context-menu-item.disabled.focused {
+  background: transparent;
+  color: var(--vscode-disabledForeground, #656565);
+}
+
+.menu-item-icon {
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.menu-item-label {
+  flex: 1;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-item-shortcut {
+  font-size: 11px;
+  color: var(--vscode-menu-foreground, #cccccc);
+  opacity: 0.7;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 16px;
+}
+
+.context-menu-item:hover .menu-item-shortcut,
+.context-menu-item.focused .menu-item-shortcut {
+  color: var(--vscode-menu-selectionForeground, #ffffff);
+  opacity: 0.9;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: var(--vscode-menu-separatorBackground, #454545);
+  margin: 4px 8px;
+  flex-shrink: 0;
+}
+
+/* Light theme divider */
+@media (prefers-color-scheme: light) {
+  .context-menu-divider {
+    background: var(--vscode-menu-separatorBackground, rgba(0, 0, 0, 0.1));
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .context-menu {
+    border-width: 2px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+  }
+  
+  .context-menu-item:hover,
+  .context-menu-item.focused {
+    outline: 2px solid var(--vscode-focusBorder, #007acc);
+    outline-offset: -2px;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .context-menu {
+    animation: none;
+  }
+  
+  .context-menu-item {
+    transition: none;
+  }
+}
+
+/* RTL support */
+[dir="rtl"] .context-menu-item {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+[dir="rtl"] .menu-item-shortcut {
+  margin-left: 0;
+  margin-right: auto;
+  padding-left: 0;
+  padding-right: 16px;
+}
+
+/* Focus management */
+.context-menu:focus {
+  outline: none;
+}
+
+.context-menu-item:focus {
+  outline: none;
+}
+
+/* Ensure proper layering above all other elements */
+.context-menu {
+  isolation: isolate;
+}
+
+/* Mobile adaptations */
+@media (max-width: 480px) {
+  .context-menu {
+    min-width: 140px;
+    font-size: 14px;
+  }
+  
+  .context-menu-item {
+    padding: 8px 16px;
+  }
+}
+
+/* Ensure menu appears above modals and other overlays */
+.context-menu {
+  z-index: 999999;
+}
