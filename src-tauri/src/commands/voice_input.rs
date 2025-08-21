@@ -741,88 +741,108 @@ pub async fn diagnose_text_injection() -> Result<String, String> {
             report.push_str(&format!("   ❌ 文本注入失败: {}\n", e));
         }
     }
+    
+    #[cfg(target_os = "macos")]
+    unsafe {
+        use cocoa::base::{id, nil};
+        use cocoa::foundation::{NSString, NSAutoreleasePool};
+        use objc::{msg_send, sel, sel_impl, class};
+        
+        let pool = NSAutoreleasePool::new(nil);
+        
+        // 测试剪贴板功能
+        report.push_str("\n3. 剪贴板功能检查:\n");
+        let general_pasteboard = objc::class!(NSPasteboard);
+        let general_pasteboard: id = msg_send![general_pasteboard, generalPasteboard];
+        
+        if general_pasteboard != nil {
+            report.push_str("   ✅ 可以访问系统剪贴板\n");
+            
+            let test_text = "测试剪贴板功能";
+            let string_type = NSString::alloc(nil).init_str("public.utf8-plain-text");
+            let test_string = NSString::alloc(nil).init_str(test_text);
+            let success: bool = msg_send![general_pasteboard, setString:test_string forType:string_type];
+            
+            if success {
+                report.push_str("   ✅ 可以写入剪贴板\n");
                 
-                if success {
-                    report.push_str("   ✅ 可以写入剪贴板\n");
-                    
-                    // 测试读取剪贴板
-                    let read_content: id = msg_send![general_pasteboard, stringForType:string_type];
-                    if read_content != nil {
-                        let content_str = NSString::UTF8String(read_content);
-                        if !content_str.is_null() {
-                            let content = std::ffi::CStr::from_ptr(content_str).to_string_lossy();
-                            if content == test_text {
-                                report.push_str("   ✅ 剪贴板读写正常\n");
-                            } else {
-                                report.push_str(&format!("   ❌ 剪贴板内容不匹配: 期望='{}', 实际='{}'\n", test_text, content));
-                            }
+                // 测试读取剪贴板
+                let read_content: id = msg_send![general_pasteboard, stringForType:string_type];
+                if read_content != nil {
+                    let content_str = NSString::UTF8String(read_content);
+                    if !content_str.is_null() {
+                        let content = std::ffi::CStr::from_ptr(content_str).to_string_lossy();
+                        if content == test_text {
+                            report.push_str("   ✅ 剪贴板读写正常\n");
                         } else {
-                            report.push_str("   ❌ 无法读取剪贴板内容\n");
+                            report.push_str(&format!("   ❌ 剪贴板内容不匹配: 期望='{}', 实际='{}'\n", test_text, content));
                         }
                     } else {
-                        report.push_str("   ❌ 剪贴板为空\n");
+                        report.push_str("   ❌ 无法读取剪贴板内容\n");
                     }
                 } else {
-                    report.push_str("   ❌ 无法写入剪贴板\n");
+                    report.push_str("   ❌ 剪贴板为空\n");
                 }
             } else {
-                report.push_str("   ❌ 无法访问系统剪贴板\n");
+                report.push_str("   ❌ 无法写入剪贴板\n");
             }
-            
-            // 3. 测试 CGEvent 功能
-            report.push_str("\n3. CGEvent 键盘事件检查:\n");
-            use core_graphics::event::{CGEvent, CGEventFlags};
-            use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
-            
-            match CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
-                Ok(source) => {
-                    report.push_str("   ✅ 可以创建 CGEvent 源\n");
-                    
-                    match CGEvent::new_keyboard_event(source, 9, true) { // V键
-                        Ok(_) => {
-                            report.push_str("   ✅ 可以创建键盘事件\n");
-                        }
-                        Err(e) => {
-                            report.push_str(&format!("   ❌ 无法创建键盘事件: {:?}\n", e));
-                        }
-                    }
-                }
-                Err(e) => {
-                    report.push_str(&format!("   ❌ 无法创建 CGEvent 源: {:?}\n", e));
-                }
-            }
-            
-            // 4. 测试 AppleScript 功能
-            report.push_str("\n4. AppleScript 功能检查:\n");
-            let simple_script = "tell application \"System Events\" to return \"test\"";
-            let ns_script_class = objc::class!(NSAppleScript);
-            let ns_script: id = msg_send![ns_script_class, alloc];
-            let script_string = NSString::alloc(nil).init_str(simple_script);
-            let ns_script: id = msg_send![ns_script, initWithSource:script_string];
-            
-            if ns_script != nil {
-                let error: id = nil;
-                let result: id = msg_send![ns_script, executeAndReturnError:&error];
-                
-                if error == nil && result != nil {
-                    report.push_str("   ✅ AppleScript 执行正常\n");
-                } else {
-                    report.push_str("   ❌ AppleScript 执行失败\n");
-                }
-            } else {
-                report.push_str("   ❌ 无法创建 AppleScript\n");
-            }
-            
-            // 5. 权限检查建议
-            report.push_str("\n5. 权限检查建议:\n");
-            report.push_str("   📝 请检查以下系统权限:\n");
-            report.push_str("   - 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能\n");
-            report.push_str("   - 确保 'Recording King' 已被授权\n");
-            report.push_str("   - 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控\n");
-            report.push_str("   - 确保 'Recording King' 已被授权\n");
-            
-            pool.drain();
+        } else {
+            report.push_str("   ❌ 无法访问系统剪贴板\n");
         }
+        
+        // 4. 测试 CGEvent 功能
+        report.push_str("\n4. CGEvent 键盘事件检查:\n");
+        use core_graphics::event::{CGEvent, CGEventFlags};
+        use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+        
+        match CGEventSource::new(CGEventSourceStateID::HIDSystemState) {
+            Ok(source) => {
+                report.push_str("   ✅ 可以创建 CGEvent 源\n");
+                
+                match CGEvent::new_keyboard_event(source, 9, true) { // V键
+                    Ok(_) => {
+                        report.push_str("   ✅ 可以创建键盘事件\n");
+                    }
+                    Err(e) => {
+                        report.push_str(&format!("   ❌ 无法创建键盘事件: {:?}\n", e));
+                    }
+                }
+            }
+            Err(e) => {
+                report.push_str(&format!("   ❌ 无法创建 CGEvent 源: {:?}\n", e));
+            }
+        }
+        
+        // 5. 测试 AppleScript 功能
+        report.push_str("\n5. AppleScript 功能检查:\n");
+        let simple_script = "tell application \"System Events\" to return \"test\"";
+        let ns_script_class = objc::class!(NSAppleScript);
+        let ns_script: id = msg_send![ns_script_class, alloc];
+        let script_string = NSString::alloc(nil).init_str(simple_script);
+        let ns_script: id = msg_send![ns_script, initWithSource:script_string];
+        
+        if ns_script != nil {
+            let error: id = nil;
+            let result: id = msg_send![ns_script, executeAndReturnError:&error];
+            
+            if error == nil && result != nil {
+                report.push_str("   ✅ AppleScript 执行正常\n");
+            } else {
+                report.push_str("   ❌ AppleScript 执行失败\n");
+            }
+        } else {
+            report.push_str("   ❌ 无法创建 AppleScript\n");
+        }
+        
+        // 6. 权限检查建议
+        report.push_str("\n6. 权限检查建议:\n");
+        report.push_str("   📝 请检查以下系统权限:\n");
+        report.push_str("   - 系统偏好设置 → 安全性与隐私 → 隐私 → 辅助功能\n");
+        report.push_str("   - 确保 'Recording King' 已被授权\n");
+        report.push_str("   - 系统偏好设置 → 安全性与隐私 → 隐私 → 输入监控\n");
+        report.push_str("   - 确保 'Recording King' 已被授权\n");
+        
+        pool.drain();
     }
     
     #[cfg(not(target_os = "macos"))]
