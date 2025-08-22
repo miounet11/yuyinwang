@@ -6,6 +6,10 @@ use crate::errors::{AppError, AppResult};
 use crate::types::{TranscriptionResult, TranscriptionConfig};
 use super::{WhisperTranscriber, TranscriptionApiClient};
 use parking_lot::Mutex;
+use std::fs::File;
+use std::io::Write;
+use tempfile::NamedTempFile;
+use futures_util::future;
 
 pub struct TranscriptionService {
     whisper_transcriber: Arc<WhisperTranscriber>,
@@ -258,6 +262,116 @@ impl TranscriptionService {
     /// 重置模式选择器统计
     pub fn reset_mode_selector_stats(&self) {
         self.mode_selector.lock().reset_stats();
+    }
+    
+    /// 流式转录音频块 - 新增方法支持实时转录
+    pub async fn transcribe_audio_chunk(
+        &self,
+        audio_data: &[f32],
+        sample_rate: u32,
+        config: &TranscriptionConfig,
+    ) -> AppResult<TranscriptionResult> {
+        let start_time = Instant::now();
+        
+        // 创建临时WAV文件
+        let temp_file = self.create_temp_wav_file(audio_data, sample_rate)?;
+        let temp_path = temp_file.path();
+        
+        println!("🎵 流式转录音频块: {} 样本, {}Hz", audio_data.len(), sample_rate);
+        
+        // 使用现有转录方法处理临时文件
+        let result = self.transcribe_audio(temp_path, config).await;
+        
+        // 清理临时文件会在temp_file被drop时自动进行
+        let duration = start_time.elapsed();
+        
+        match &result {
+            Ok(transcription) => {
+                println!("✅ 流式转录完成: '{}', 耗时: {:?}", 
+                        transcription.text.trim(), duration);
+            },
+            Err(e) => {
+                println!("❌ 流式转录失败: {}, 耗时: {:?}", e, duration);
+            }
+        }
+        
+        result
+    }
+    
+    /// 创建临时WAV文件
+    fn create_temp_wav_file(
+        &self,
+        audio_data: &[f32],
+        sample_rate: u32,
+    ) -> AppResult<NamedTempFile> {
+        let mut temp_file = NamedTempFile::new()
+            .map_err(|e| AppError::FileSystemError(format!("创建临时文件失败: {}", e)))?;
+        
+        // WAV文件头
+        let channels = 1u16;
+        let bits_per_sample = 16u16;
+        let byte_rate = sample_rate * channels as u32 * bits_per_sample as u32 / 8;
+        let block_align = channels * bits_per_sample / 8;
+        let data_size = audio_data.len() * 2; // 16-bit samples
+        let file_size = 36 + data_size;
+        
+        // 写入WAV头
+        temp_file.write_all(b"RIFF")?;
+        temp_file.write_all(&(file_size as u32).to_le_bytes())?;
+        temp_file.write_all(b"WAVE")?;
+        temp_file.write_all(b"fmt ")?;
+        temp_file.write_all(&16u32.to_le_bytes())?; // PCM chunk size
+        temp_file.write_all(&1u16.to_le_bytes())?;  // PCM format
+        temp_file.write_all(&channels.to_le_bytes())?;
+        temp_file.write_all(&sample_rate.to_le_bytes())?;
+        temp_file.write_all(&byte_rate.to_le_bytes())?;
+        temp_file.write_all(&block_align.to_le_bytes())?;
+        temp_file.write_all(&bits_per_sample.to_le_bytes())?;
+        temp_file.write_all(b"data")?;
+        temp_file.write_all(&(data_size as u32).to_le_bytes())?;
+        
+        // 写入音频数据 (转换f32到i16)
+        for &sample in audio_data {
+            let sample_i16 = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+            temp_file.write_all(&sample_i16.to_le_bytes())?;
+        }
+        
+        temp_file.flush()
+            .map_err(|e| AppError::FileSystemError(format!("刷新临时文件失败: {}", e)))?;
+        
+        Ok(temp_file)
+    }
+    
+    /// 批量转录音频块（用于流式处理优化）
+    pub async fn batch_transcribe_chunks(
+        &self,
+        audio_chunks: Vec<(&[f32], u32)>, // (audio_data, sample_rate)
+        config: &TranscriptionConfig,
+    ) -> Vec<AppResult<TranscriptionResult>> {
+        let mut results = Vec::new();
+        
+        println!("🔄 批量转录 {} 个音频块", audio_chunks.len());
+        
+        // 并发处理多个音频块（限制并发数以避免资源过载）
+        let max_concurrent = 3;
+        let chunk_batches: Vec<_> = audio_chunks
+            .chunks(max_concurrent)
+            .collect();
+            
+        for batch in chunk_batches {
+            let mut batch_tasks = Vec::new();
+            
+            for (audio_data, sample_rate) in batch {
+                let task = self.transcribe_audio_chunk(audio_data, *sample_rate, config);
+                batch_tasks.push(task);
+            }
+            
+            // 等待当前批次完成
+            let batch_results = future::join_all(batch_tasks).await;
+            results.extend(batch_results);
+        }
+        
+        results
     }
 }
 

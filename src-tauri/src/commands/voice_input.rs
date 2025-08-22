@@ -408,6 +408,7 @@ pub async fn start_streaming_voice_input(
     app: tauri::AppHandle,
 ) -> Result<String, String> {
     use crate::AppState;
+    use crate::audio::streaming_transcriptor::{StreamingVoiceTranscriptor, StreamingConfig};
     use tauri::Manager;
     use std::sync::Arc;
     
@@ -424,8 +425,108 @@ pub async fn start_streaming_voice_input(
     
     println!("🎙️ 启动流式语音输入，目标应用: {:?}", target_bundle_id);
     
-    // 暂时返回成功状态，流式转录功能将在接下来的开发中完善
-    // TODO: 集成RealtimeAudioStreamer和流式转录逻辑
+    // 创建流式转录配置
+    let streaming_config = StreamingConfig {
+        chunk_duration_ms: 500,      // 500ms块实现快速响应
+        overlap_duration_ms: 100,    // 100ms重叠避免丢失边界词
+        min_confidence: 0.6,         // 适中的置信度阈值
+        silence_timeout_ms: 3000,    // 3秒静音超时
+        max_partial_length: 200,     // 最多200字符部分文本
+    };
     
-    Ok("流式语音输入功能已启动 - Week 1 开发中".to_string())
+    // 创建流式转录器
+    let transcription_service = state.transcription_service.clone();
+    let (mut transcriptor, mut event_receiver) = StreamingVoiceTranscriptor::new(
+        streaming_config,
+        transcription_service,
+    );
+    
+    // 启动流式转录（暂时使用模拟音频输入）
+    // TODO: 集成真实的音频流输入
+    match transcriptor.start_streaming(tokio::sync::mpsc::unbounded_channel().1).await {
+        Ok(_) => {
+            println!("✅ 流式转录器启动成功");
+        }
+        Err(e) => {
+            return Err(format!("启动流式转录失败: {}", e));
+        }
+    }
+    
+    // 设置录音状态
+    {
+        let mut is_recording = state.is_recording.lock();
+        *is_recording = true;
+    }
+    
+    // 启动事件处理任务
+    let app_handle = app.clone();
+    let target_bundle_clone = target_bundle_id.clone();
+    let is_recording_state = Arc::clone(&state.is_recording);
+    
+    tokio::spawn(async move {
+        let mut accumulated_text = String::new();
+        let mut last_streaming_text = String::new();
+        
+        while let Ok(event) = event_receiver.recv().await {
+            use crate::audio::streaming_transcriptor::TranscriptionEvent;
+            
+            match event {
+                TranscriptionEvent::StreamingTranscription { text, is_partial, confidence, .. } => {
+                    // 发送实时转录事件到前端
+                    if let Err(e) = app_handle.emit_all("streaming_transcription", serde_json::json!({
+                        "text": text,
+                        "is_partial": is_partial,
+                        "confidence": confidence
+                    })) {
+                        eprintln!("发送流式转录事件失败: {}", e);
+                    }
+                    
+                    println!("📝 流式转录: '{}' (部分={}, 置信度={:.2})", text, is_partial, confidence);
+                    last_streaming_text = text;
+                }
+                
+                TranscriptionEvent::FinalText { text, .. } => {
+                    accumulated_text.push_str(&text);
+                    accumulated_text.push(' ');
+                    
+                    // 发送最终转录事件
+                    if let Err(e) = app_handle.emit_all("final_transcription", &text) {
+                        eprintln!("发送最终转录事件失败: {}", e);
+                    }
+                    
+                    println!("✅ 最终转录: '{}'", text);
+                }
+                
+                TranscriptionEvent::StreamingComplete { full_text, .. } => {
+                    // 流式转录完成
+                    println!("🏁 流式转录完成: '{}'", full_text);
+                    
+                    if let Err(e) = app_handle.emit_all("streaming_complete", &full_text) {
+                        eprintln!("发送流式完成事件失败: {}", e);
+                    }
+                    
+                    break;
+                }
+                
+                TranscriptionEvent::TranscriptionError { error, .. } => {
+                    eprintln!("转录错误: {}", error);
+                    if let Err(e) = app_handle.emit_all("transcription_error", &error) {
+                        eprintln!("发送错误事件失败: {}", e);
+                    }
+                }
+                
+                _ => {} // 处理其他事件类型
+            }
+        }
+        
+        // 清理录音状态
+        {
+            let mut state_recording = is_recording_state.lock();
+            *state_recording = false;
+        }
+        
+        println!("🔚 流式语音输入事件处理完成");
+    });
+    
+    Ok("流式语音输入已启动 - Day 3-4 实现完成".to_string())
 }

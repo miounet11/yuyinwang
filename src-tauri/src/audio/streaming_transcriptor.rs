@@ -288,34 +288,73 @@ impl StreamingVoiceTranscriptor {
         
         println!("🔄 处理音频块 #{}, 样本数: {}", chunk_id, audio_data.len());
         
-        // TODO: 这里需要实现实际的流式转录逻辑
-        // 当前先模拟转录结果
-        let simulated_text = format!("转录块{}", chunk_id);
-        let confidence = 0.85;
+        // 创建转录配置 - 使用快速模型实现实时响应
+        let transcription_config = crate::types::TranscriptionConfig {
+            model_name: "whisper-tiny".to_string(), // 使用最快的模型
+            language: Some("zh".to_string()),
+            temperature: Some(0.0),
+            is_local: true,
+            api_endpoint: None,
+        };
         
-        if confidence >= config.min_confidence {
-            // 更新部分文本缓冲区
-            {
-                let mut buffer = partial_text_buffer.lock().unwrap();
-                if !buffer.is_empty() {
-                    buffer.push(' ');
-                }
-                buffer.push_str(&simulated_text);
+        // 实际转录音频块
+        match transcription_service.transcribe_audio_chunk(audio_data, sample_rate, &transcription_config).await {
+            Ok(result) => {
+                let confidence = result.confidence.unwrap_or(0.8);
+                let text = result.text.trim().to_string();
                 
-                // 限制缓冲区长度
-                if buffer.len() > config.max_partial_length {
-                    *buffer = buffer.chars().rev().take(config.max_partial_length).collect::<String>().chars().rev().collect();
+                // 过滤空或无意义的转录结果
+                if text.is_empty() || text.len() < 2 {
+                    println!("⏭️ 跳过空转录结果");
+                    return;
+                }
+                
+                println!("📝 转录结果: '{}' (置信度: {:.2})", text, confidence);
+                
+                if confidence >= config.min_confidence {
+                    // 发送流式转录事件 - 这是实时显示的文本
+                    let _ = event_sender.send(TranscriptionEvent::StreamingTranscription {
+                        text: text.clone(),
+                        is_partial: confidence < 0.9, // 置信度低于0.9认为是部分结果
+                        confidence,
+                        timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                    });
+                    
+                    // 更新部分文本缓冲区
+                    {
+                        let mut buffer = partial_text_buffer.lock().unwrap();
+                        if !buffer.is_empty() {
+                            buffer.push(' ');
+                        }
+                        buffer.push_str(&text);
+                        
+                        // 限制缓冲区长度
+                        if buffer.len() > config.max_partial_length {
+                            let chars: Vec<char> = buffer.chars().collect();
+                            let start_pos = chars.len().saturating_sub(config.max_partial_length);
+                            *buffer = chars[start_pos..].iter().collect();
+                        }
+                    }
+                    
+                    // 如果置信度很高，也发送作为最终转录
+                    if confidence >= 0.85 {
+                        let _ = event_sender.send(TranscriptionEvent::FinalText {
+                            text,
+                            duration: std::time::Duration::from_millis(100), // 估计处理时间
+                            timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                        });
+                    }
+                } else {
+                    println!("⚠️ 转录置信度过低 ({:.2}), 跳过", confidence);
                 }
             }
-            
-            // 发送部分转录事件
-            let _ = event_sender.send(TranscriptionEvent::PartialText {
-                text: simulated_text,
-                confidence,
-                timestamp: chrono::Utc::now().timestamp_millis() as u64,
-            });
-            
-            println!("📝 发送部分转录: {} (置信度: {:.2})", simulated_text, confidence);
+            Err(e) => {
+                eprintln!("❌ 转录音频块失败: {}", e);
+                let _ = event_sender.send(TranscriptionEvent::TranscriptionError {
+                    error: e.to_string(),
+                    timestamp: chrono::Utc::now().timestamp_millis() as u64,
+                });
+            }
         }
     }
     
