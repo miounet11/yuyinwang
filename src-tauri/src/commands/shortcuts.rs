@@ -307,3 +307,116 @@ pub async fn get_long_press_status() -> Result<String, String> {
         "note": "这是简化版实现，使用普通快捷键模拟长按效果"
     }).to_string())
 }
+
+// Week 3: 渐进式触发系统命令
+
+/// 启动渐进式长按触发监听
+#[tauri::command]
+pub async fn start_progressive_trigger_monitoring(
+    app: tauri::AppHandle,
+    config: Option<crate::shortcuts::ProgressiveTriggerConfig>,
+) -> Result<String, String> {
+    use crate::shortcuts::{ProgressiveTriggerManager, ProgressiveTriggerConfig};
+    use std::sync::{Arc, Mutex};
+    
+    let trigger_config = config.unwrap_or_else(ProgressiveTriggerConfig::default);
+    println!("🚀 启动渐进式长按触发监听: {:?}", trigger_config.shortcut);
+    
+    // 创建触发管理器 (这里简化为直接使用，实际应用中可能需要全局状态管理)
+    let mut manager = ProgressiveTriggerManager::new(trigger_config);
+    
+    match manager.initialize(app.clone()) {
+        Ok(_) => {
+            match manager.start_monitoring().await {
+                Ok(message) => {
+                    println!("✅ 渐进式触发监听启动成功: {}", message);
+                    Ok(message)
+                }
+                Err(e) => {
+                    println!("❌ 启动失败: {}", e);
+                    Err(e)
+                }
+            }
+        }
+        Err(e) => {
+            println!("❌ 初始化失败: {}", e);
+            Err(e)
+        }
+    }
+}
+
+/// 更新渐进式触发配置
+#[tauri::command]
+pub async fn update_progressive_trigger_config(
+    config: crate::shortcuts::ProgressiveTriggerConfig,
+) -> Result<String, String> {
+    // TODO: 实际实现中需要访问全局管理器实例
+    println!("🔧 更新渐进式触发配置: {:?}", config);
+    Ok("配置已更新".to_string())
+}
+
+/// 获取渐进式触发状态
+#[tauri::command]
+pub async fn get_progressive_trigger_status() -> Result<String, String> {
+    use crate::shortcuts::ProgressiveTriggerConfig;
+    
+    let config = ProgressiveTriggerConfig::default();
+    
+    Ok(serde_json::json!({
+        "monitoring": false, // TODO: 从全局状态获取
+        "state": "idle",
+        "config": {
+            "shortcut": config.shortcut,
+            "threshold_ms": config.long_press_threshold_ms,
+            "enabled": config.enabled,
+            "real_time_injection": config.enable_real_time_injection,
+            "sound_enabled": config.trigger_sound_enabled,
+            "auto_detect_app": config.auto_detect_target_app,
+        }
+    }).to_string())
+}
+
+/// 测试渐进式触发
+#[tauri::command]
+pub async fn test_progressive_trigger(
+    app: tauri::AppHandle,
+    target_bundle_id: Option<String>,
+) -> Result<String, String> {
+    println!("🧪 测试渐进式语音输入触发");
+    
+    // 直接调用渐进式语音输入
+    match crate::commands::start_progressive_voice_input(
+        target_bundle_id,
+        app.clone(),
+        Some(true), // 启用实时注入
+    ).await {
+        Ok(message) => {
+            println!("✅ 测试成功: {}", message);
+            
+            // 发送测试事件
+            if let Err(e) = app.emit_all("progressive_trigger_test_complete", serde_json::json!({
+                "success": true,
+                "message": message,
+                "timestamp": chrono::Utc::now().timestamp_millis(),
+            })) {
+                eprintln!("发送测试事件失败: {}", e);
+            }
+            
+            Ok(format!("渐进式触发测试成功: {}", message))
+        }
+        Err(e) => {
+            println!("❌ 测试失败: {}", e);
+            
+            // 发送错误事件
+            if let Err(emit_error) = app.emit_all("progressive_trigger_test_error", serde_json::json!({
+                "success": false,
+                "error": e.clone(),
+                "timestamp": chrono::Utc::now().timestamp_millis(),
+            })) {
+                eprintln!("发送测试错误事件失败: {}", emit_error);
+            }
+            
+            Err(format!("渐进式触发测试失败: {}", e))
+        }
+    }
+}

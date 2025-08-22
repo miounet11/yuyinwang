@@ -14,6 +14,9 @@ pub use global_shortcuts::{EnhancedShortcutManager, test_global_shortcut, check_
 pub mod optimized_voice_shortcut;
 pub use optimized_voice_shortcut::{OptimizedVoiceShortcutManager, VoiceShortcutConfig, get_voice_shortcut_config, update_voice_shortcut_config, test_voice_shortcut_system};
 
+pub mod progressive_trigger;
+pub use progressive_trigger::{ProgressiveTriggerManager, ProgressiveTriggerConfig};
+
 
 pub struct ShortcutManager {
     app_handle: AppHandle,
