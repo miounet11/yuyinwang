@@ -11,6 +11,13 @@ use crate::errors::{AppResult, AppError};
 /// 转录事件类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TranscriptionEvent {
+    /// 流式转录结果 (实时显示，如输入法)
+    StreamingTranscription { 
+        text: String, 
+        is_partial: bool,
+        confidence: f64,
+        timestamp: u64,
+    },
     /// 部分转录结果 (实时显示)
     PartialText { 
         text: String, 

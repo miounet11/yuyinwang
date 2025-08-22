@@ -339,6 +339,8 @@ fn main() {
             commands::get_active_app_info_for_voice,
             commands::start_voice_recording,
             commands::stop_voice_recording,
+            commands::start_streaming_voice_input,
+            commands::start_progressive_voice_input,
         ])
         .setup(|app| {
             let app_handle = app.handle();

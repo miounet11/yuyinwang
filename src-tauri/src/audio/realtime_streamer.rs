@@ -371,7 +371,7 @@ impl RealtimeAudioStreamer {
                 let _ = event_sender.send(RealtimeEvent::BufferStatus {
                     used_samples: buffer_manager.used_samples(),
                     capacity_samples: buffer_manager.capacity(),
-                    processing_chunks: *chunk_counter.lock() as usize,
+                    utilization: buffer_manager.utilization() as f32,
                 });
             }
         });

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::command;
 use crate::types::TranscriptionConfig;
+use crate::system::{ProgressiveTextInjector, ProgressiveInjectionConfig, TextInjectionConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActiveAppInfo {
@@ -529,4 +530,168 @@ pub async fn start_streaming_voice_input(
     });
     
     Ok("流式语音输入已启动 - Day 3-4 实现完成".to_string())
+}
+
+/// 开始渐进式语音输入（Week 2 核心功能）
+#[command]
+pub async fn start_progressive_voice_input(
+    target_bundle_id: Option<String>,
+    app: tauri::AppHandle,
+    enable_real_time_injection: Option<bool>,
+) -> Result<String, String> {
+    use crate::AppState;
+    use crate::audio::streaming_transcriptor::{StreamingVoiceTranscriptor, StreamingConfig};
+    use tauri::Manager;
+    use std::sync::Arc;
+    
+    let state = app.state::<AppState>();
+    
+    // 检查是否已在录音
+    {
+        let is_recording = state.is_recording.lock();
+        if *is_recording {
+            return Ok("渐进式语音输入已在进行中".to_string());
+        }
+    }
+    
+    println!("🚀 启动渐进式语音输入，目标应用: {:?}", target_bundle_id);
+    
+    // 获取目标应用信息
+    let target_app = if let Some(bundle_id) = &target_bundle_id {
+        match get_active_app_info_for_voice().await {
+            Ok(app_info) => {
+                if app_info.bundle_id.as_ref().map(|b| b.contains(bundle_id)).unwrap_or(false) {
+                    Some(crate::system::ApplicationInfo {
+                        name: app_info.name,
+                        bundle_id: app_info.bundle_id.unwrap_or_else(|| bundle_id.clone()),
+                        process_id: 0,
+                    })
+                } else {
+                    None
+                }
+            }
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+    
+    // 创建流式转录配置
+    let streaming_config = StreamingConfig {
+        chunk_duration_ms: 300,      // 更快响应用于渐进式注入
+        overlap_duration_ms: 50,     // 减少重叠提高性能
+        min_confidence: 0.65,        // 适中的置信度阈值
+        silence_timeout_ms: 2500,    // 稍短的静音超时
+        max_partial_length: 150,     // 适中的部分文本长度
+    };
+    
+    // 创建渐进式注入配置
+    let progressive_config = ProgressiveInjectionConfig {
+        enabled: true,
+        min_inject_length: 1,        // 更敏感的最小长度
+        inject_interval_ms: 150,     // 更频繁的注入间隔
+        max_queue_length: 30,
+        enable_backspace_correction: true,
+        min_confidence_threshold: 0.6,
+        final_only: !enable_real_time_injection.unwrap_or(true), // 默认启用实时注入
+        smart_prefix_merging: true,
+    };
+    
+    let injection_config = TextInjectionConfig {
+        auto_inject_enabled: true,
+        inject_delay: std::time::Duration::from_millis(50),
+        use_keyboard_simulation: false,
+        preserve_clipboard: true,
+        duplicate_detection: true,
+        shortcut_delay: std::time::Duration::from_millis(25),
+        target_app_filter: target_bundle_id.map(|id| vec![id]).unwrap_or_default(),
+    };
+    
+    // 创建流式转录器
+    let transcription_service = state.transcription_service.clone();
+    let (mut transcriptor, mut event_receiver) = StreamingVoiceTranscriptor::new(
+        streaming_config,
+        transcription_service,
+    );
+    
+    // 创建渐进式文本注入器
+    let mut progressive_injector = ProgressiveTextInjector::new(
+        progressive_config,
+        injection_config,
+    );
+    
+    // 启动流式转录
+    match transcriptor.start_streaming(tokio::sync::mpsc::unbounded_channel().1).await {
+        Ok(_) => {
+            println!("✅ 流式转录器启动成功");
+        }
+        Err(e) => {
+            return Err(format!("启动流式转录失败: {}", e));
+        }
+    }
+    
+    // 启动渐进式注入监听
+    match progressive_injector.start_listening(event_receiver, target_app.clone()).await {
+        Ok(_) => {
+            println!("✅ 渐进式注入监听启动成功");
+        }
+        Err(e) => {
+            return Err(format!("启动渐进式注入失败: {}", e));
+        }
+    }
+    
+    // 设置录音状态
+    {
+        let mut is_recording = state.is_recording.lock();
+        *is_recording = true;
+    }
+    
+    // 启动状态监控任务
+    let app_handle = app.clone();
+    let is_recording_state = Arc::clone(&state.is_recording);
+    
+    tokio::spawn(async move {
+        let mut check_interval = tokio::time::interval(std::time::Duration::from_millis(500));
+        
+        loop {
+            check_interval.tick().await;
+            
+            // 检查转录器和注入器状态
+            let transcriptor_active = transcriptor.is_running();
+            let injector_active = progressive_injector.is_active();
+            
+            if !transcriptor_active && !injector_active {
+                // 清理录音状态
+                {
+                    let mut state_recording = is_recording_state.lock();
+                    *state_recording = false;
+                }
+                
+                // 发送完成事件
+                if let Err(e) = app_handle.emit_all("progressive_voice_input_complete", serde_json::json!({
+                    "message": "渐进式语音输入已完成",
+                    "injected_text": progressive_injector.get_last_injected_text(),
+                    "queue_length": progressive_injector.queue_length(),
+                })) {
+                    eprintln!("发送完成事件失败: {}", e);
+                }
+                
+                break;
+            }
+            
+            // 发送状态更新
+            if let Err(e) = app_handle.emit_all("progressive_voice_input_status", serde_json::json!({
+                "transcriptor_active": transcriptor_active,
+                "injector_active": injector_active,
+                "queue_length": progressive_injector.queue_length(),
+                "last_injected": progressive_injector.get_last_injected_text(),
+            })) {
+                eprintln!("发送状态事件失败: {}", e);
+            }
+        }
+        
+        println!("🔚 渐进式语音输入监控任务完成");
+    });
+    
+    Ok("渐进式语音输入已启动 - Week 2 实现完成 🚀".to_string())
 }

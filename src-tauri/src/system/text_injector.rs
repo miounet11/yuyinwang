@@ -50,7 +50,7 @@ impl Default for TextInjectionConfig {
 }
 
 /// 文本注入器
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextInjector {
     config: TextInjectionConfig,
 }
