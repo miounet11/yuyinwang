@@ -1,0 +1,368 @@
+/**
+ * FileTranscription.css
+ * 文件转录页面专用样式
+ * 像素级精确匹配 Spokenly 设计
+ */
+
+/* 文件上传区域 */
+.file-upload-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spokenly-space-6);
+  margin-top: var(--spokenly-space-6);
+}
+
+.file-upload-area {
+  border: 2px dashed var(--spokenly-border-secondary);
+  border-radius: var(--spokenly-radius-lg);
+  padding: var(--spokenly-space-16);
+  text-align: center;
+  background-color: var(--spokenly-bg-card);
+  transition: all var(--spokenly-duration-base) var(--spokenly-ease-out);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.file-upload-area:hover {
+  border-color: var(--spokenly-primary);
+  background-color: var(--spokenly-primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--spokenly-shadow-lg);
+}
+
+.file-upload-area.drag-active {
+  border-color: var(--spokenly-primary);
+  background-color: var(--spokenly-primary-light);
+  transform: scale(1.02);
+}
+
+.file-upload-area.uploading {
+  border-color: var(--spokenly-warning);
+  cursor: not-allowed;
+}
+
+/* 上传区域内容 */
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spokenly-space-4);
+  z-index: 2;
+  position: relative;
+}
+
+.upload-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, var(--spokenly-primary), var(--spokenly-primary-hover));
+  border-radius: var(--spokenly-radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--spokenly-text-white);
+  font-size: var(--spokenly-text-lg);
+  font-weight: var(--spokenly-font-bold);
+  margin-bottom: var(--spokenly-space-2);
+  transition: transform var(--spokenly-duration-fast) var(--spokenly-ease-out);
+}
+
+.file-upload-area:hover .upload-icon {
+  transform: scale(1.1);
+}
+
+.upload-title {
+  font-size: var(--spokenly-text-xl);
+  font-weight: var(--spokenly-font-semibold);
+  color: var(--spokenly-text-primary);
+  margin: 0;
+  line-height: var(--spokenly-leading-tight);
+}
+
+.upload-subtitle {
+  font-size: var(--spokenly-text-base);
+  color: var(--spokenly-text-secondary);
+  margin: 0;
+  line-height: var(--spokenly-leading-normal);
+}
+
+/* 支持的文件格式标签 */
+.supported-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spokenly-space-2);
+  justify-content: center;
+  margin-top: var(--spokenly-space-4);
+}
+
+.format-tag {
+  padding: var(--spokenly-space-1) var(--spokenly-space-3);
+  background-color: var(--spokenly-bg-hover);
+  color: var(--spokenly-text-secondary);
+  font-size: var(--spokenly-text-sm);
+  font-weight: var(--spokenly-font-medium);
+  border-radius: var(--spokenly-radius-base);
+  border: 1px solid var(--spokenly-border-primary);
+  transition: all var(--spokenly-duration-fast) var(--spokenly-ease-out);
+}
+
+.format-tag:hover {
+  background-color: var(--spokenly-primary-light);
+  color: var(--spokenly-primary);
+  border-color: var(--spokenly-primary);
+}
+
+/* 上传进度条 */
+.upload-progress {
+  width: 100%;
+  height: 4px;
+  background-color: var(--spokenly-border-primary);
+  border-radius: var(--spokenly-radius-full);
+  overflow: hidden;
+  margin-top: var(--spokenly-space-4);
+}
+
+.upload-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--spokenly-primary), var(--spokenly-primary-hover));
+  border-radius: var(--spokenly-radius-full);
+  transition: width var(--spokenly-duration-base) var(--spokenly-ease-out);
+  position: relative;
+}
+
+.upload-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* 文件信息展示 */
+.file-info-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spokenly-space-4);
+  margin-top: var(--spokenly-space-6);
+}
+
+.file-info-card {
+  background-color: var(--spokenly-bg-card);
+  border: 1px solid var(--spokenly-border-primary);
+  border-radius: var(--spokenly-radius-lg);
+  padding: var(--spokenly-card-padding);
+  box-shadow: var(--spokenly-shadow-sm);
+}
+
+.file-info-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spokenly-space-3);
+  margin-bottom: var(--spokenly-space-4);
+}
+
+.file-icon {
+  width: 40px;
+  height: 40px;
+  background-color: var(--spokenly-primary);
+  color: var(--spokenly-text-white);
+  border-radius: var(--spokenly-radius-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--spokenly-text-lg);
+  font-weight: var(--spokenly-font-bold);
+}
+
+.file-details {
+  flex: 1;
+}
+
+.file-name {
+  font-size: var(--spokenly-text-base);
+  font-weight: var(--spokenly-font-medium);
+  color: var(--spokenly-text-primary);
+  margin: 0;
+  line-height: var(--spokenly-leading-tight);
+}
+
+.file-meta {
+  font-size: var(--spokenly-text-sm);
+  color: var(--spokenly-text-secondary);
+  margin: var(--spokenly-space-1) 0 0 0;
+}
+
+/* 转录结果区域 */
+.transcription-result-container {
+  background-color: var(--spokenly-bg-card);
+  border: 1px solid var(--spokenly-border-primary);
+  border-radius: var(--spokenly-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--spokenly-shadow-sm);
+}
+
+.transcription-result-header {
+  padding: var(--spokenly-space-4);
+  border-bottom: 1px solid var(--spokenly-border-primary);
+  background-color: var(--spokenly-bg-sidebar);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.transcription-result-title {
+  font-size: var(--spokenly-text-lg);
+  font-weight: var(--spokenly-font-semibold);
+  color: var(--spokenly-text-primary);
+  margin: 0;
+}
+
+.transcription-result-meta {
+  display: flex;
+  gap: var(--spokenly-space-4);
+  font-size: var(--spokenly-text-sm);
+  color: var(--spokenly-text-secondary);
+}
+
+.transcription-result-content {
+  padding: var(--spokenly-card-padding);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transcription-text {
+  font-size: var(--spokenly-text-base);
+  line-height: var(--spokenly-leading-relaxed);
+  color: var(--spokenly-text-primary);
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* 操作按钮组 */
+.file-actions {
+  display: flex;
+  gap: var(--spokenly-space-3);
+  margin-top: var(--spokenly-space-6);
+  flex-wrap: wrap;
+}
+
+.file-action-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--spokenly-space-2);
+  padding: var(--spokenly-space-3) var(--spokenly-space-4);
+  background-color: var(--spokenly-bg-card);
+  color: var(--spokenly-text-primary);
+  border: 1px solid var(--spokenly-border-primary);
+  border-radius: var(--spokenly-radius-base);
+  font-size: var(--spokenly-text-sm);
+  font-weight: var(--spokenly-font-medium);
+  cursor: pointer;
+  transition: all var(--spokenly-duration-fast) var(--spokenly-ease-out);
+  text-decoration: none;
+}
+
+.file-action-btn:hover {
+  background-color: var(--spokenly-primary);
+  color: var(--spokenly-text-white);
+  border-color: var(--spokenly-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--spokenly-shadow-base);
+}
+
+.file-action-btn:active {
+  transform: translateY(0);
+}
+
+.file-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.file-action-btn:disabled:hover {
+  background-color: var(--spokenly-bg-card);
+  color: var(--spokenly-text-primary);
+  border-color: var(--spokenly-border-primary);
+  box-shadow: none;
+}
+
+.file-action-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* 错误状态 */
+.upload-error {
+  color: var(--spokenly-error);
+  background-color: rgba(255, 59, 48, 0.1);
+  border-color: var(--spokenly-error);
+  padding: var(--spokenly-space-4);
+  border-radius: var(--spokenly-radius-base);
+  margin-top: var(--spokenly-space-4);
+}
+
+.error-message {
+  font-size: var(--spokenly-text-sm);
+  margin: 0;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .file-upload-area {
+    padding: var(--spokenly-space-8);
+  }
+  
+  .upload-icon {
+    width: 48px;
+    height: 48px;
+    font-size: var(--spokenly-text-base);
+  }
+  
+  .upload-title {
+    font-size: var(--spokenly-text-lg);
+  }
+  
+  .file-actions {
+    flex-direction: column;
+  }
+  
+  .supported-formats {
+    gap: var(--spokenly-space-1);
+  }
+}
+
+@media (max-width: 640px) {
+  .file-upload-area {
+    padding: var(--spokenly-space-6);
+  }
+  
+  .file-info-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .transcription-result-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spokenly-space-2);
+  }
+  
+  .transcription-result-meta {
+    flex-direction: column;
+    gap: var(--spokenly-space-1);
+  }
+}

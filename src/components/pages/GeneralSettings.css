@@ -1,0 +1,204 @@
+/**
+ * GeneralSettings.css
+ * 常规设置页面专用样式
+ * 像素级精确匹配 Spokenly 设计
+ */
+
+.spokenly-page {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spokenly-content-padding);
+  background-color: var(--spokenly-bg-content);
+  min-height: 100vh;
+  overflow-y: auto;
+}
+
+.spokenly-page-header {
+  margin-bottom: var(--spokenly-section-spacing);
+}
+
+.spokenly-page-header h1 {
+  font-size: var(--spokenly-text-2xl);
+  font-weight: var(--spokenly-font-semibold);
+  color: var(--spokenly-text-primary);
+  margin: 0 0 var(--spokenly-space-2) 0;
+  line-height: var(--spokenly-leading-tight);
+}
+
+.spokenly-page-header p {
+  font-size: var(--spokenly-text-base);
+  color: var(--spokenly-text-secondary);
+  margin: 0;
+  line-height: var(--spokenly-leading-normal);
+}
+
+.spokenly-page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spokenly-space-6);
+  flex: 1;
+}
+
+/* 设置组 */
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spokenly-space-4);
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spokenly-space-4) 0;
+  border-bottom: 1px solid var(--spokenly-border-primary);
+  transition: background-color var(--spokenly-duration-fast) var(--spokenly-ease-out);
+}
+
+.setting-item:last-child {
+  border-bottom: none;
+}
+
+.setting-item.clickable {
+  cursor: pointer;
+  border-radius: var(--spokenly-radius-base);
+  margin: 0 calc(var(--spokenly-space-4) * -1);
+  padding: var(--spokenly-space-4);
+  border-bottom: 1px solid var(--spokenly-border-primary);
+}
+
+.setting-item.clickable:hover {
+  background-color: var(--spokenly-bg-hover);
+}
+
+.setting-item.clickable:last-child {
+  border-bottom: none;
+}
+
+.setting-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spokenly-space-1);
+}
+
+.setting-label span {
+  font-size: var(--spokenly-text-base);
+  color: var(--spokenly-text-primary);
+  font-weight: var(--spokenly-font-normal);
+  line-height: var(--spokenly-leading-normal);
+}
+
+.setting-description {
+  font-size: var(--spokenly-text-sm);
+  color: var(--spokenly-text-secondary);
+  margin-top: var(--spokenly-space-2);
+  line-height: var(--spokenly-leading-normal);
+}
+
+.chevron {
+  font-size: var(--spokenly-text-lg);
+  color: var(--spokenly-text-tertiary);
+  transition: color var(--spokenly-duration-fast) var(--spokenly-ease-out);
+}
+
+.setting-item.clickable:hover .chevron {
+  color: var(--spokenly-text-secondary);
+}
+
+/* 麦克风列表 */
+.microphone-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spokenly-space-2);
+  margin-bottom: var(--spokenly-space-4);
+}
+
+.microphone-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spokenly-space-3);
+  padding: var(--spokenly-space-3);
+  border: 1px solid var(--spokenly-border-primary);
+  border-radius: var(--spokenly-radius-base);
+  background-color: var(--spokenly-bg-card);
+  transition: all var(--spokenly-duration-fast) var(--spokenly-ease-out);
+}
+
+.microphone-item.selected {
+  border-color: var(--spokenly-primary);
+  background-color: var(--spokenly-primary-light);
+}
+
+.microphone-item:hover {
+  border-color: var(--spokenly-border-selected);
+  box-shadow: var(--spokenly-shadow-sm);
+}
+
+.microphone-number {
+  font-size: var(--spokenly-text-sm);
+  font-weight: var(--spokenly-font-medium);
+  color: var(--spokenly-text-primary);
+  min-width: 16px;
+}
+
+.microphone-name {
+  flex: 1;
+  font-size: var(--spokenly-text-base);
+  color: var(--spokenly-text-primary);
+  font-weight: var(--spokenly-font-normal);
+}
+
+.remove-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: var(--spokenly-text-tertiary);
+  color: var(--spokenly-text-white);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: var(--spokenly-text-sm);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--spokenly-duration-fast) var(--spokenly-ease-out);
+}
+
+.remove-btn:hover {
+  background-color: var(--spokenly-error);
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .spokenly-page {
+    padding: var(--spokenly-content-padding);
+  }
+  
+  .setting-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spokenly-space-3);
+  }
+  
+  .setting-item.clickable {
+    margin: 0;
+  }
+  
+  .microphone-item {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .spokenly-page-header h1 {
+    font-size: var(--spokenly-text-xl);
+  }
+  
+  .spokenly-page-header p {
+    font-size: var(--spokenly-text-sm);
+  }
+  
+  .spokenly-page-content {
+    gap: var(--spokenly-space-4);
+  }
+}
