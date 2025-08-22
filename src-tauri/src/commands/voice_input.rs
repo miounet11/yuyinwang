@@ -400,3 +400,32 @@ fn create_transcription_config(model_name: &str) -> TranscriptionConfig {
         }
     }
 }
+
+/// 开始流式语音录音（实时转录和逐字注入）
+#[command]
+pub async fn start_streaming_voice_input(
+    target_bundle_id: Option<String>,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    use crate::AppState;
+    use tauri::Manager;
+    use std::sync::Arc;
+    
+    let state = app.state::<AppState>();
+    
+    // 检查是否已在录音
+    {
+        let is_recording = state.is_recording.lock();
+        if *is_recording {
+            println!("⚠️ 已在流式录音中，跳过重复初始化");
+            return Ok("流式录音已在进行中".to_string());
+        }
+    }
+    
+    println!("🎙️ 启动流式语音输入，目标应用: {:?}", target_bundle_id);
+    
+    // 暂时返回成功状态，流式转录功能将在接下来的开发中完善
+    // TODO: 集成RealtimeAudioStreamer和流式转录逻辑
+    
+    Ok("流式语音输入功能已启动 - Week 1 开发中".to_string())
+}

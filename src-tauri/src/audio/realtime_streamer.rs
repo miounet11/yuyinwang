@@ -1,5 +1,5 @@
-// 实时音频流处理器
-// 负责协调音频捕获、分块处理和实时转录
+// 实时音频流处理器 - Enhanced for v5.8+
+// 负责协调音频捕获、分块处理和流式实时转录
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,16 +13,27 @@ use crate::types::TranscriptionConfig;
 use super::AudioRecorder;
 use crate::transcription::TranscriptionService;
 
-// 音频块大小配置
-const CHUNK_SIZE_SECONDS: f32 = 1.5;  // 基础块大小
-const CHUNK_OVERLAP_SECONDS: f32 = 0.3;  // 重叠时间
+// 音频块大小配置 - 优化为更精细的流式处理
+const CHUNK_SIZE_SECONDS: f32 = 0.5;  // 减小到0.5秒实现更快响应
+const CHUNK_OVERLAP_SECONDS: f32 = 0.1;  // 减小重叠时间
 const SAMPLE_RATE: u32 = 16000;  // 标准采样率
 const BUFFER_CAPACITY: usize = SAMPLE_RATE as usize * 10;  // 10秒缓冲
 
-/// 实时转录事件类型
+// 新增：流式转录配置
+const STREAMING_CHUNK_MS: u64 = 100;  // 100ms的微块用于流式处理
+const MIN_CONFIDENCE_THRESHOLD: f64 = 0.6;  // 最小置信度阈值
+
+/// 实时转录事件类型 - Enhanced for streaming
 #[derive(Debug, Clone)]
 pub enum RealtimeEvent {
-    /// 部分转录结果（实时更新）
+    /// 流式部分转录结果（实时更新，如输入法）
+    StreamingTranscription { 
+        text: String, 
+        is_partial: bool,
+        confidence: f64,
+        timestamp: Instant,
+    },
+    /// 部分转录结果（块级别更新）
     PartialTranscription { 
         text: String, 
         chunk_id: u64,
@@ -49,8 +60,17 @@ pub enum RealtimeEvent {
     BufferStatus {
         used_samples: usize,
         capacity_samples: usize,
-        processing_chunks: usize,
-    }
+        utilization: f32,
+    },
+}
+
+/// 流式转录状态
+#[derive(Debug, Clone)]
+struct StreamingState {
+    accumulated_text: String,
+    current_confidence: f64,
+    last_update: Instant,
+    partial_buffer: String,
 }
 
 /// 实时音频流处理器
