@@ -1,0 +1,481 @@
+/**
+ * Advanced Micro-Interactions CSS
+ * Sophisticated interaction styles for Recording King voice input
+ */
+
+/* Base Advanced Interaction Styles */
+.advanced-interaction {
+  position: relative;
+  user-select: none;
+  cursor: pointer;
+  will-change: transform, filter, box-shadow;
+  transform-origin: center;
+}
+
+.advanced-interaction:focus {
+  outline: 2px solid var(--audio-accent);
+  outline-offset: 2px;
+}
+
+/* Button Interaction Styles */
+.advanced-interaction.button {
+  border-radius: 8px;
+  padding: 12px 24px;
+  background: var(--audio-primary);
+  border: 1px solid var(--audio-accent);
+  color: var(--audio-text);
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.advanced-interaction.button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--audio-gradient);
+  opacity: 0;
+  border-radius: inherit;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.advanced-interaction.button:hover::before {
+  opacity: 0.2;
+}
+
+.advanced-interaction.button:active::before {
+  opacity: 0.4;
+}
+
+/* Container Interaction Styles */
+.advanced-interaction.container {
+  border-radius: 12px;
+  background: var(--audio-background);
+  border: 1px solid var(--audio-primary);
+  padding: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.advanced-interaction.container:hover {
+  border-color: var(--audio-accent);
+  box-shadow: 0 0 20px var(--audio-pulse);
+}
+
+/* Slider Interaction Styles */
+.advanced-interaction.slider {
+  width: 200px;
+  height: 4px;
+  background: var(--audio-background);
+  border-radius: 2px;
+  position: relative;
+  cursor: grab;
+}
+
+.advanced-interaction.slider:active {
+  cursor: grabbing;
+}
+
+/* Knob Interaction Styles */
+.advanced-interaction.knob {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--audio-gradient);
+  border: 2px solid var(--audio-primary);
+  cursor: grab;
+  position: relative;
+}
+
+.advanced-interaction.knob::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 2px;
+  height: 20px;
+  background: var(--audio-text);
+  transform: translateX(-50%);
+  border-radius: 1px;
+}
+
+.advanced-interaction.knob:active {
+  cursor: grabbing;
+}
+
+/* Audio Reactive Button Specific Styles */
+.audio-reactive-button {
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.audio-reactive-button .button-content {
+  position: relative;
+  z-index: 1;
+  border-radius: inherit;
+  padding: inherit;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Button Variants */
+.audio-reactive-button.primary .button-content {
+  background: var(--audio-primary);
+  color: var(--audio-text);
+}
+
+.audio-reactive-button.secondary .button-content {
+  background: var(--audio-secondary);
+  color: var(--audio-text);
+}
+
+.audio-reactive-button.accent .button-content {
+  background: var(--audio-accent);
+  color: var(--audio-text);
+}
+
+/* Button Sizes */
+.audio-reactive-button.small {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.audio-reactive-button.medium {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+.audio-reactive-button.large {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+/* Audio Reactive Slider Styles */
+.audio-reactive-slider {
+  position: relative;
+  width: 200px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.audio-reactive-slider .slider-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.audio-reactive-slider .slider-track::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--audio-gradient);
+  opacity: 0.3;
+  animation: track-pulse 2s ease-in-out infinite;
+}
+
+@keyframes track-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.5; }
+}
+
+.audio-reactive-slider .slider-thumb {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.audio-reactive-slider .thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid var(--audio-accent);
+  cursor: grab;
+  transition: all 0.2s ease;
+}
+
+.audio-reactive-slider .thumb:active {
+  cursor: grabbing;
+}
+
+.audio-reactive-slider .thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 0 15px var(--audio-pulse);
+}
+
+/* Voice Input Gesture Zone */
+.voice-input-gesture-zone {
+  position: relative;
+  min-height: 100px;
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.voice-input-gesture-zone .gesture-zone-content {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.voice-input-gesture-zone .gesture-zone-content::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: var(--audio-pulse);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.voice-input-gesture-zone:active .gesture-zone-content::before {
+  width: 100px;
+  height: 100px;
+  opacity: 0.3;
+}
+
+/* Long Press Visual Feedback */
+.advanced-interaction.long-pressing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid var(--audio-accent);
+  border-radius: inherit;
+  animation: long-press-border 0.5s ease-in-out;
+}
+
+@keyframes long-press-border {
+  0% {
+    border-color: transparent;
+    transform: scale(1);
+  }
+  50% {
+    border-color: var(--audio-accent);
+    transform: scale(1.05);
+  }
+  100% {
+    border-color: var(--audio-waveform);
+    transform: scale(1);
+  }
+}
+
+/* Haptic Feedback Visual */
+.advanced-interaction.haptic-feedback {
+  animation: haptic-visual 0.2s ease-out;
+}
+
+@keyframes haptic-visual {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* Gesture Direction Indicators */
+.advanced-interaction.gesture-swipe-up::before {
+  content: '↑';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--audio-accent);
+  font-size: 20px;
+  opacity: 0;
+  animation: swipe-indicator 0.5s ease-out;
+}
+
+.advanced-interaction.gesture-swipe-down::before {
+  content: '↓';
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--audio-accent);
+  font-size: 20px;
+  opacity: 0;
+  animation: swipe-indicator 0.5s ease-out;
+}
+
+.advanced-interaction.gesture-swipe-left::before {
+  content: '←';
+  position: absolute;
+  left: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--audio-accent);
+  font-size: 20px;
+  opacity: 0;
+  animation: swipe-indicator 0.5s ease-out;
+}
+
+.advanced-interaction.gesture-swipe-right::before {
+  content: '→';
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--audio-accent);
+  font-size: 20px;
+  opacity: 0;
+  animation: swipe-indicator 0.5s ease-out;
+}
+
+@keyframes swipe-indicator {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* Loading States */
+.advanced-interaction.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.advanced-interaction.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--audio-primary);
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: loading-spinner 1s linear infinite;
+}
+
+@keyframes loading-spinner {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/* Error States */
+.advanced-interaction.error {
+  border-color: #ef4444;
+  color: #ef4444;
+  animation: error-shake 0.5s ease-in-out;
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* Success States */
+.advanced-interaction.success {
+  border-color: var(--audio-waveform);
+  animation: success-glow 0.6s ease-out;
+}
+
+@keyframes success-glow {
+  0% {
+    box-shadow: 0 0 0 var(--audio-waveform);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--audio-waveform);
+  }
+  100% {
+    box-shadow: 0 0 0 var(--audio-waveform);
+  }
+}
+
+/* Responsive Micro-Interactions */
+@media (max-width: 768px) {
+  .advanced-interaction.button {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  
+  .audio-reactive-slider {
+    width: 150px;
+  }
+  
+  .voice-input-gesture-zone {
+    min-height: 80px;
+  }
+  
+  .advanced-interaction.knob {
+    width: 50px;
+    height: 50px;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .advanced-interaction {
+    /* Larger touch targets for mobile */
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .advanced-interaction.button {
+    padding: 14px 28px;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .advanced-interaction:hover::before {
+    opacity: 0;
+  }
+}
+
+/* Accessibility Enhancements */
+@media (prefers-reduced-motion: reduce) {
+  .advanced-interaction,
+  .advanced-interaction::before,
+  .advanced-interaction::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* High contrast mode adjustments */
+@media (prefers-contrast: high) {
+  .advanced-interaction {
+    border-width: 2px;
+  }
+  
+  .advanced-interaction:focus {
+    outline-width: 3px;
+  }
+}

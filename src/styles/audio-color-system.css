@@ -1,0 +1,283 @@
+/**
+ * Audio-Reactive Color System CSS
+ * Dynamic CSS custom properties for audio-reactive theming
+ */
+
+:root {
+  /* Default audio color theme */
+  --audio-primary: rgba(99, 102, 241, 0.9);
+  --audio-secondary: rgba(168, 85, 247, 0.9);
+  --audio-accent: rgba(59, 130, 246, 0.8);
+  --audio-background: rgba(15, 23, 42, 0.95);
+  --audio-gradient: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(168, 85, 247, 0.9));
+  --audio-waveform: rgba(34, 197, 94, 0.8);
+  --audio-pulse: rgba(236, 72, 153, 0.6);
+  --audio-text: rgba(248, 250, 252, 0.95);
+  
+  /* Audio-reactive animation durations */
+  --audio-transition-fast: 0.1s;
+  --audio-transition-medium: 0.3s;
+  --audio-transition-slow: 0.6s;
+  
+  /* Audio-reactive scale factors */
+  --audio-scale-subtle: 1.02;
+  --audio-scale-dynamic: 1.05;
+  --audio-scale-reactive: 1.1;
+}
+
+/* Audio Color Container Base */
+.audio-color-container {
+  position: relative;
+  transition: all var(--audio-transition-medium) ease-out;
+  background: var(--audio-background);
+  border: 1px solid var(--audio-primary);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.audio-color-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--audio-gradient);
+  opacity: 0.1;
+  pointer-events: none;
+  transition: opacity var(--audio-transition-medium) ease-out;
+}
+
+.audio-color-container.active::before {
+  opacity: 0.2;
+}
+
+/* Audio-Reactive Voice Input Styles */
+.macos-voice-input.audio-reactive {
+  background: var(--audio-background);
+  border-color: var(--audio-primary);
+  box-shadow: 0 0 20px var(--audio-pulse);
+}
+
+.macos-voice-input.audio-reactive .voice-input-container {
+  background: var(--audio-gradient);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.macos-voice-input.audio-reactive .voice-input-container.listening {
+  animation: audio-pulse var(--audio-transition-slow) ease-in-out infinite;
+  box-shadow: 
+    0 0 30px var(--audio-pulse),
+    inset 0 0 20px var(--audio-primary);
+}
+
+@keyframes audio-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(var(--audio-scale-subtle));
+    filter: brightness(1.1);
+  }
+}
+
+/* Waveform Audio-Reactive Styles */
+.waveform-container.audio-reactive .waveform-bar {
+  background: var(--audio-waveform);
+  box-shadow: 0 0 10px var(--audio-waveform);
+  transition: all var(--audio-transition-fast) ease-out;
+}
+
+.waveform-container.audio-reactive .waveform-bar.active {
+  background: var(--audio-primary);
+  box-shadow: 0 0 15px var(--audio-primary);
+  transform: scaleY(var(--audio-scale-dynamic));
+}
+
+/* Progressive Transcription Status Audio-Reactive */
+.progressive-transcription-status.audio-reactive {
+  background: var(--audio-background);
+  border-color: var(--audio-primary);
+}
+
+.progressive-transcription-status.audio-reactive .status-main.active {
+  background: var(--audio-gradient);
+  border-color: var(--audio-accent);
+  box-shadow: 0 0 25px var(--audio-pulse);
+}
+
+.progressive-transcription-status.audio-reactive .text-display.typing {
+  border-color: var(--audio-waveform);
+  background: color-mix(in srgb, var(--audio-waveform) 10%, transparent);
+  color: var(--audio-text);
+}
+
+/* Settings UI Audio-Reactive */
+.progressive-voice-settings.audio-reactive {
+  background: var(--audio-background);
+}
+
+.progressive-voice-settings.audio-reactive .settings-section {
+  background: color-mix(in srgb, var(--audio-primary) 5%, white);
+  border-color: var(--audio-primary);
+}
+
+.progressive-voice-settings.audio-reactive .btn-primary {
+  background: var(--audio-gradient);
+  border-color: var(--audio-accent);
+  color: var(--audio-text);
+}
+
+.progressive-voice-settings.audio-reactive .btn-primary:hover {
+  background: var(--audio-primary);
+  box-shadow: 0 0 15px var(--audio-pulse);
+  transform: translateY(-2px) scale(var(--audio-scale-subtle));
+}
+
+/* Audio Visualizer Canvas Styles */
+.audio-canvas.audio-reactive {
+  border: 1px solid var(--audio-primary);
+  border-radius: 8px;
+  box-shadow: 
+    0 0 20px var(--audio-pulse),
+    inset 0 0 10px var(--audio-background);
+}
+
+.audio-canvas.audio-reactive.listening {
+  animation: canvas-glow var(--audio-transition-slow) ease-in-out infinite;
+}
+
+@keyframes canvas-glow {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px var(--audio-pulse),
+      inset 0 0 10px var(--audio-background);
+  }
+  50% {
+    box-shadow: 
+      0 0 40px var(--audio-primary),
+      inset 0 0 20px var(--audio-waveform);
+  }
+}
+
+/* Button Audio-Reactive States */
+.btn.audio-reactive {
+  border-color: var(--audio-primary);
+  color: var(--audio-text);
+  transition: all var(--audio-transition-medium) ease-out;
+}
+
+.btn.audio-reactive:hover {
+  background: var(--audio-gradient);
+  border-color: var(--audio-accent);
+  box-shadow: 0 0 15px var(--audio-pulse);
+  transform: translateY(-1px) scale(var(--audio-scale-subtle));
+}
+
+.btn.audio-reactive:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 0 10px var(--audio-pulse);
+}
+
+.btn.audio-reactive.has-changes {
+  background: var(--audio-waveform);
+  border-color: var(--audio-accent);
+  animation: success-pulse 2s ease-in-out infinite;
+}
+
+@keyframes success-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px var(--audio-waveform);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--audio-waveform);
+  }
+}
+
+/* Audio Debug Overlay */
+.audio-debug-overlay {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 10px;
+  line-height: 1.2;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.audio-color-container:hover .audio-debug-overlay {
+  opacity: 1;
+}
+
+/* Responsive Audio Theming */
+@media (max-width: 768px) {
+  :root {
+    --audio-scale-subtle: 1.01;
+    --audio-scale-dynamic: 1.03;
+    --audio-scale-reactive: 1.05;
+  }
+  
+  .audio-color-container {
+    border-radius: 8px;
+  }
+  
+  .audio-debug-overlay {
+    font-size: 8px;
+  }
+}
+
+/* Reduced Motion Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .audio-color-container,
+  .audio-canvas.audio-reactive,
+  .btn.audio-reactive {
+    animation: none !important;
+    transition: none !important;
+  }
+  
+  :root {
+    --audio-transition-fast: 0s;
+    --audio-transition-medium: 0s;
+    --audio-transition-slow: 0s;
+    --audio-scale-subtle: 1;
+    --audio-scale-dynamic: 1;
+    --audio-scale-reactive: 1;
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  :root {
+    --audio-primary: #ffffff;
+    --audio-secondary: #000000;
+    --audio-accent: #ffff00;
+    --audio-background: #000000;
+    --audio-waveform: #00ff00;
+    --audio-pulse: #ff0000;
+    --audio-text: #ffffff;
+  }
+}
+
+/* Dark Mode Enhancements */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --audio-background: rgba(15, 23, 42, 0.98);
+    --audio-text: rgba(248, 250, 252, 0.98);
+  }
+  
+  .audio-color-container::before {
+    opacity: 0.15;
+  }
+  
+  .audio-color-container.active::before {
+    opacity: 0.25;
+  }
+}
