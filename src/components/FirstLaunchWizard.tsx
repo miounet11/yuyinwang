@@ -29,6 +29,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
   const [prevStep, setPrevStep] = useState(0);
   const [microphoneEnabled, setMicrophoneEnabled] = useState(false);
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
+  const [inputMonitoringEnabled, setInputMonitoringEnabled] = useState(false);
   const [selectedShortcut, setSelectedShortcut] = useState<string>('Fn');
   const [isTestingShortcut, setIsTestingShortcut] = useState(false);
   const [shortcutTestResult, setShortcutTestResult] = useState<string>('');
@@ -406,6 +407,12 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
         // 非 macOS 或检查失败，保持现状
       }
       
+      // 检查输入监控权限（macOS）
+      try {
+        const listenGranted = await invoke<boolean>('check_permission', { permission_type: 'input-monitoring' });
+        setInputMonitoringEnabled(!!listenGranted);
+      } catch (e) {}
+      
     } catch (error) {
       console.error('检查权限失败:', error);
     }
@@ -493,6 +500,26 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
       setLoadingStates(prev => ({ ...prev, accessibility: false }));
     }
   }, [animatedStepTransition]);
+
+  const requestInputMonitoringPermission = useCallback(async () => {
+    setLoadingStates(prev => ({ ...prev, inputMonitoring: true }));
+    setPermissionError('');
+    try {
+      const success = await invoke<boolean>('request_permission', { permission_type: 'input-monitoring' });
+      if (success) {
+        setInputMonitoringEnabled(true);
+        setAnnounceText('输入监控权限获取成功');
+      } else {
+        setInputMonitoringEnabled(false);
+        setPermissionError('输入监控权限未获得，请在系统偏好设置中启用。');
+      }
+    } catch (e) {
+      setInputMonitoringEnabled(false);
+      setPermissionError('无法获取输入监控权限，请在系统偏好设置中手动启用。');
+    } finally {
+      setLoadingStates(prev => ({ ...prev, inputMonitoring: false }));
+    }
+  }, []);
 
   const handleShortcutTest = () => {
     setIsTestingShortcut(true);
@@ -635,7 +662,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
               <h2 className="step-title">启用免提文本插入</h2>
               <p className="step-description">
                 为了将转录的文字直接插入到任何应用程序中，
-                Recording King 需要辅助功能权限。
+                Recording King 需要辅助功能权限与输入监控权限（macOS）。
               </p>
               
               {accessibilityEnabled ? (
@@ -649,6 +676,15 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
                   <div className="warning-text">需要辅助功能权限</div>
                 </div>
               )}
+
+              <div className="permission-actions" style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                <button className="enable-btn primary" onClick={requestAccessibilityPermission} disabled={!!loadingStates.accessibility}>
+                  {loadingStates.accessibility ? '请求中…' : '启用辅助功能'}
+                </button>
+                <button className="enable-btn" onClick={requestInputMonitoringPermission} disabled={!!loadingStates.inputMonitoring}>
+                  {loadingStates.inputMonitoring ? '请求中…' : inputMonitoringEnabled ? '已启用输入监控' : '启用输入监控'}
+                </button>
+              </div>
               
               <div className="step-info">
                 <div className="info-item">
