@@ -9,6 +9,8 @@ pub struct FnKeyListener {
     app_handle: tauri::AppHandle,
     is_running: Arc<Mutex<bool>>,
     last_fn_press: Arc<Mutex<Option<Instant>>>,
+    // 新增：记录 Fn/F1 是否处于按下状态以支持长按语音输入
+    is_fn_down: Arc<Mutex<bool>>,
 }
 
 impl FnKeyListener {
@@ -17,6 +19,7 @@ impl FnKeyListener {
             app_handle,
             is_running: Arc::new(Mutex::new(false)),
             last_fn_press: Arc::new(Mutex::new(None)),
+            is_fn_down: Arc::new(Mutex::new(false)),
         }
     }
     
@@ -31,34 +34,68 @@ impl FnKeyListener {
         let app_handle = self.app_handle.clone();
         let is_running = self.is_running.clone();
         let last_fn_press = self.last_fn_press.clone();
+        let is_fn_down = self.is_fn_down.clone();
         
         thread::spawn(move || {
             println!("🎮 特殊键监听器已启动");
             
             let callback = move |event: Event| {
-                // 尝试多种键位
                 match event.event_type {
-                    // Globe/Fn 键 (macOS 特殊处理)
-                    EventType::KeyPress(Key::Function) => {
-                        println!("🔑 检测到 Function 键按下");
-                        check_double_press(&last_fn_press, &app_handle, "Function");
+                    // ====== Hold-to-talk: Fn/Globe (macOS) 和 F1 作为备用 ======
+                    EventType::KeyPress(Key::Function) | EventType::KeyPress(Key::F1) => {
+                        let mut down = is_fn_down.lock().unwrap();
+                        if !*down {
+                            *down = true;
+                            println!("🔴 Fn/F1 按下：启动渐进式语音输入 (hold)");
+                            // 通知前端窗口（若存在）开始长按
+                            if let Some(window) = app_handle.get_window("floating-input") {
+                                let _ = window.emit("voice_input_hold_start", ());
+                            }
+                            // 广播进度触发事件（可选，用于其他监听方）
+                            let _ = app_handle.emit_all("progressive_trigger_activated", serde_json::json!({
+                                "trigger": "hold",
+                                "shortcut": "Fn",
+                                "timestamp": chrono::Utc::now().timestamp_millis(),
+                            }));
+                            // 启动渐进式语音输入（开启实时注入）
+                            let app_handle_clone = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let _ = crate::commands::start_progressive_voice_input(
+                                    None,
+                                    app_handle_clone,
+                                    Some(true),
+                                ).await;
+                            });
+                        }
                     }
-                    // F键作为备用选项
-                    EventType::KeyPress(Key::F1) => {
-                        println!("🔑 检测到 F1 键按下");
-                        check_double_press(&last_fn_press, &app_handle, "F1");
+                    EventType::KeyRelease(Key::Function) | EventType::KeyRelease(Key::F1) => {
+                        let mut down = is_fn_down.lock().unwrap();
+                        if *down {
+                            *down = false;
+                            println!("🟢 Fn/F1 松开：停止语音输入 (hold)");
+                            // 通知前端窗口结束长按
+                            if let Some(window) = app_handle.get_window("floating-input") {
+                                let _ = window.emit("voice_input_hold_end", ());
+                            }
+                            // 广播一个通用的 key released 事件，供 QuickVoiceInput 等监听
+                            let _ = app_handle.emit_all("quick_voice_key_released", ());
+                            // 停止录音/转录
+                            let app_handle_clone = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                let _ = crate::commands::stop_voice_recording(app_handle_clone).await;
+                            });
+                        }
                     }
-                    // Option/Alt 键双击
+                    
+                    // ====== 双击快捷触发：保留对 Option/Alt、RightCmd、CapsLock 的双击检测 ======
                     EventType::KeyPress(Key::Alt) => {
                         println!("🔑 检测到 Option/Alt 键按下");
                         check_double_press(&last_fn_press, &app_handle, "Option");
                     }
-                    // 右 Command 键
                     EventType::KeyPress(Key::MetaRight) => {
                         println!("🔑 检测到右 Command 键按下");
                         check_double_press(&last_fn_press, &app_handle, "RightCmd");
                     }
-                    // Caps Lock 键
                     EventType::KeyPress(Key::CapsLock) => {
                         println!("🔑 检测到 Caps Lock 键按下");
                         check_double_press(&last_fn_press, &app_handle, "CapsLock");

@@ -116,27 +116,42 @@ const MacOSVoiceInput: React.FC = () => {
         }
       }
       
-      // 显示窗口并自动开始录音
+      // 显示窗口并自动开始录音（按住事件到来时再真正开始）
       await appWindow.show();
       await appWindow.setFocus();
       
-      // 延迟一点开始录音，确保窗口已经显示
+      // 允许后续触发
       setTimeout(() => {
-        startListening();
-        // 录音开始后重置触发标志，允许下次触发
-        setTimeout(() => {
-          setIsProcessingTrigger(false);
-        }, 1000); // 1秒后允许新触发
-      }, 100);
+        setIsProcessingTrigger(false);
+      }, 300);
     });
 
-    // 监听实时转录结果
-    const unlistenTranscription = listen<string>('realtime_transcription', (event) => {
-      setTranscribedText(event.payload);
-      if (event.payload && event.payload.trim()) {
+    // 新增：监听长按开始/结束事件（来自原生 Fn/F1 监听）
+    const unlistenHoldStart = listen('voice_input_hold_start', () => {
+      if (!isRecording) {
+        startListening();
+      }
+    });
+    const unlistenHoldEnd = listen('voice_input_hold_end', () => {
+      if (isRecording) {
+        stopListening();
+      }
+    });
+
+    // 监听实时转录结果（渐进式部分）
+    const unlistenStreaming = listen<any>('streaming_transcription', (event) => {
+      const payload: any = event.payload || {};
+      const text: string = payload.text || '';
+      setTranscribedText(text);
+      if (text && text.trim()) {
         setHasAudioInput(true);
         resetSilenceTimeout();
       }
+    });
+
+    // 监听流式完成（可用于显示最终状态）
+    const unlistenStreamingComplete = listen<string>('streaming_complete', () => {
+      // 保持 stopListening 逻辑主导，完成事件仅用于 UI 提示
     });
 
     // 智能VAD音频电平监听 - 多层检测算法 + 动画集成
@@ -285,7 +300,10 @@ const MacOSVoiceInput: React.FC = () => {
 
     return () => {
       unlistenTrigger.then(fn => fn());
-      unlistenTranscription.then(fn => fn());
+      unlistenHoldStart.then(fn => fn());
+      unlistenHoldEnd.then(fn => fn());
+      unlistenStreaming.then(fn => fn());
+      unlistenStreamingComplete.then(fn => fn());
       unlistenAudioLevel.then(fn => fn());
       document.removeEventListener('keydown', handleKeyDown);
       clearAllTimeouts();
