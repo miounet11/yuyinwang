@@ -332,9 +332,6 @@ fn main() {
             commands::get_audio_level,
             commands::stop_recording_and_transcribe,
             // 长按快捷键命令
-            commands::start_long_press_monitoring,
-            commands::test_long_press_trigger,
-            commands::get_long_press_status,
             // Week 3: 渐进式触发系统命令
             commands::start_progressive_trigger_monitoring,
             commands::update_progressive_trigger_config,

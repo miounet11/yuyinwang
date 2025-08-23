@@ -379,38 +379,35 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
   const checkInitialPermissions = async () => {
     try {
       // 检查麦克风权限
-      // const micResult = await permissionManager.checkPermission('microphone');
-      const micResult = { status: 'granted' }; // 暂时假设已授权
-      const micGranted = micResult.status === 'granted';
-      setMicrophoneEnabled(micGranted);
-      
-      if (micGranted) {
-        setAnnounceText('麦克风权限已获得');
+      try {
+        const micGranted = await invoke<boolean>('check_permission', { permission_type: 'microphone' });
+        setMicrophoneEnabled(!!micGranted);
+        if (micGranted) setAnnounceText('麦克风权限已获得');
+      } catch (e) {
+        // 回退到浏览器检查
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          if (stream) {
+            setMicrophoneEnabled(true);
+            setAnnounceText('麦克风权限已获得（浏览器模式）');
+            stream.getTracks().forEach(track => track.stop());
+          }
+        } catch {
+          setPermissionError('无法获取麦克风权限，请检查系统设置');
+        }
       }
       
-      // 检查辅助功能权限
-      // const accessResult = await permissionManager.checkPermission('accessibility');
-      const accessResult = { status: 'granted' }; // 暂时假设已授权
-      const accessGranted = accessResult.status === 'granted';
-      setAccessibilityEnabled(accessGranted);
-      
-      if (accessGranted) {
-        setAnnounceText('辅助功能权限已获得');
+      // 检查辅助功能权限（macOS）
+      try {
+        const accessGranted = await invoke<boolean>('check_permission', { permission_type: 'accessibility' });
+        setAccessibilityEnabled(!!accessGranted);
+        if (accessGranted) setAnnounceText('辅助功能权限已获得');
+      } catch (e) {
+        // 非 macOS 或检查失败，保持现状
       }
       
     } catch (error) {
       console.error('检查权限失败:', error);
-      // 回退到浏览器检查
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (stream) {
-          setMicrophoneEnabled(true);
-          setAnnounceText('麦克风权限已获得（浏览器模式）');
-          stream.getTracks().forEach(track => track.stop());
-        }
-      } catch (browserError) {
-        setPermissionError('无法获取麦克风权限，请检查浏览器设置');
-      }
     }
   };
 
@@ -449,8 +446,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     setPermissionError('');
     
     try {
-      // const success = await permissionManager.requestPermission('microphone');
-      const success = true; // 暂时假设成功
+      const success = await invoke<boolean>('request_permission', { permission_type: 'microphone' });
       if (success) {
         setMicrophoneEnabled(true);
         setAnnounceText('麦克风权限获取成功');
@@ -467,43 +463,36 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
       }
     } catch (error) {
       console.error('请求麦克风权限失败:', error);
-      setPermissionError('无法获取麦克风权限。请确保在系统设置中允许访问麦克风。');
+      setPermissionError('无法获取麦克风权限。请在系统设置中允许访问麦克风。');
       setAnnounceText('麦克风权限获取失败');
     } finally {
       setLoadingStates(prev => ({ ...prev, microphone: false }));
     }
-  }, []);
+  }, [animatedStepTransition]);
 
   const requestAccessibilityPermission = useCallback(async () => {
     setLoadingStates(prev => ({ ...prev, accessibility: true }));
     setPermissionError('');
     
     try {
-      // const success = await permissionManager.requestPermission('accessibility');
-      const success = true; // 暂时假设成功
+      const success = await invoke<boolean>('request_permission', { permission_type: 'accessibility' });
       if (success) {
         setAccessibilityEnabled(true);
         setAnnounceText('辅助功能权限获取成功');
         await animatedStepTransition(2);
-      }
-      // 在开发环境下，即使请求失败也允许继续（用于演示）
-      else {
-        setAccessibilityEnabled(true);
-        setPermissionError('辅助功能权限未获得，但可以继续体验。');
-        setAnnounceText('辅助功能权限获取失败，但可以继续');
-        await animatedStepTransition(2);
+      } else {
+        setAccessibilityEnabled(false);
+        setPermissionError('辅助功能权限未获得，请在系统偏好设置中启用。');
       }
     } catch (error) {
       console.error('请求辅助功能权限失败:', error);
-      // 开发环境下允许继续
-      setAccessibilityEnabled(true);
+      setAccessibilityEnabled(false);
       setPermissionError('无法获取辅助功能权限。请在系统偏好设置中手动启用。');
-      setAnnounceText('辅助功能权限获取失败，但可以继续');
-      await animatedStepTransition(2);
+      setAnnounceText('辅助功能权限获取失败');
     } finally {
       setLoadingStates(prev => ({ ...prev, accessibility: false }));
     }
-  }, []);
+  }, [animatedStepTransition]);
 
   const handleShortcutTest = () => {
     setIsTestingShortcut(true);
@@ -762,6 +751,7 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
               
               <div className="welcome-message">
                 <p className="tagline">如果你觉得我好用，那么你就叫我-录音王吧！👑</p>
+                <p className="company">由 <strong>miaoda</strong>（AI 科技公司）技术支持 · 官网：<a href="https://miaoda.xin" target="_blank" rel="noreferrer">miaoda.xin</a></p>
               </div>
               
               <div className="feature-showcase">

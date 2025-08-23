@@ -132,9 +132,9 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
           currentLevel = await invoke<number>('get_audio_level');
           setAudioLevel(Math.min(1.0, currentLevel));
         } catch {
-          // 如果无法获取音频电平，使用模拟值
-          currentLevel = Math.random() * 0.5 + 0.3;
-          setAudioLevel(currentLevel);
+          // 无法获取电平时使用安全回退
+          currentLevel = 0;
+          setAudioLevel(0);
         }
         
         // 静音检测（VAD - Voice Activity Detection）
@@ -151,7 +151,6 @@ const QuickVoiceInput: React.FC<QuickVoiceInputProps> = ({ onClose, onTextReady 
           }
         } else {
           // 检测到声音，重置静音计时器
-          silenceStartRef.current = 0;
         }
         
         lastAudioLevelRef.current = currentLevel;
