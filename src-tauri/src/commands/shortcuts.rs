@@ -177,6 +177,10 @@ pub struct VoiceShortcutConfig {
     pub trigger_mode: String,
     #[serde(default = "default_hold_duration")]
     pub hold_duration: u32,
+    #[serde(default = "default_realtime_injection")]
+    pub realtime_injection: bool,
+    #[serde(default = "default_hold_release_delay_ms")]
+    pub hold_release_delay_ms: u32,
 }
 
 fn default_trigger_mode() -> String {
@@ -185,6 +189,14 @@ fn default_trigger_mode() -> String {
 
 fn default_hold_duration() -> u32 {
     300
+}
+
+fn default_realtime_injection() -> bool {
+    true
+}
+
+fn default_hold_release_delay_ms() -> u32 {
+    150
 }
 
 impl Default for VoiceShortcutConfig {
@@ -197,6 +209,8 @@ impl Default for VoiceShortcutConfig {
             preferred_model: "luyingwang-online".to_string(),
             trigger_mode: default_trigger_mode(),
             hold_duration: default_hold_duration(),
+            realtime_injection: default_realtime_injection(),
+            hold_release_delay_ms: default_hold_release_delay_ms(),
         }
     }
 }

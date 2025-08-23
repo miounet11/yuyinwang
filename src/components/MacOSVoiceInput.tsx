@@ -21,6 +21,7 @@ type InputState = 'idle' | 'listening' | 'processing' | 'injecting';
 const MacOSVoiceInput: React.FC = () => {
   const [state, setState] = useState<InputState>('idle');
   const [transcribedText, setTranscribedText] = useState('');
+  const [isPartial, setIsPartial] = useState<boolean>(false);
   const [activeApp, setActiveApp] = useState<ActiveAppInfo>({ name: '未知应用' });
   const [audioLevel, setAudioLevel] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -142,16 +143,27 @@ const MacOSVoiceInput: React.FC = () => {
     const unlistenStreaming = listen<any>('streaming_transcription', (event) => {
       const payload: any = event.payload || {};
       const text: string = payload.text || '';
+      const partial: boolean = !!payload.is_partial;
       setTranscribedText(text);
+      setIsPartial(partial);
       if (text && text.trim()) {
         setHasAudioInput(true);
         resetSilenceTimeout();
       }
     });
 
+    // 监听最终转写
+    const unlistenFinal = listen<string>('final_transcription', (event) => {
+      const finalText = (event.payload || '').toString();
+      if (finalText) {
+        setTranscribedText(finalText);
+        setIsPartial(false);
+      }
+    });
+
     // 监听流式完成（可用于显示最终状态）
     const unlistenStreamingComplete = listen<string>('streaming_complete', () => {
-      // 保持 stopListening 逻辑主导，完成事件仅用于 UI 提示
+      setIsPartial(false);
     });
 
     // 智能VAD音频电平监听 - 多层检测算法 + 动画集成
@@ -303,6 +315,7 @@ const MacOSVoiceInput: React.FC = () => {
       unlistenHoldStart.then(fn => fn());
       unlistenHoldEnd.then(fn => fn());
       unlistenStreaming.then(fn => fn());
+      unlistenFinal.then(fn => fn());
       unlistenStreamingComplete.then(fn => fn());
       unlistenAudioLevel.then(fn => fn());
       document.removeEventListener('keydown', handleKeyDown);
@@ -661,8 +674,8 @@ const MacOSVoiceInput: React.FC = () => {
                   />
                 ))}
               </div>
-              <div className={transcribedText ? 'realtime-text' : 'listening-hint'}>
-                {getStatusText()}
+              <div className={transcribedText ? (isPartial ? 'realtime-text partial' : 'realtime-text final') : 'listening-hint'}>
+                {transcribedText || getStatusText()}
               </div>
             </div>
           )}

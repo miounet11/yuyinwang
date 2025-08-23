@@ -10,6 +10,8 @@ interface VoiceShortcutConfig {
   preferred_model: string;
   trigger_mode?: 'press' | 'hold';  // 新增：触发模式
   hold_duration?: number;  // 新增：长按持续时间（毫秒）
+  realtime_injection?: boolean; // 新增：是否实时注入
+  hold_release_delay_ms?: number; // 新增：松手延迟结束（毫秒）
 }
 
 interface VoiceShortcutSettingsProps {
@@ -25,7 +27,9 @@ const VoiceShortcutSettings: React.FC<VoiceShortcutSettingsProps> = ({ isVisible
     use_floating_window: true,
     preferred_model: 'luyingwang-online',
     trigger_mode: 'press',
-    hold_duration: 300
+    hold_duration: 300,
+    realtime_injection: true,
+    hold_release_delay_ms: 150
   });
   
   const [isRecording, setIsRecording] = useState(false);
@@ -233,50 +237,47 @@ const VoiceShortcutSettings: React.FC<VoiceShortcutSettingsProps> = ({ isVisible
               </p>
             </div>
             
-            <label className="setting-label">
-              <input
-                type="checkbox"
-                checked={config.auto_insert}
-                onChange={(e) => setConfig(prev => ({ ...prev, auto_insert: e.target.checked }))}
-              />
-              <span>自动插入转录文本</span>
-            </label>
-            <p className="setting-desc">转录完成后自动将文本插入到当前应用光标位置</p>
-            
-            <label className="setting-label">
-              <input
-                type="checkbox"
-                checked={config.use_floating_window}
-                onChange={(e) => setConfig(prev => ({ ...prev, use_floating_window: e.target.checked }))}
-              />
-              <span>使用悬浮窗口</span>
-            </label>
-            <p className="setting-desc">在屏幕中间显示录音状态窗口</p>
-          </div>
+            {config.trigger_mode === 'hold' && (
+              <div className="hold-section">
+                <label className="setting-label">最短按住时长（毫秒）</label>
+                <input
+                  type="number"
+                  min={100}
+                  max={2000}
+                  value={config.hold_duration || 300}
+                  onChange={(e) => setConfig(prev => ({ ...prev, hold_duration: Number(e.target.value) }))}
+                  className="number-input"
+                />
+                <label className="setting-label">松手后延迟结束（毫秒）</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={1000}
+                  value={config.hold_release_delay_ms || 150}
+                  onChange={(e) => setConfig(prev => ({ ...prev, hold_release_delay_ms: Number(e.target.value) }))}
+                  className="number-input"
+                />
+              </div>
+            )}
 
-          {/* 使用说明 */}
-          <div className="setting-group">
-            <h3>使用说明</h3>
-            <div className="usage-guide">
-              <p>1. 在任何应用中按住设定的快捷键</p>
-              <p>2. 开始说话进行录音</p>
-              <p>3. 松开快捷键完成录音并自动转录</p>
-              <p>4. 转录文本将自动插入到光标位置</p>
+            <div className="toggle-row">
+              <label className="setting-label">
+                <input
+                  type="checkbox"
+                  checked={!!config.realtime_injection}
+                  onChange={(e) => setConfig(prev => ({ ...prev, realtime_injection: e.target.checked }))}
+                />
+                <span>实时注入文本</span>
+              </label>
             </div>
           </div>
-        </div>
 
-        <div className="settings-footer">
-          <button className="test-btn" onClick={testShortcut}>
-            测试快捷键
-          </button>
-          <div className="footer-right">
-            {saveStatus && <span className="save-status">{saveStatus}</span>}
-            <button className="cancel-btn" onClick={onClose}>
-              取消
+          <div className="setting-actions">
+            <button className="test-btn" onClick={testShortcut}>
+              测试快捷键
             </button>
             <button className="save-btn" onClick={saveConfig}>
-              保存设置
+              {saveStatus || '保存设置'}
             </button>
           </div>
         </div>
