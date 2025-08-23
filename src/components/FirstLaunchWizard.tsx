@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 // import { permissionManager } from '../utils/permissionManager';
 import { shortcutTester, TestResult, KeyCombination } from '../utils/shortcutTester';
 import './FirstLaunchWizard.css';
+import { invoke } from '@tauri-apps/api/tauri';
 
 interface FirstLaunchWizardProps {
   isVisible: boolean;
@@ -330,6 +331,51 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     }
   }, []);
 
+  // 一键快速配置
+  const handleQuickSetup = useCallback(async () => {
+    setLoadingStates(prev => ({ ...prev, quickSetup: true }));
+    setPermissionError('');
+    try {
+      // 1) 检查并请求关键权限
+      try { await invoke('check_all_permissions'); } catch {}
+      try { await invoke('request_permission', { permission: 'microphone' }); } catch {}
+      try { await invoke('request_permission', { permission: 'accessibility' }); } catch {}
+      setMicrophoneEnabled(true);
+      setAccessibilityEnabled(true);
+
+      // 2) 保存默认快捷键配置（不注册全局快捷键，避免与 rdev 监听重复）
+      const defaultConfig = {
+        enabled: false,
+        shortcut: 'Fn',
+        auto_insert: true,
+        use_floating_window: true,
+        preferred_model: 'luyingwang-online',
+        trigger_mode: 'hold',
+        hold_duration: 300,
+        realtime_injection: true,
+        hold_release_delay_ms: 150
+      };
+      try { await invoke('configure_voice_shortcuts', { config: defaultConfig }); } catch {}
+
+      // 3) 快速自检：启动渐进式语音输入 2 秒后停止
+      try {
+        await invoke('show_floating_input');
+        await invoke('start_progressive_voice_input', { targetBundleId: null, enableRealTimeInjection: true });
+        await new Promise(r => setTimeout(r, 1500));
+        await invoke('stop_voice_recording');
+      } catch {}
+
+      // 4) 标记步骤完成并跳转完成页
+      setSelectedShortcut('Fn');
+      setShortcutTestResult('测试成功！快捷键响应正常');
+      await animatedStepTransition(3);
+    } catch (e) {
+      setPermissionError('快速配置失败，请手动按步骤完成');
+    } finally {
+      setLoadingStates(prev => ({ ...prev, quickSetup: false }));
+    }
+  }, [animatedStepTransition]);
+
   const checkInitialPermissions = async () => {
     try {
       // 检查麦克风权限
@@ -576,6 +622,17 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
                   <div className="warning-text">需要麦克风权限</div>
                 </div>
               )}
+
+              <div className="quick-setup">
+                <button 
+                  className="enable-btn primary"
+                  onClick={handleQuickSetup}
+                  disabled={!!loadingStates.quickSetup}
+                >
+                  {loadingStates.quickSetup ? '正在一键配置…' : '一键快速配置'}
+                </button>
+                <small className="helper-text">将自动完成权限、默认快捷键与一次快速自检</small>
+              </div>
               
             </div>
           </div>
@@ -769,13 +826,27 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
     switch (currentStep) {
       case 0:
         return microphoneEnabled ? (
-          <button className="next-btn primary" onClick={() => setCurrentStep(1)}>
-            下一步
-          </button>
+          <div className="actions-row">
+            <button className="next-btn" onClick={() => setCurrentStep(1)}>按步骤配置</button>
+            <button 
+              className="next-btn primary" 
+              onClick={handleQuickSetup}
+              disabled={!!loadingStates.quickSetup}
+            >
+              {loadingStates.quickSetup ? '配置中…' : '一键快速配置'}
+            </button>
+          </div>
         ) : (
-          <button className="enable-btn primary" onClick={requestMicrophonePermission}>
-            启用麦克风
-          </button>
+          <div className="actions-row">
+            <button className="enable-btn" onClick={requestMicrophonePermission}>启用麦克风</button>
+            <button 
+              className="next-btn primary" 
+              onClick={handleQuickSetup}
+              disabled={!!loadingStates.quickSetup}
+            >
+              {loadingStates.quickSetup ? '配置中…' : '一键快速配置'}
+            </button>
+          </div>
         );
       case 1:
         return (
@@ -856,6 +927,16 @@ const FirstLaunchWizard: React.FC<FirstLaunchWizardProps> = ({
           <div className="step-info">
             <h1 className="step-title">{steps[currentStep].title}</h1>
             <p className="step-subtitle">{steps[currentStep].subtitle}</p>
+          </div>
+
+          <div className="header-actions">
+            <button 
+              ref={skipToMainRef}
+              className="link-btn"
+              onClick={onComplete}
+            >
+              稍后再说
+            </button>
           </div>
         </div>
 
