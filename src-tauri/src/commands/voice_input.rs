@@ -217,23 +217,31 @@ async fn transcribe_audio(
     
     let config = create_transcription_config(&model);
     
-    // 转录
-    let result = state.transcription_service
-        .transcribe_audio(temp_file.to_str().unwrap(), &config)
-        .await
-        .map_err(|e| format!("转录失败: {}", e))?;
-    
-    let text = result.text.trim().to_string();
-    
-    // 清理临时文件
-    std::fs::remove_file(&temp_file).ok();
-    
-    // 保存到历史记录
-    if !text.is_empty() {
-        save_transcription_history(&app, &text, &model, audio_data.len() as f64 / sample_rate as f64).await;
+    // 带重试的转录
+    let mut last_err: Option<String> = None;
+    for attempt in 1..=3 {
+      match state.transcription_service.transcribe_audio(&temp_file, &config).await {
+        Ok(result) => {
+          // 清理临时文件
+          let _ = std::fs::remove_file(&temp_file);
+          return Ok(result.text);
+        }
+        Err(e) => {
+          let msg = format!("转录失败(第{}次): {}", attempt, e);
+          eprintln!("{}", msg);
+          last_err = Some(msg);
+          if attempt < 3 {
+            // 指数退避
+            let backoff_ms = 300u64 * (1 << (attempt - 1));
+            tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+            continue;
+          }
+        }
+      }
     }
-    
-    Ok(text)
+    // 清理临时文件
+    let _ = std::fs::remove_file(&temp_file);
+    Err(last_err.unwrap_or_else(|| "未知的转录错误".to_string()))
 }
 
 /// 创建临时WAV文件
