@@ -11,6 +11,7 @@ import {
   SpokenlyButton,
   SpokenlyTag
 } from '../components/ui';
+import { invoke } from '@tauri-apps/api/tauri';
 
 // 支持的文件格式
 const supportedFormats = [
@@ -33,6 +34,8 @@ interface UploadedFile {
   progress?: number;
   transcript?: string;
   duration?: number;
+  path?: string;
+  error?: string;
 }
 
 interface FileTranscriptionProps {
@@ -45,7 +48,6 @@ export const FileTranscription: React.FC<FileTranscriptionProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
 
-  // 处理文件上传
   const handleFilesDrop = useCallback((files: FileList) => {
     const newFiles: UploadedFile[] = Array.from(files).map(file => ({
       id: Math.random().toString(36).substr(2, 9),
@@ -54,40 +56,28 @@ export const FileTranscription: React.FC<FileTranscriptionProps> = ({
       type: file.type,
       status: 'pending'
     }));
-
     setUploadedFiles(prev => [...prev, ...newFiles]);
-    
-    // 模拟文件处理
-    newFiles.forEach(file => {
-      setTimeout(() => {
-        setUploadedFiles(prev => 
-          prev.map(f => f.id === file.id ? { ...f, status: 'processing', progress: 0 } : f)
-        );
-        
-        // 模拟处理进度
-        let progress = 0;
-        const interval = setInterval(() => {
-          progress += Math.random() * 15;
-          if (progress >= 100) {
-            clearInterval(interval);
-            setUploadedFiles(prev => 
-              prev.map(f => f.id === file.id ? { 
-                ...f, 
-                status: 'completed', 
-                progress: 100,
-                transcript: '这是一段示例转录文本...',
-                duration: Math.floor(Math.random() * 300) + 30
-              } : f)
-            );
-          } else {
-            setUploadedFiles(prev => 
-              prev.map(f => f.id === file.id ? { ...f, progress } : f)
-            );
-          }
-        }, 200);
-      }, 500);
-    });
+    newFiles.forEach(runTranscription);
   }, []);
+
+  const runTranscription = async (file: UploadedFile) => {
+    try {
+      setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: 'processing', progress: 0 } : f));
+      // 暂不做分片上传；使用 tauri fs 路径需要先保存到临时文件，此处假设前端已可直接提供路径
+      // 为兼容，简化为让用户通过拖拽来自文件系统（Tauri 会提供 path）
+      // 如果没有 path，这里直接报错提示
+      // 实际生产中可扩展为先写到临时目录，再调用后端
+      const path = (file as any).path as string | undefined;
+      if (!path) {
+        setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: 'error', error: '无法获取文件路径，请从系统文件管理器拖拽' } : f));
+        return;
+      }
+      const result = await invoke<{ text: string; confidence?: number }>('transcribe_file', { filePath: path, model: 'whisper-tiny' });
+      setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: 'completed', progress: 100, transcript: result.text } : f));
+    } catch (e: any) {
+      setUploadedFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: 'error', error: String(e) } : f));
+    }
+  };
 
   // 格式化文件大小
   const formatFileSize = (bytes: number): string => {
@@ -168,9 +158,9 @@ export const FileTranscription: React.FC<FileTranscriptionProps> = ({
             onFilesSelect={handleFilesDrop}
             accept={supportedFormats.map(f => f.type).join(',')}
             multiple
-            maxSize={100 * 1024 * 1024} // 100MB
+            maxSize={100 * 1024 * 1024}
             title="将文件拖放到此处"
-            description="或点击选择文件"
+            description="或点击选择文件（请从系统文件管理器选择，确保有可访问路径）"
             style={{
               minHeight: '200px',
               border: isDragActive 
@@ -280,26 +270,22 @@ export const FileTranscription: React.FC<FileTranscriptionProps> = ({
                     </SpokenlyTag>
                   </div>
                   
-                  {/* 进度条 */}
-                  {file.status === 'processing' && file.progress !== undefined && (
+                  {file.status === 'processing' && (
                     <div style={{
-                      width: '100%',
-                      height: '4px',
-                      backgroundColor: 'var(--spokenly-gray-200)',
-                      borderRadius: '2px',
-                      overflow: 'hidden',
-                      marginBottom: 'var(--spokenly-space-2)'
+                      fontSize: 'var(--spokenly-text-xs)',
+                      color: 'var(--spokenly-text-tertiary)'
                     }}>
-                      <motion.div
-                        style={{
-                          height: '100%',
-                          backgroundColor: 'var(--spokenly-primary-500)',
-                          borderRadius: '2px'
-                        }}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${file.progress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
+                      正在转录文件，请稍候…
+                    </div>
+                  )}
+                  
+                  {file.status === 'error' && file.error && (
+                    <div style={{
+                      marginTop: 'var(--spokenly-space-2)',
+                      fontSize: 'var(--spokenly-text-xs)',
+                      color: 'var(--spokenly-error-600, #b91c1c)'
+                    }}>
+                      {file.error}
                     </div>
                   )}
                   
