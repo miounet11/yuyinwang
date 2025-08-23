@@ -176,8 +176,10 @@ fn main() {
     // 创建系统托盘
     let quit = CustomMenuItem::new("quit".to_string(), "退出");
     let show = CustomMenuItem::new("show".to_string(), "显示");
+    let about = CustomMenuItem::new("about".to_string(), "关于 Recording King");
     let tray_menu = SystemTrayMenu::new()
         .add_item(show)
+        .add_item(about)
         .add_item(quit);
     let system_tray = SystemTray::new().with_menu(tray_menu);
     
@@ -201,6 +203,14 @@ fn main() {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
+                        }
+                        "about" => {
+                            let version = app.package_info().version.to_string();
+                            let msg = format!(
+                                "Recording King（录音王）\n版本：v{}\n开发公司：miaoda（AI 科技公司）\n官网：miaoda.xin",
+                                version
+                            );
+                            tauri::api::dialog::message(None::<&tauri::Window>, "关于 Recording King", msg);
                         }
                         _ => {}
                     }
