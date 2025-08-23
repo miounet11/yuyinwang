@@ -1,15 +1,9 @@
 /**
  * Spokenly Design System - Component Library
- * Centralized exports for all UI components
- * 
- * @version 1.0.0
- * @author Recording King Team
+ * Central export for all UI components with proper TypeScript support
  */
 
-// Type definitions
-export * from './types';
-
-// Layout Components
+// Core Layout Components
 export { SpokenlyLayout } from './SpokenlyLayout';
 export { SpokemlySidebar } from './SpokemlySidebar';
 export { SpokenlyContent } from './SpokenlyContent';
@@ -18,63 +12,39 @@ export { SpokenlyContent } from './SpokenlyContent';
 export { SpokenlyNavItem } from './SpokenlyNavItem';
 export { SpokenlyNavSection } from './SpokenlyNavSection';
 
-// Basic Components
-export { SpokenlyButton } from './SpokenlyButton';
-export { 
-  SpokenlyCard, 
-  SpokenlyCardHeader, 
-  SpokenlyCardBody, 
-  SpokenlyCardFooter 
-} from './SpokenlyCard';
-export { SpokenlyInput } from './SpokenlyInput';
-
 // Form Components
+export { SpokenlyButton } from './SpokenlyButton';
+export { SpokenlyInput } from './SpokenlyInput';
 export { SpokenlySwitch } from './SpokenlySwitch';
 export { SpokenlySelect } from './SpokenlySelect';
-export { SpokenlyTag } from './SpokenlyTag';
 
-// Specialized Components
+// Card Components
+export { SpokenlyCard } from './SpokenlyCard';
+export { SpokenlyCardHeader, SpokenlyCardBody, SpokenlyCardFooter } from './SpokenlyCard';
+
+// Content Components
+export { SpokenlyTag } from './SpokenlyTag';
 export { SpokenlyModelCard } from './SpokenlyModelCard';
 export { SpokenlyUploadArea } from './SpokenlyUploadArea';
-
-// Interaction Components
 export { SpokenlyHistoryItem } from './SpokenlyHistoryItem';
 export { SpokenlySearchBox } from './SpokenlySearchBox';
 
-// Component Groups for easier imports
-export const LayoutComponents = {
-  Layout: SpokenlyLayout,
-  Sidebar: SpokemlySidebar,
-  Content: SpokenlyContent
-};
+// Type exports
+export type * from './types';
 
-export const NavigationComponents = {
-  NavItem: SpokenlyNavItem,
-  NavSection: SpokenlyNavSection
-};
-
-export const FormComponents = {
-  Button: SpokenlyButton,
-  Input: SpokenlyInput,
-  Switch: SpokenlySwitch,
-  Select: SpokenlySelect,
-  Tag: SpokenlyTag
-};
-
-export const CardComponents = {
-  Card: SpokenlyCard,
-  CardHeader: SpokenlyCardHeader,
-  CardBody: SpokenlyCardBody,
-  CardFooter: SpokenlyCardFooter
-};
-
-export const SpecializedComponents = {
-  ModelCard: SpokenlyModelCard,
-  UploadArea: SpokenlyUploadArea,
-  HistoryItem: SpokenlyHistoryItem,
-  SearchBox: SpokenlySearchBox
-};
-
-// Version information
-export const SPOKENLY_VERSION = '1.0.0';
-export const DESIGN_SYSTEM_VERSION = '1.0.0';
+// Re-export specific types that are commonly used
+export type { 
+  ButtonProps,
+  CardProps,
+  LayoutProps,
+  SidebarProps,
+  ContentProps,
+  NavItemProps,
+  InputProps,
+  SwitchProps,
+  SelectProps,
+  TagProps,
+  ButtonVariant,
+  ButtonSize,
+  Size 
+} from './types';

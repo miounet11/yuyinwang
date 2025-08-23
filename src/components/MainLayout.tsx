@@ -6,6 +6,19 @@
 
 import React, { useState, useCallback } from 'react';
 import { SpokenlyLayout, SpokemlySidebar, SpokenlyNavItem, SpokenlyNavSection } from './ui';
+
+// 图标映射函数
+const getIcon = (iconName: string): React.ReactNode => {
+  const iconMap: Record<string, string> = {
+    settings: '⚙️',
+    keyboard: '⌨️',
+    microphone: '🎤',
+    folder: '📁',
+    history: '📋',
+    brain: '🧠'
+  };
+  return iconMap[iconName] || '●';
+};
 import GeneralSettings from './pages/GeneralSettings';
 import TranscriptionModels from './pages/TranscriptionModels';
 import FileTranscription from './pages/FileTranscription';
@@ -120,17 +133,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ initialPage = 'general', onPage
           {navigationConfig.map(section => (
             <SpokenlyNavSection
               key={section.id}
-              title={sidebarCollapsed ? '' : section.title}
-              collapsed={sidebarCollapsed}
+              title={sidebarCollapsed ? undefined : section.title}
             >
               {section.items.map(item => (
                 <SpokenlyNavItem
                   key={item.id}
                   label={sidebarCollapsed ? '' : item.label}
-                  icon={item.icon}
-                  active={currentPage === item.id}
+                  icon={getIcon(item.icon)}
+                  isActive={currentPage === item.id}
                   onClick={() => handleNavItemClick(item.id)}
-                  collapsed={sidebarCollapsed}
                 />
               ))}
             </SpokenlyNavSection>

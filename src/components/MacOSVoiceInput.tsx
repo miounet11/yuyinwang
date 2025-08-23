@@ -2,18 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { appWindow, LogicalPosition, LogicalSize } from '@tauri-apps/api/window';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
-import { AnimatePresence } from 'framer-motion';
-import {
-  MotionVoiceInputContainer,
-  MotionButton,
-  MotionAppIconWrapper,
-  MotionWaveformContainer,
-  MotionText,
-  MotionProcessingSpinner,
-  MotionSuccessCheck,
-  MotionAudioLevelIndicator,
-} from './motion/MotionComponents';
-import { audioReactiveAnimator } from '../utils/motionUtils';
+// Removed complex framer-motion dependencies for better performance
 import { 
   startPerformanceMonitoring, 
   stopPerformanceMonitoring, 
@@ -62,11 +51,7 @@ const MacOSVoiceInput: React.FC = () => {
   
 
   useEffect(() => {
-    // Initialize audio reactive animator
-    const unsubscribeAnimator = audioReactiveAnimator.subscribe((level) => {
-      // This will trigger audio-reactive animations
-      setAudioLevel(level);
-    });
+      // Simplified audio level handling without complex animator
     
     // 获取当前模型信息
     const fetchModelInfo = async () => {
@@ -88,13 +73,13 @@ const MacOSVoiceInput: React.FC = () => {
       await appWindow.setSkipTaskbar(true);
       
       // 设置窗口大小和位置 - 像 macOS 语音输入一样小巧
-      await appWindow.setSize(new LogicalSize(300, 60));
+      await appWindow.setSize(new LogicalSize(280, 60));
       
       // 居中显示在屏幕底部
       try {
         const screenWidth = window.screen.width;
         const screenHeight = window.screen.height;
-        const x = Math.floor((screenWidth - 300) / 2);
+        const x = Math.floor((screenWidth - 280) / 2);
         const y = Math.floor(screenHeight - 100); // 屏幕底部位置
         await appWindow.setPosition(new LogicalPosition(x, y));
       } catch (error) {
@@ -159,8 +144,7 @@ const MacOSVoiceInput: React.FC = () => {
       const rawLevel = event.payload;
       const now = Date.now();
       
-      // Update the audio reactive animator
-      audioReactiveAnimator.updateAudioLevel(rawLevel);
+      // Direct audio level update for better performance
       
       // 🎯 VAD 配置参数 - 适配新的音频电平范围
       const VAD_CONFIG = {
@@ -300,7 +284,6 @@ const MacOSVoiceInput: React.FC = () => {
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      unsubscribeAnimator();
       unlistenTrigger.then(fn => fn());
       unlistenTranscription.then(fn => fn());
       unlistenAudioLevel.then(fn => fn());
@@ -309,7 +292,6 @@ const MacOSVoiceInput: React.FC = () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-      audioReactiveAnimator.stop();
       stopPerformanceMonitoring();
     };
   }, [hasAudioInput, isRecording]);
@@ -352,8 +334,7 @@ const MacOSVoiceInput: React.FC = () => {
       setIsRecording(true);
       setHasAudioInput(false);
       
-      // 启动音频反应动画系统和性能监控
-      audioReactiveAnimator.start();
+      // 启动性能监控
       startPerformanceMonitoring();
       
       // 🔄 重置VAD状态和错误处理状态
@@ -570,7 +551,6 @@ const MacOSVoiceInput: React.FC = () => {
   // 取消操作
   const handleCancel = async () => {
     clearAllTimeouts();
-    audioReactiveAnimator.stop();
     stopPerformanceMonitoring();
     
     if (isRecording) {
@@ -627,98 +607,87 @@ const MacOSVoiceInput: React.FC = () => {
 
   return (
     <div className="macos-voice-input" ref={containerRef}>
-      <AnimatePresence mode="wait">
-        <MotionVoiceInputContainer 
-          key={state}
-          state={state}
-          className={`voice-input-container ${state === 'listening' ? 'listening' : ''} ${state === 'processing' ? 'processing' : ''} ${state === 'injecting' ? 'success' : ''}`}
-        >
-          {/* Audio level indicator for reactive animations */}
-          <MotionAudioLevelIndicator level={audioLevel} />
-          
-          {/* 左侧 - 应用图标和信息 */}
-          <div className="app-info-section">
-            <MotionAppIconWrapper 
-              className="app-icon-wrapper"
-              isInteractive={true}
-            >
-              {getAppIcon()}
-            </MotionAppIconWrapper>
-            <MotionText 
-              className="app-name" 
-              isVisible={true}
-            >
-              {activeApp.name}
-            </MotionText>
+      <div 
+        className={`voice-input-container ${state === 'listening' ? 'listening' : ''} ${state === 'processing' ? 'processing' : ''} ${state === 'injecting' ? 'success' : ''}`}
+      >
+        {/* Audio level indicator for reactive effects */}
+        <div 
+          className="audio-level-indicator" 
+          style={{
+            opacity: audioLevel > 0.1 ? audioLevel : 0,
+            transform: `scale(${1 + audioLevel * 0.2})`
+          }}
+        />
+        
+        {/* 左侧 - 应用图标和信息 */}
+        <div className="app-info-section">
+          <div className="app-icon-wrapper">
+            {getAppIcon()}
           </div>
+          <div className="app-name">{activeApp.name}</div>
+        </div>
 
-          {/* 中间 - 波形和文字显示 */}
-          <div className="voice-content-section">
-            {state === 'listening' && (
-              <div className="waveform-container">
-                <MotionWaveformContainer
-                  isActive={isRecording}
-                  audioLevel={audioLevel}
-                  barCount={10}
-                />
-                <MotionText 
-                  className={transcribedText ? 'realtime-text' : 'listening-hint'}
-                  isVisible={true}
-                  typewriter={!!transcribedText}
-                >
-                  {getStatusText()}
-                </MotionText>
+        {/* 中间 - 波形和文字显示 */}
+        <div className="voice-content-section">
+          {state === 'listening' && (
+            <div className="waveform-container">
+              <div className="waveform-bars">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div 
+                    key={i}
+                    className="waveform-bar"
+                    style={{
+                      height: isRecording ? `${8 + audioLevel * 12 + Math.random() * 4}px` : '4px',
+                      animationDelay: `${i * 0.1}s`
+                    }}
+                  />
+                ))}
               </div>
-            )}
-
-            {state === 'processing' && (
-              <div className="processing-container">
-                <MotionProcessingSpinner size={12} />
-                <MotionText className="processing-text" isVisible={true}>
-                  <span>处理中</span>
-                  <span className="processing-dots"></span>
-                </MotionText>
+              <div className={transcribedText ? 'realtime-text' : 'listening-hint'}>
+                {getStatusText()}
               </div>
-            )}
+            </div>
+          )}
 
-            {state === 'injecting' && (
-              <div className="success-container">
-                <div className="success-icon">
-                  <MotionSuccessCheck size={8} strokeWidth={2} />
-                </div>
-                <MotionText className="final-text" isVisible={true}>
-                  {transcribedText}
-                </MotionText>
+          {state === 'processing' && (
+            <div className="processing-container">
+              <div className="processing-spinner" />
+              <div className="processing-text">
+                <span>处理中</span>
+                <span className="processing-dots"></span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* 右侧 - 控制按钮 */}
-          <div className="control-section">
-            <MotionButton 
-              className="close-button"
-              variant="close"
-              onClick={handleCancel}
-              title="取消 (ESC)"
-              isProcessing={isProcessing}
-            >
-              ×
-            </MotionButton>
-          </div>
-        </MotionVoiceInputContainer>
-      </AnimatePresence>
+          {state === 'injecting' && (
+            <div className="success-container">
+              <div className="success-icon">✓</div>
+              <div className="final-text">{transcribedText}</div>
+            </div>
+          )}
+        </div>
+
+        {/* 右侧 - 控制按钮 */}
+        <div className="control-section">
+          <button 
+            className="close-button"
+            onClick={handleCancel}
+            title="取消 (ESC)"
+            disabled={isProcessing}
+          >
+            ×
+          </button>
+        </div>
+      </div>
 
       {/* 底部提示 */}
-      <MotionText 
-        className="bottom-hint"
-        isVisible={true}
-      >
+      <div className="bottom-hint">
         <span className="hint-text">
           {hasAudioInput 
             ? '正在聆听，说完请稍候...' 
             : '请开始说话'}
         </span>
-      </MotionText>
+      </div>
     </div>
   );
 };

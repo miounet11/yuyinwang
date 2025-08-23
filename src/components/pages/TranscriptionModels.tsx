@@ -7,36 +7,23 @@
 import React, { useState } from 'react';
 import './TranscriptionModels.css';
 import { SpokenlyCard, SpokenlyTag, SpokenlyButton } from '../ui';
+import { transcriptionModels, getModelsByCategory } from '../../data/models';
+import { TranscriptionModel } from '../../types/models';
 
 interface ModelCardProps {
-  id: string;
-  name: string;
-  provider: string;
-  description: string;
-  accuracy: number;
-  speed: number;
+  model: TranscriptionModel;
   isSelected?: boolean;
-  isRecommended?: boolean;
   isCurrent?: boolean;
-  tags?: string[];
-  languages?: string[];
   onSelect?: () => void;
 }
 
 const ModelCard: React.FC<ModelCardProps> = ({
-  id,
-  name,
-  provider,
-  description,
-  accuracy,
-  speed,
+  model,
   isSelected = false,
-  isRecommended = false,
   isCurrent = false,
-  tags = [],
-  languages = [],
   onSelect
 }) => {
+  const { id, name, provider, description, accuracy, speed, recommended, features = [], languages = [], type, modelSize, installed } = model;
   const renderStatusDots = (count: number, filled: number) => {
     return Array.from({ length: count }, (_, i) => (
       <span
@@ -65,7 +52,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         <div className="stat-item">
           <span className="stat-label">准确度</span>
           <div className="stat-dots">
-            {renderStatusDots(4, accuracy)}
+            {renderStatusDots(5, accuracy)}
           </div>
         </div>
         
@@ -79,21 +66,39 @@ const ModelCard: React.FC<ModelCardProps> = ({
         <div className="stat-item">
           <span className="stat-label">支持语言</span>
           <div className="language-count">
-            <span>{languages.length > 0 ? `${languages.length}种语言` : '多语言'}</span>
+            <span>{languages.length > 0 ? (languages.length === 1 ? languages[0] : `${languages.length}种语言`) : '多语言'}</span>
           </div>
         </div>
 
-        {tags.length > 0 && (
-          <div className="stat-item">
-            <div className="model-tags">
-              {tags.map((tag, index) => (
-                <SpokenlyTag key={index} variant="info" size="sm">
-                  {tag}
-                </SpokenlyTag>
-              ))}
-            </div>
+        <div className="stat-item">
+          <div className="model-tags">
+            {type === 'local' && (
+              <SpokenlyTag variant="success" size="sm">
+                {installed ? '已安装' : '可下载'}
+              </SpokenlyTag>
+            )}
+            {type === 'online' && (
+              <SpokenlyTag variant="info" size="sm">
+                在线API
+              </SpokenlyTag>
+            )}
+            {recommended && (
+              <SpokenlyTag variant="warning" size="sm">
+                推荐
+              </SpokenlyTag>
+            )}
+            {modelSize && (
+              <SpokenlyTag variant="secondary" size="sm">
+                {modelSize}
+              </SpokenlyTag>
+            )}
+            {isCurrent && (
+              <SpokenlyTag variant="primary" size="sm">
+                当前使用
+              </SpokenlyTag>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </SpokenlyCard>
   );
@@ -107,101 +112,40 @@ const TranscriptionModels: React.FC = () => {
     '全部', '在线', '本地', 'API', '快速', '准确', '标点符号', '字幕'
   ];
 
-  const models = [
-    {
-      id: 'nova-3-english',
-      name: 'Online Real-time Nova-3 (English Only)',
-      provider: 'Deepgram Nova-3驱动',
-      description: '实时听写具有卓越准确性，比英语优化版本。',
-      accuracy: 4,
-      speed: 5,
-      isRecommended: true,
-      tags: ['最新'],
-      languages: ['English']
-    },
-    {
-      id: 'gpt-4o-mini',
-      name: 'Online GPT-4o mini Transcribe',
-      provider: 'OpenAI GPT-4o mini驱动',
-      description: '卓越准确性和较处理，比Whisper或Nova模型更高。',
-      accuracy: 4,
-      speed: 2,
-      isCurrent: true,
-      tags: ['当前使用'],
-      languages: ['多语言']
-    },
-    {
-      id: 'voxtral-mini',
-      name: 'Online Voxtral Mini',
-      provider: 'Mistral AI',
-      description: "Mistral AI's fast and accurate transcription model with excellent multilingual support. Delivers high-quality results comparable to GPT-4o mini.",
-      accuracy: 4,
-      speed: 4,
-      tags: ['多语言'],
-      languages: ['多语言']
-    },
-    {
-      id: 'elevenlabs-scribe',
-      name: 'Online ElevenLabs Scribe',
-      provider: 'ElevenLabs Scribe驱动',
-      description: '高质量转录和音频处理各种语音识别和多语言支持。',
-      accuracy: 4,
-      speed: 4,
-      tags: ['多语言'],
-      languages: ['多语言']
-    },
-    {
-      id: 'whisper-v3-turbo',
-      name: 'Online Whisper v3 Turbo',
-      provider: 'Groq Whisper v3 Turbo驱动',
-      description: '高质量转录各类处理，微妙处理语音具体性短音。',
-      accuracy: 3,
-      speed: 5,
-      tags: ['多语言'],
-      languages: ['多语言']
-    },
-    {
-      id: 'whisper-large-v3',
-      name: 'Online Real-time Whisper Large v3',
-      provider: 'Fireworks AI Whisper v3驱动',
-      description: '实时听写具有卓越准确性，持续或式脑即时提供文本。',
-      accuracy: 5,
-      speed: 3,
-      tags: ['实时', '多语言'],
-      languages: ['多语言']
-    },
-    {
-      id: 'nova-3-realtime',
-      name: 'Online Real-time Nova-3',
-      provider: 'Deepgram Nova-3驱动',
-      description: '实时听写模型具有卓越准确性，支持多语言。',
-      accuracy: 4,
-      speed: 5,
-      tags: ['多语言'],
-      languages: ['多语言']
-    },
-    {
-      id: 'nova-3-medical',
-      name: 'Online Nova-3 Medical (Real-time)',
-      provider: 'Deepgram Nova-3 Medical驱动',
-      description: '专为医疗保健和医学术语优化的专业模型。',
-      accuracy: 4,
-      speed: 5,
-      tags: ['医疗', '实时'],
-      languages: ['医疗']
-    }
-  ];
-
-  const filteredModels = models.filter(model => {
+  // 使用正确的数据源和过滤逻辑
+  const filteredModels = transcriptionModels.filter(model => {
     if (selectedFilter === '全部') return true;
-    if (selectedFilter === '在线') return model.id.includes('online');
-    if (selectedFilter === '本地') return model.id.includes('local');
-    if (selectedFilter === 'API') return true; // 所有都是API模型
+    if (selectedFilter === '在线') return model.type === 'online';
+    if (selectedFilter === '本地') return model.type === 'local';
+    if (selectedFilter === 'API') return model.type === 'online'; // API模型都是在线模型
     if (selectedFilter === '快速') return model.speed >= 4;
     if (selectedFilter === '准确') return model.accuracy >= 4;
-    if (selectedFilter === '多语言') return model.languages.includes('多语言');
+    if (selectedFilter === '标点符号') return model.category.includes('punctuation');
+    if (selectedFilter === '字幕') return model.category.includes('subtitle');
     return true;
   });
+
+  // 获取当前分类的描述信息
+  const getFilterDescription = () => {
+    switch (selectedFilter) {
+      case '在线':
+        return '需要互联网连接的基于云端API的模型。这些模型通常具有更好的准确性和最新的功能，但需要稳定的网络连接。';
+      case '本地':
+        return '可以下载到本地运行的模型。这些模型在离线状态下工作，保护隐私，但需要本地计算资源和存储空间。';
+      case 'API':
+        return '基于云端API的在线转录服务，提供高准确度和快速响应，需要相应的API密钥配置。';
+      case '快速':
+        return '针对速度优化的模型，适合需要快速转录的场景。';
+      case '准确':
+        return '高准确度的模型，适合需要精确转录的专业场景。';
+      case '标点符号':
+        return '支持自动添加标点符号的模型，提供更好的文本格式化。';
+      case '字幕':
+        return '专为字幕制作优化的模型，支持时间戳和格式化输出。';
+      default:
+        return '从各种听写模型中选择 - 从云端API到本地模型，选择最适合您听写需求的准确性、隐私性和速度的平衡点。';
+    }
+  };
 
   return (
     <div className="spokenly-page">
@@ -225,15 +169,16 @@ const TranscriptionModels: React.FC = () => {
 
       <div className="spokenly-page-content">
         <p className="model-description">
-          需要互联网连接的基于云的模型。这些模型通常具有更好的准确性，但在网络中断时可用。
+          {getFilterDescription()}
         </p>
 
         <div className="models-grid">
           {filteredModels.map((model) => (
             <ModelCard
               key={model.id}
-              {...model}
+              model={model}
               isSelected={selectedModel === model.id}
+              isCurrent={selectedModel === model.id}
               onSelect={() => setSelectedModel(model.id)}
             />
           ))}
