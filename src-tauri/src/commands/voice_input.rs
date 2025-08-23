@@ -540,17 +540,24 @@ pub async fn start_progressive_voice_input(
     enable_real_time_injection: Option<bool>,
 ) -> Result<String, String> {
     use crate::AppState;
-    use crate::audio::streaming_transcriptor::{StreamingVoiceTranscriptor, StreamingConfig};
+    use crate::audio::streaming_transcriptor::{StreamingVoiceTranscriptor, StreamingConfig, AudioChunk};
     use tauri::Manager;
     use std::sync::Arc;
+    use tokio::sync::mpsc;
     
     let state = app.state::<AppState>();
     
-    // 检查是否已在录音
+    // 如果未在录音，则启动录音器
     {
         let is_recording = state.is_recording.lock();
-        if *is_recording {
-            return Ok("渐进式语音输入已在进行中".to_string());
+        if !*is_recording {
+            drop(is_recording);
+            let mut recorder = state.audio_recorder.lock();
+            recorder.reset_silence_detection();
+            recorder.start_recording().map_err(|e| format!("启动录音失败: {}", e))?;
+            // 标记录音状态
+            let mut rec_flag = state.is_recording.lock();
+            *rec_flag = true;
         }
     }
     
@@ -578,7 +585,7 @@ pub async fn start_progressive_voice_input(
     
     // 创建流式转录配置
     let streaming_config = StreamingConfig {
-        chunk_duration_ms: 300,      // 更快响应用于渐进式注入
+        chunk_duration_ms: 100,      // 更快响应用于渐进式注入
         overlap_duration_ms: 50,     // 减少重叠提高性能
         min_confidence: 0.65,        // 适中的置信度阈值
         silence_timeout_ms: 2500,    // 稍短的静音超时
@@ -614,21 +621,50 @@ pub async fn start_progressive_voice_input(
         transcription_service,
     );
     
-    // 创建渐进式文本注入器
-    let mut progressive_injector = ProgressiveTextInjector::new(
-        progressive_config,
-        injection_config,
-    );
+    // 连接真实音频：从 AudioRecorder 流监听，发送到 transcriptor 的音频通道
+    let (audio_tx, audio_rx) = mpsc::unbounded_channel::<AudioChunk>();
+    {
+        let recorder = state.audio_recorder.clone();
+        tokio::spawn(async move {
+            // 使用 crossbeam 通道从录音器获取样本块
+            let rx = recorder.lock().add_stream_listener();
+            let mut chunk_id: u64 = 0;
+            loop {
+                match rx.recv() {
+                    Ok(samples) => {
+                        // 获取采样率
+                        let sr = recorder.lock().get_sample_rate();
+                        chunk_id += 1;
+                        let _ = audio_tx.send(AudioChunk {
+                            data: samples,
+                            sample_rate: sr,
+                            timestamp: std::time::Instant::now(),
+                            chunk_id,
+                        });
+                    }
+                    Err(_) => {
+                        break;
+                    }
+                }
+            }
+        });
+    }
     
-    // 启动流式转录
-    match transcriptor.start_streaming(tokio::sync::mpsc::unbounded_channel().1).await {
+    // 启动流式转录（使用真实音频通道）
+    match transcriptor.start_streaming(audio_rx).await {
         Ok(_) => {
-            println!("✅ 流式转录器启动成功");
+            println!("✅ 流式转录器启动成功（已接入录音数据）");
         }
         Err(e) => {
             return Err(format!("启动流式转录失败: {}", e));
         }
     }
+    
+    // 创建渐进式文本注入器
+    let mut progressive_injector = ProgressiveTextInjector::new(
+        progressive_config,
+        injection_config,
+    );
     
     // 启动渐进式注入监听
     match progressive_injector.start_listening(event_receiver, target_app.clone()).await {
@@ -646,27 +682,24 @@ pub async fn start_progressive_voice_input(
         *is_recording = true;
     }
     
-    // 启动状态监控任务
+    // 启动状态监控任务：当转录与注入均结束时，停止录音
     let app_handle = app.clone();
     let is_recording_state = Arc::clone(&state.is_recording);
-    
     tokio::spawn(async move {
         let mut check_interval = tokio::time::interval(std::time::Duration::from_millis(500));
-        
         loop {
             check_interval.tick().await;
-            
-            // 检查转录器和注入器状态
             let transcriptor_active = transcriptor.is_running();
             let injector_active = progressive_injector.is_active();
-            
             if !transcriptor_active && !injector_active {
-                // 清理录音状态
+                // 停止录音器
                 {
-                    let mut state_recording = is_recording_state.lock();
-                    *state_recording = false;
+                    let mut recorder = app_handle.state::<AppState>().audio_recorder.lock();
+                    let _ = recorder.stop_recording();
                 }
-                
+                // 清理录音状态
+                let mut state_recording = is_recording_state.lock();
+                *state_recording = false;
                 // 发送完成事件
                 if let Err(e) = app_handle.emit_all("progressive_voice_input_complete", serde_json::json!({
                     "message": "渐进式语音输入已完成",
@@ -675,11 +708,9 @@ pub async fn start_progressive_voice_input(
                 })) {
                     eprintln!("发送完成事件失败: {}", e);
                 }
-                
                 break;
             }
-            
-            // 发送状态更新
+            // 状态更新
             if let Err(e) = app_handle.emit_all("progressive_voice_input_status", serde_json::json!({
                 "transcriptor_active": transcriptor_active,
                 "injector_active": injector_active,
@@ -689,9 +720,8 @@ pub async fn start_progressive_voice_input(
                 eprintln!("发送状态事件失败: {}", e);
             }
         }
-        
         println!("🔚 渐进式语音输入监控任务完成");
     });
     
-    Ok("渐进式语音输入已启动 - Week 2 实现完成 🚀".to_string())
+    Ok("渐进式语音输入已启动 - 已接入真实录音数据 🚀".to_string())
 }
