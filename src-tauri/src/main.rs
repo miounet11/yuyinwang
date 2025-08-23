@@ -381,6 +381,16 @@ fn main() {
                 }
             }
             
+            // 启动 Fn/F1 与 Option+Space 的长按监听（rdev全局按键按下/抬起）
+            {
+                let fn_listener_manager = shortcuts::ShortcutManager::new(app_handle.clone());
+                if let Err(e) = fn_listener_manager.start_fn_key_listener() {
+                    eprintln!("⚠️ 启动 Fn/Alt+Space 长按监听失败: {}", e);
+                } else {
+                    println!("✅ Fn/Alt+Space 长按监听已启动");
+                }
+            }
+            
             println!("✅ 历史管理器已注册");
             println!("✅ 转录编辑器已注册");
             println!("✅ 快捷键管理器已注册");
