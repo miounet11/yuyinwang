@@ -67,10 +67,12 @@ pub async fn toggle_floating_assistant(app_handle: AppHandle) -> Result<(), Stri
 
 /// 获取音频电平（用于可视化）
 #[tauri::command]
-pub async fn get_audio_level() -> Result<f32, String> {
-    // TODO: 实现实际的音频电平获取
-    // 目前返回模拟值
-    Ok(rand::random::<f32>() * 0.5 + 0.3)
+pub async fn get_audio_level(state: tauri::State<'_, crate::AppState>) -> Result<f32, String> {
+    let level = {
+        let recorder = state.audio_recorder.lock();
+        recorder.get_current_audio_level().unwrap_or(0.0)
+    };
+    Ok(level)
 }
 
 /// 停止录音并转录
