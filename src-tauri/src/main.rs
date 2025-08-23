@@ -18,6 +18,7 @@ mod subtitle;
 mod system;
 mod commands;
 mod shortcuts;
+mod diagnostics;
 
 // 保留的遗留模块（待进一步重构）
 mod folder_watcher;
@@ -353,6 +354,9 @@ fn main() {
             commands::stop_voice_recording,
             commands::start_streaming_voice_input,
             commands::start_progressive_voice_input,
+            // 诊断与自修复
+            diagnostics::run_full_diagnostics,
+            diagnostics::run_self_repair,
         ])
         .setup(|app| {
             let app_handle = app.handle();
