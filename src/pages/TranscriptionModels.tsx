@@ -30,7 +30,9 @@ interface TranscriptionModel {
   features: string[];
 }
 
-// 模拟模型数据
+const SHOW_DEMO_MODELS = false; // 生产环境关闭示例数据
+
+// 模拟模型数据（仅用于演示）
 const mockModels: TranscriptionModel[] = [
   {
     id: 'whisper-1',
@@ -93,6 +95,9 @@ const mockModels: TranscriptionModel[] = [
   }
 ];
 
+// 实际可用模型来源可改为从配置/后端加载，这里仅保留 Whisper-1 作为默认示例
+const realModels: TranscriptionModel[] = mockModels.filter(m => m.id === 'whisper-1');
+
 // 筛选标签
 const filterTags = [
   { value: 'all', label: '全部' },
@@ -117,9 +122,10 @@ export const TranscriptionModels: React.FC<TranscriptionModelsProps> = ({
 
   // 根据筛选条件过滤模型
   const filteredModels = useMemo(() => {
-    if (selectedFilter === 'all') return mockModels;
+    const source = SHOW_DEMO_MODELS ? mockModels : realModels;
+    if (selectedFilter === 'all') return source;
     
-    return mockModels.filter(model => {
+    return source.filter(model => {
       switch (selectedFilter) {
         case 'online':
           return model.status.type === 'online';
