@@ -4,13 +4,14 @@ import HistorySettings from './HistorySettings';
 import TextInjectionSettings from './TextInjectionSettings';
 import ModelConfig from './ModelConfig';
 import './UnifiedSettings.css';
+import AboutApp from './AboutApp';
 
 interface UnifiedSettingsProps {
   isVisible: boolean;
   onClose: () => void;
 }
 
-type SettingsTab = 'shortcuts' | 'history' | 'injection' | 'models' | 'appearance';
+type SettingsTab = 'shortcuts' | 'history' | 'injection' | 'models' | 'appearance' | 'about';
 
 const UnifiedSettings: React.FC<UnifiedSettingsProps> = ({ isVisible, onClose }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('shortcuts');
@@ -63,7 +64,8 @@ const UnifiedSettings: React.FC<UnifiedSettingsProps> = ({ isVisible, onClose })
     { id: 'history' as const, name: '历史记录', icon: '📝' },
     { id: 'injection' as const, name: '文本注入', icon: '📋' },
     { id: 'models' as const, name: '模型配置', icon: '🤖' },
-    { id: 'appearance' as const, name: '外观设置', icon: '🎨' }
+    { id: 'appearance' as const, name: '外观设置', icon: '🎨' },
+    { id: 'about' as const, name: '关于', icon: 'ℹ️' }
   ];
 
   const updateSettings = (category: string, newSettings: any) => {
@@ -228,6 +230,13 @@ const UnifiedSettings: React.FC<UnifiedSettingsProps> = ({ isVisible, onClose })
                   </label>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'about' && (
+            <div className="settings-panel">
+              <h3>关于</h3>
+              <AboutApp />
             </div>
           )}
         </div>

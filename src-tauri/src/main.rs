@@ -18,6 +18,7 @@ mod subtitle;
 mod system;
 mod commands;
 mod shortcuts;
+mod diagnostics;
 
 // 保留的遗留模块（待进一步重构）
 mod folder_watcher;
@@ -176,8 +177,10 @@ fn main() {
     // 创建系统托盘
     let quit = CustomMenuItem::new("quit".to_string(), "退出");
     let show = CustomMenuItem::new("show".to_string(), "显示");
+    let about = CustomMenuItem::new("about".to_string(), "关于 Recording King");
     let tray_menu = SystemTrayMenu::new()
         .add_item(show)
+        .add_item(about)
         .add_item(quit);
     let system_tray = SystemTray::new().with_menu(tray_menu);
     
@@ -201,6 +204,14 @@ fn main() {
                                 let _ = window.show();
                                 let _ = window.set_focus();
                             }
+                        }
+                        "about" => {
+                            let version = app.package_info().version.to_string();
+                            let msg = format!(
+                                "Recording King（录音王）\n版本：v{}\n开发公司：miaoda（AI 科技公司）\n官网：miaoda.xin",
+                                version
+                            );
+                            tauri::api::dialog::message(None::<&tauri::Window>, "关于 Recording King", msg);
                         }
                         _ => {}
                     }
@@ -332,9 +343,6 @@ fn main() {
             commands::get_audio_level,
             commands::stop_recording_and_transcribe,
             // 长按快捷键命令
-            commands::start_long_press_monitoring,
-            commands::test_long_press_trigger,
-            commands::get_long_press_status,
             // Week 3: 渐进式触发系统命令
             commands::start_progressive_trigger_monitoring,
             commands::update_progressive_trigger_config,
@@ -346,6 +354,9 @@ fn main() {
             commands::stop_voice_recording,
             commands::start_streaming_voice_input,
             commands::start_progressive_voice_input,
+            // 诊断与自修复
+            diagnostics::run_full_diagnostics,
+            diagnostics::run_self_repair,
         ])
         .setup(|app| {
             let app_handle = app.handle();
@@ -378,6 +389,16 @@ fn main() {
                 Err(e) => {
                     eprintln!("❌ 创建全局快捷键管理器失败: {}", e);
                     eprintln!("⚠️ 语音输入快捷键功能可能不可用");
+                }
+            }
+            
+            // 启动 Fn/F1 与 Option+Space 的长按监听（rdev全局按键按下/抬起）
+            {
+                let fn_listener_manager = shortcuts::ShortcutManager::new(app_handle.clone());
+                if let Err(e) = fn_listener_manager.start_fn_key_listener() {
+                    eprintln!("⚠️ 启动 Fn/Alt+Space 长按监听失败: {}", e);
+                } else {
+                    println!("✅ Fn/Alt+Space 长按监听已启动");
                 }
             }
             

@@ -177,6 +177,10 @@ pub struct VoiceShortcutConfig {
     pub trigger_mode: String,
     #[serde(default = "default_hold_duration")]
     pub hold_duration: u32,
+    #[serde(default = "default_realtime_injection")]
+    pub realtime_injection: bool,
+    #[serde(default = "default_hold_release_delay_ms")]
+    pub hold_release_delay_ms: u32,
 }
 
 fn default_trigger_mode() -> String {
@@ -185,6 +189,14 @@ fn default_trigger_mode() -> String {
 
 fn default_hold_duration() -> u32 {
     300
+}
+
+fn default_realtime_injection() -> bool {
+    true
+}
+
+fn default_hold_release_delay_ms() -> u32 {
+    150
 }
 
 impl Default for VoiceShortcutConfig {
@@ -197,6 +209,8 @@ impl Default for VoiceShortcutConfig {
             preferred_model: "luyingwang-online".to_string(),
             trigger_mode: default_trigger_mode(),
             hold_duration: default_hold_duration(),
+            realtime_injection: default_realtime_injection(),
+            hold_release_delay_ms: default_hold_release_delay_ms(),
         }
     }
 }
@@ -234,78 +248,6 @@ pub fn load_shortcut_config() -> Result<VoiceShortcutConfig, Box<dyn std::error:
     let json = fs::read_to_string(config_path)?;
     let config = serde_json::from_str(&json)?;
     Ok(config)
-}
-
-/// 启动长按快捷键监听 (简化版)
-#[tauri::command]
-pub async fn start_long_press_monitoring(app: tauri::AppHandle) -> Result<String, String> {
-    println!("🔄 启动长按快捷键监听 (使用Option+L模拟)");
-    
-    let shortcut = "Option+L";
-    let app_clone = app.clone();
-    
-    match app.global_shortcut_manager().register(shortcut, move || {
-        println!("🎙️ 长按快捷键触发 (Option+L)");
-        
-        if let Some(window) = app_clone.get_window("floating-input") {
-            let _ = window.show();
-            let _ = window.set_focus();
-            let _ = window.emit("voice_input_triggered", serde_json::json!({
-                "trigger": "long_press_simulation",
-                "key_combo": "option+l",
-                "timestamp": chrono::Utc::now().timestamp_millis()
-            }));
-            println!("✅ 语音输入窗口已触发 (模拟长按)");
-        } else {
-            println!("❌ 悬浮输入窗口未找到");
-        }
-    }) {
-        Ok(_) => {
-            println!("✅ 长按快捷键监听已启动 (使用 Option+L 模拟)");
-            Ok("长按快捷键监听已启动 (使用 Option+L 模拟)".to_string())
-        },
-        Err(e) => {
-            println!("❌ 启动长按快捷键监听失败: {}", e);
-            Err(format!("启动失败: {}", e))
-        }
-    }
-}
-
-/// 测试长按触发
-#[tauri::command] 
-pub async fn test_long_press_trigger(app: tauri::AppHandle) -> Result<String, String> {
-    println!("🧪 测试长按触发功能");
-    
-    if let Some(window) = app.get_window("floating-input") {
-        match window.show() {
-            Ok(_) => {
-                let _ = window.set_focus();
-                let _ = window.emit("voice_input_triggered", serde_json::json!({
-                    "trigger": "test",
-                    "key_combo": "test",
-                    "timestamp": chrono::Utc::now().timestamp_millis()
-                }));
-                Ok("长按触发测试完成 - 悬浮窗口已显示".to_string())
-            },
-            Err(e) => {
-                Err(format!("显示悬浮窗口失败: {}", e))
-            }
-        }
-    } else {
-        Err("悬浮输入窗口未找到".to_string())
-    }
-}
-
-/// 获取长按状态
-#[tauri::command]
-pub async fn get_long_press_status() -> Result<String, String> {
-    Ok(serde_json::json!({
-        "enabled": true,
-        "threshold_ms": 500,
-        "monitored_keys": ["option+l (模拟长按)"],
-        "description": "使用 Option+L 模拟长按 Option+Space 触发语音输入",
-        "note": "这是简化版实现，使用普通快捷键模拟长按效果"
-    }).to_string())
 }
 
 // Week 3: 渐进式触发系统命令

@@ -21,6 +21,7 @@ type InputState = 'idle' | 'listening' | 'processing' | 'injecting';
 const MacOSVoiceInput: React.FC = () => {
   const [state, setState] = useState<InputState>('idle');
   const [transcribedText, setTranscribedText] = useState('');
+  const [isPartial, setIsPartial] = useState<boolean>(false);
   const [activeApp, setActiveApp] = useState<ActiveAppInfo>({ name: '未知应用' });
   const [audioLevel, setAudioLevel] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -116,27 +117,53 @@ const MacOSVoiceInput: React.FC = () => {
         }
       }
       
-      // 显示窗口并自动开始录音
+      // 显示窗口并自动开始录音（按住事件到来时再真正开始）
       await appWindow.show();
       await appWindow.setFocus();
       
-      // 延迟一点开始录音，确保窗口已经显示
+      // 允许后续触发
       setTimeout(() => {
-        startListening();
-        // 录音开始后重置触发标志，允许下次触发
-        setTimeout(() => {
-          setIsProcessingTrigger(false);
-        }, 1000); // 1秒后允许新触发
-      }, 100);
+        setIsProcessingTrigger(false);
+      }, 300);
     });
 
-    // 监听实时转录结果
-    const unlistenTranscription = listen<string>('realtime_transcription', (event) => {
-      setTranscribedText(event.payload);
-      if (event.payload && event.payload.trim()) {
+    // 新增：监听长按开始/结束事件（来自原生 Fn/F1 监听）
+    const unlistenHoldStart = listen('voice_input_hold_start', () => {
+      if (!isRecording) {
+        startListening();
+      }
+    });
+    const unlistenHoldEnd = listen('voice_input_hold_end', () => {
+      if (isRecording) {
+        stopListening();
+      }
+    });
+
+    // 监听实时转录结果（渐进式部分）
+    const unlistenStreaming = listen<any>('streaming_transcription', (event) => {
+      const payload: any = event.payload || {};
+      const text: string = payload.text || '';
+      const partial: boolean = !!payload.is_partial;
+      setTranscribedText(text);
+      setIsPartial(partial);
+      if (text && text.trim()) {
         setHasAudioInput(true);
         resetSilenceTimeout();
       }
+    });
+
+    // 监听最终转写
+    const unlistenFinal = listen<string>('final_transcription', (event) => {
+      const finalText = (event.payload || '').toString();
+      if (finalText) {
+        setTranscribedText(finalText);
+        setIsPartial(false);
+      }
+    });
+
+    // 监听流式完成（可用于显示最终状态）
+    const unlistenStreamingComplete = listen<string>('streaming_complete', () => {
+      setIsPartial(false);
     });
 
     // 智能VAD音频电平监听 - 多层检测算法 + 动画集成
@@ -285,7 +312,11 @@ const MacOSVoiceInput: React.FC = () => {
 
     return () => {
       unlistenTrigger.then(fn => fn());
-      unlistenTranscription.then(fn => fn());
+      unlistenHoldStart.then(fn => fn());
+      unlistenHoldEnd.then(fn => fn());
+      unlistenStreaming.then(fn => fn());
+      unlistenFinal.then(fn => fn());
+      unlistenStreamingComplete.then(fn => fn());
       unlistenAudioLevel.then(fn => fn());
       document.removeEventListener('keydown', handleKeyDown);
       clearAllTimeouts();
@@ -643,8 +674,8 @@ const MacOSVoiceInput: React.FC = () => {
                   />
                 ))}
               </div>
-              <div className={transcribedText ? 'realtime-text' : 'listening-hint'}>
-                {getStatusText()}
+              <div className={transcribedText ? (isPartial ? 'realtime-text partial' : 'realtime-text final') : 'listening-hint'}>
+                {transcribedText || getStatusText()}
               </div>
             </div>
           )}
