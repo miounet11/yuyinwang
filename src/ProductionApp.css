@@ -1,0 +1,268 @@
+/* Production App - 生产级应用样式 */
+
+.production-app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #1e293b;
+  position: relative;
+}
+
+/* ===============================
+   加载状态
+=============================== */
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 3rem;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.spinner-icon {
+  font-size: 3rem;
+  animation: pulse-logo 2s infinite;
+}
+
+@keyframes pulse-logo {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.loading-text {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #374151;
+  text-align: center;
+}
+
+/* ===============================
+   覆盖层和模态框
+=============================== */
+.wizard-overlay,
+.permission-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.permission-modal {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+  animation: modal-slide-in 0.3s ease-out;
+}
+
+@keyframes modal-slide-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ===============================
+   响应式设计
+=============================== */
+
+/* 平板端 */
+@media (max-width: 1024px) {
+  .loading-spinner {
+    padding: 2rem;
+    margin: 1rem;
+  }
+
+  .spinner-icon {
+    font-size: 2.5rem;
+  }
+
+  .loading-text {
+    font-size: 1rem;
+  }
+
+  .permission-modal {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+    max-height: calc(100vh - 2rem);
+  }
+}
+
+/* 移动端 */
+@media (max-width: 768px) {
+  .loading-spinner {
+    padding: 1.5rem;
+    margin: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .spinner-icon {
+    font-size: 2rem;
+  }
+
+  .loading-text {
+    font-size: 0.875rem;
+  }
+
+  .permission-modal {
+    border-radius: 0.75rem;
+    margin: 0.5rem;
+  }
+
+  .wizard-overlay,
+  .permission-modal-overlay {
+    padding: 0.5rem;
+  }
+}
+
+/* 小屏手机 */
+@media (max-width: 480px) {
+  .loading-spinner {
+    padding: 1rem;
+    width: 90%;
+    max-width: 300px;
+  }
+
+  .permission-modal {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    max-width: none;
+    max-height: none;
+  }
+
+  .wizard-overlay,
+  .permission-modal-overlay {
+    padding: 0;
+  }
+}
+
+/* ===============================
+   深色模式支持
+=============================== */
+@media (prefers-color-scheme: dark) {
+  .production-app {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    color: #f1f5f9;
+  }
+
+  .app-loading {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  }
+
+  .loading-spinner {
+    background: rgba(15, 23, 42, 0.9);
+    border-color: rgba(51, 65, 85, 0.5);
+  }
+
+  .loading-text {
+    color: #e2e8f0;
+  }
+
+  .permission-modal {
+    background: #1e293b;
+    color: #f1f5f9;
+  }
+
+  .wizard-overlay,
+  .permission-modal-overlay {
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* ===============================
+   高对比度模式支持
+=============================== */
+@media (prefers-contrast: high) {
+  .loading-spinner,
+  .permission-modal {
+    border: 2px solid;
+    box-shadow: 0 0 0 2px currentColor;
+  }
+
+  .wizard-overlay,
+  .permission-modal-overlay {
+    background: rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* ===============================
+   减少动画模式
+=============================== */
+@media (prefers-reduced-motion: reduce) {
+  .spinner-icon,
+  .wizard-overlay,
+  .permission-modal-overlay,
+  .permission-modal {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ===============================
+   性能优化
+=============================== */
+.production-app {
+  will-change: auto;
+}
+
+.wizard-overlay,
+.permission-modal-overlay {
+  will-change: opacity;
+}
+
+.permission-modal {
+  will-change: transform, opacity;
+}
+
+/* GPU 加速 */
+.loading-spinner,
+.permission-modal {
+  transform: translate3d(0, 0, 0);
+}

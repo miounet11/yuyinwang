@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { invoke } from '@tauri-apps/api';
-import './RecordingStatusIndicator.css';
+import React, { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/tauri";
+import "./RecordingStatusIndicator.css";
 
 interface RecordingStatusIndicatorProps {
   isRecording: boolean;
@@ -10,7 +10,12 @@ interface RecordingStatusIndicatorProps {
   onToggleRecording?: () => void;
   shortcutKey?: string;
   showFloating?: boolean;
-  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  position?:
+    | "top-left"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-right"
+    | "center";
   audioDevices?: any[];
   currentDevice?: string;
 }
@@ -19,13 +24,13 @@ export default function RecordingStatusIndicator({
   isRecording,
   recordingDuration,
   audioLevel = 0,
-  selectedModel = 'whisper-tiny',
+  selectedModel = "whisper-tiny",
   onToggleRecording,
-  shortcutKey = 'Cmd+Shift+R',
+  shortcutKey = "Cmd+Shift+R",
   showFloating = false,
-  position = 'top-right',
+  position = "top-right",
   audioDevices = [],
-  currentDevice: propCurrentDevice = ''
+  currentDevice: propCurrentDevice = "",
 }: RecordingStatusIndicatorProps) {
   const [isVisible, setIsVisible] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
@@ -35,13 +40,13 @@ export default function RecordingStatusIndicator({
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   // 更新当前设备
   useEffect(() => {
     if (audioDevices.length > 0 && !currentDevice) {
-      const defaultDevice = audioDevices.find(d => d.is_default);
+      const defaultDevice = audioDevices.find((d) => d.is_default);
       if (defaultDevice) {
         setCurrentDevice(defaultDevice.name);
       }
@@ -65,7 +70,9 @@ export default function RecordingStatusIndicator({
   };
 
   const indicatorContent = (
-    <div className={`recording-status-indicator ${isRecording ? 'recording' : 'idle'} ${showFloating ? 'floating' : ''} position-${position}`}>
+    <div
+      className={`recording-status-indicator ${isRecording ? "recording" : "idle"} ${showFloating ? "floating" : ""} position-${position}`}
+    >
       {/* 主状态区域 */}
       <div className="status-main" onClick={() => setShowDetails(!showDetails)}>
         <div className="status-icon">
@@ -78,11 +85,9 @@ export default function RecordingStatusIndicator({
             <div className="idle-icon">⏸️</div>
           )}
         </div>
-        
+
         <div className="status-info">
-          <div className="status-text">
-            {isRecording ? '录音中' : '待机'}
-          </div>
+          <div className="status-text">{isRecording ? "录音中" : "待机"}</div>
           {isRecording && (
             <div className="recording-duration">
               {formatDuration(recordingDuration)}
@@ -97,10 +102,11 @@ export default function RecordingStatusIndicator({
               {Array.from({ length: 10 }, (_, i) => (
                 <div
                   key={i}
-                  className={`level-bar ${i < getAudioLevelBars(audioLevel) ? 'active' : ''}`}
+                  className={`level-bar ${i < getAudioLevelBars(audioLevel) ? "active" : ""}`}
                   style={{
                     height: `${(i + 1) * 10}%`,
-                    backgroundColor: i < 7 ? '#4caf50' : i < 9 ? '#ff9800' : '#f44336'
+                    backgroundColor:
+                      i < 7 ? "#4caf50" : i < 9 ? "#ff9800" : "#f44336",
                   }}
                 />
               ))}
@@ -114,7 +120,7 @@ export default function RecordingStatusIndicator({
         <div className="status-details">
           <div className="detail-row">
             <span className="detail-label">设备:</span>
-            <span className="detail-value">{currentDevice || '默认设备'}</span>
+            <span className="detail-value">{currentDevice || "默认设备"}</span>
           </div>
           <div className="detail-row">
             <span className="detail-label">模型:</span>
@@ -127,7 +133,9 @@ export default function RecordingStatusIndicator({
           {isRecording && (
             <div className="detail-row">
               <span className="detail-label">音量:</span>
-              <span className="detail-value">{Math.round(audioLevel * 100)}%</span>
+              <span className="detail-value">
+                {Math.round(audioLevel * 100)}%
+              </span>
             </div>
           )}
         </div>
@@ -136,11 +144,15 @@ export default function RecordingStatusIndicator({
       {/* 控制按钮 */}
       <div className="status-controls">
         <button
-          className={`control-btn toggle-btn ${isRecording ? 'stop' : 'start'}`}
+          className={`control-btn toggle-btn ${isRecording ? "stop" : "start"}`}
           onClick={handleToggle}
-          title={isRecording ? `停止录音 (${shortcutKey})` : `开始录音 (${shortcutKey})`}
+          title={
+            isRecording
+              ? `停止录音 (${shortcutKey})`
+              : `开始录音 (${shortcutKey})`
+          }
         >
-          {isRecording ? '⏹️' : '⏺️'}
+          {isRecording ? "⏹️" : "⏺️"}
         </button>
 
         {showFloating && (
@@ -149,7 +161,7 @@ export default function RecordingStatusIndicator({
             onClick={() => setIsVisible(!isVisible)}
             title="最小化/展开"
           >
-            {isVisible ? '➖' : '➕'}
+            {isVisible ? "➖" : "➕"}
           </button>
         )}
       </div>
@@ -165,9 +177,12 @@ export default function RecordingStatusIndicator({
 
   if (showFloating && !isVisible) {
     return (
-      <div className={`recording-status-minimized position-${position}`} onClick={() => setIsVisible(true)}>
-        <div className={`mini-indicator ${isRecording ? 'recording' : 'idle'}`}>
-          {isRecording ? '🔴' : '⚫'}
+      <div
+        className={`recording-status-minimized position-${position}`}
+        onClick={() => setIsVisible(true)}
+      >
+        <div className={`mini-indicator ${isRecording ? "recording" : "idle"}`}>
+          {isRecording ? "🔴" : "⚫"}
         </div>
       </div>
     );

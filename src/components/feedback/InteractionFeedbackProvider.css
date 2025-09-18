@@ -1,0 +1,422 @@
+/* Interaction Feedback Provider Styles */
+
+.interaction-feedback-provider {
+  position: relative;
+  overflow: hidden;
+}
+
+.interaction-feedback-provider.high-performance {
+  --performance-color: #4caf50;
+}
+
+.interaction-feedback-provider.low-performance {
+  --performance-color: #ff9800;
+}
+
+/* Ripple Animation */
+@keyframes ripple-animation {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.5);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.interaction-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+  z-index: 9999;
+  animation: ripple-animation 0.6s ease-out;
+}
+
+/* Enhanced Interactive Elements */
+.interaction-enhanced {
+  position: relative;
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.interaction-enhanced:hover {
+  transform: translateY(-1px);
+}
+
+.interaction-enhanced:active {
+  transform: translateY(0);
+  transition-duration: 0.05s;
+}
+
+/* Hover Effects */
+.interaction-hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  transition: background-color 0.1s ease;
+}
+
+/* Enhanced Buttons */
+button.interaction-enhanced,
+[role="button"].interaction-enhanced {
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+  color: white;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+button.interaction-enhanced:hover,
+[role="button"].interaction-enhanced:hover {
+  background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+button.interaction-enhanced:active,
+[role="button"].interaction-enhanced:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition-duration: 0.05s;
+}
+
+button.interaction-enhanced:focus,
+[role="button"].interaction-enhanced:focus {
+  outline: 2px solid var(--performance-color);
+  outline-offset: 2px;
+}
+
+/* Enhanced Input Elements */
+input.interaction-enhanced,
+textarea.interaction-enhanced,
+select.interaction-enhanced {
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: white;
+  border-radius: 4px;
+  padding: 8px 12px;
+  transition: all 0.1s ease;
+}
+
+input.interaction-enhanced:focus,
+textarea.interaction-enhanced:focus,
+select.interaction-enhanced:focus {
+  border-color: var(--performance-color);
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+  outline: none;
+}
+
+input.interaction-enhanced:hover,
+textarea.interaction-enhanced:hover,
+select.interaction-enhanced:hover {
+  border-color: #666;
+  background: #333;
+}
+
+/* Enhanced Links */
+a.interaction-enhanced {
+  color: #64b5f6;
+  text-decoration: none;
+  position: relative;
+  transition: all 0.1s ease;
+}
+
+a.interaction-enhanced:hover {
+  color: #90caf9;
+  text-shadow: 0 0 8px rgba(100, 181, 246, 0.3);
+}
+
+a.interaction-enhanced::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: currentColor;
+  transition: width 0.2s ease;
+}
+
+a.interaction-enhanced:hover::after {
+  width: 100%;
+}
+
+/* Performance Monitor */
+.interaction-performance-monitor {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10000;
+  font-family: 'Courier New', monospace;
+}
+
+.monitor-toggle {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  backdrop-filter: blur(5px);
+  transition: all 0.2s ease;
+}
+
+.monitor-toggle:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: var(--performance-color);
+}
+
+.monitor-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 280px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.monitor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.monitor-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.monitor-header button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.2s ease;
+}
+
+.monitor-header button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.monitor-stats {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.stat label {
+  color: #aaa;
+  font-size: 11px;
+}
+
+.stat span {
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.stat.good span {
+  color: #4caf50;
+}
+
+.stat.warning span {
+  color: #ff9800;
+}
+
+.recent-interactions {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 12px;
+}
+
+.recent-interactions h4 {
+  margin: 0 0 8px 0;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.recent-interactions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.recent-interactions li {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 10px;
+}
+
+.recent-interactions li:last-child {
+  border-bottom: none;
+}
+
+.recent-interactions li.fast {
+  color: #4caf50;
+}
+
+.recent-interactions li.slow {
+  color: #ff9800;
+}
+
+.recent-interactions .type {
+  color: #90caf9;
+  font-weight: 600;
+}
+
+.recent-interactions .time {
+  text-align: center;
+  font-weight: 700;
+}
+
+.recent-interactions .element {
+  text-align: right;
+  color: #aaa;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .interaction-performance-monitor {
+    top: 10px;
+    right: 10px;
+  }
+
+  .monitor-panel {
+    min-width: 240px;
+    padding: 12px;
+  }
+
+  .interaction-enhanced:hover {
+    transform: none; /* Disable hover transforms on mobile */
+  }
+}
+
+/* Dark Theme */
+@media (prefers-color-scheme: dark) {
+  .interaction-enhanced {
+    --performance-color: #66bb6a;
+  }
+
+  button.interaction-enhanced,
+  [role="button"].interaction-enhanced {
+    background: linear-gradient(135deg, #424242 0%, #212121 100%);
+  }
+
+  button.interaction-enhanced:hover,
+  [role="button"].interaction-enhanced:hover {
+    background: linear-gradient(135deg, #515151 0%, #424242 100%);
+  }
+}
+
+/* Light Theme */
+@media (prefers-color-scheme: light) {
+  .interaction-enhanced {
+    --performance-color: #4caf50;
+  }
+
+  button.interaction-enhanced,
+  [role="button"].interaction-enhanced {
+    background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+    color: #333;
+  }
+
+  button.interaction-enhanced:hover,
+  [role="button"].interaction-enhanced:hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+
+  .interaction-ripple {
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .monitor-toggle,
+  .monitor-panel {
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    border-color: rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+  .interaction-enhanced:focus {
+    outline: 3px solid yellow;
+    outline-offset: 2px;
+  }
+
+  button.interaction-enhanced,
+  [role="button"].interaction-enhanced {
+    border: 2px solid white;
+  }
+
+  .interaction-ripple {
+    background: rgba(255, 255, 0, 0.5);
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .interaction-enhanced,
+  .interaction-ripple,
+  .monitor-toggle {
+    transition: none;
+    animation: none;
+  }
+
+  .interaction-enhanced:hover {
+    transform: none;
+  }
+
+  @keyframes ripple-animation {
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+/* Print Styles */
+@media print {
+  .interaction-performance-monitor {
+    display: none;
+  }
+}

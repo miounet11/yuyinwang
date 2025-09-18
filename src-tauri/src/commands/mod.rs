@@ -1,27 +1,34 @@
 // 命令模块 - 统一管理所有Tauri命令
 
-use tauri::{State, Manager};
 use crate::types::*;
-use crate::{AppState, ai_agent};
+use crate::{ai_agent, AppState};
 use std::path::Path;
+use tauri::{Manager, State};
 
+pub mod audio_visualization;
+pub mod content_analysis;
+pub mod floating_assistant;
 pub mod history;
-pub mod transcription;
-pub mod subtitle;
+pub mod mode_management;
+pub mod model_management;
 pub mod permissions;
-pub mod text_injection;
+pub mod realtime_transcription;
 pub mod shortcut_management;
 pub mod shortcuts;
-pub mod floating_assistant;
+pub mod subtitle;
+pub mod text_injection;
+pub mod transcription;
+pub mod unified_permissions_simple;
+pub mod unified_shortcuts;
 
+pub use floating_assistant::*;
 pub use history::*;
-pub use transcription::*;
-pub use subtitle::*;
 pub use permissions::*;
-pub use text_injection::*;
 pub use shortcut_management::*;
 pub use shortcuts::*;
-pub use floating_assistant::*;
+pub use subtitle::*;
+pub use text_injection::*;
+pub use transcription::*;
 
 // 辅助函数
 
@@ -32,23 +39,23 @@ fn create_wav_file<P: AsRef<Path>>(
     sample_rate: u32,
     channels: u16,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use hound::{WavWriter, WavSpec, SampleFormat};
-    
+    use hound::{SampleFormat, WavSpec, WavWriter};
+
     let spec = WavSpec {
         channels,
         sample_rate,
         bits_per_sample: 16,
         sample_format: SampleFormat::Int,
     };
-    
+
     let mut writer = WavWriter::create(path, spec)?;
-    
+
     for &sample in audio_data {
         // 将 f32 转换为 i16
         let sample_i16 = (sample.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
         writer.write_sample(sample_i16)?;
     }
-    
+
     writer.finalize()?;
     Ok(())
 }
@@ -63,16 +70,24 @@ pub async fn transcribe_file(
 ) -> Result<TranscriptionResult, String> {
     let config = TranscriptionConfig {
         model_name: model.clone(),
-        language: Some(if model.starts_with("whisper-") { "zh".to_string() } else { "auto".to_string() }),
+        language: Some(if model.starts_with("whisper-") {
+            "zh".to_string()
+        } else {
+            "auto".to_string()
+        }),
         temperature: Some(0.0),
         is_local: model.starts_with("whisper-") && model != "whisper-1",
         api_endpoint: None,
     };
-    
-    match state.transcription_service.transcribe_audio(&file_path, &config).await {
+
+    match state
+        .transcription_service
+        .transcribe_audio(&file_path, &config)
+        .await
+    {
         Ok(result) => {
             println!("✅ 转录成功: {}", result.text);
-            
+
             // 保存到数据库
             let entry = TranscriptionEntry {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -90,13 +105,13 @@ pub async fn transcribe_file(
                 tags: None,
                 metadata: None,
             };
-            
+
             if let Err(e) = state.database.insert_transcription(&entry) {
                 eprintln!("保存转录记录失败: {}", e);
             }
-            
+
             Ok(result)
-        },
+        }
         Err(e) => {
             eprintln!("转录失败: {}", e);
             Err(e.to_string())
@@ -134,29 +149,28 @@ pub async fn process_ai_agent(
         options: request.additional_context.unwrap_or_default(),
         context: None,
     };
-    
+
     let service = state.ai_agent_service.clone();
     let agent_type = request.agent_type.clone();
-    
+
     // 在tokio任务中处理以避免Send问题
     match tokio::task::spawn_blocking(move || {
-        tokio::runtime::Handle::current().block_on(async {
-            service.lock().process_agent_request(ai_request).await
-        })
-    }).await {
-        Ok(Ok(response)) => {
-            Ok(AgentResponse {
-                success: response.success,
-                output_text: response.processed_text,
-                agent_type,
-                processing_time_ms: response.processing_time_ms,
-                error: response.error,
-            })
-        },
+        tokio::runtime::Handle::current()
+            .block_on(async { service.lock().process_agent_request(ai_request).await })
+    })
+    .await
+    {
+        Ok(Ok(response)) => Ok(AgentResponse {
+            success: response.success,
+            output_text: response.processed_text,
+            agent_type,
+            processing_time_ms: response.processing_time_ms,
+            error: response.error,
+        }),
         Ok(Err(e)) => {
             eprintln!("AI代理处理失败: {}", e);
             Err(e.to_string())
-        },
+        }
         Err(e) => {
             eprintln!("AI代理任务执行失败: {}", e);
             Err(format!("任务执行失败: {}", e))
@@ -165,18 +179,22 @@ pub async fn process_ai_agent(
 }
 
 #[tauri::command]
-pub async fn get_audio_devices(
-    state: State<'_, AppState>,
-) -> Result<Vec<AudioDevice>, String> {
+pub async fn get_audio_devices(state: State<'_, AppState>) -> Result<Vec<AudioDevice>, String> {
     match state.audio_device_manager.get_input_devices() {
         Ok(devices) => {
             println!("🎤 可用音频输入设备:");
             for (i, device) in devices.iter().enumerate() {
-                println!("  {}. {} (ID: {}, 默认: {}, 可用: {})", 
-                    i + 1, device.name, device.id, device.is_default, device.is_available);
+                println!(
+                    "  {}. {} (ID: {}, 默认: {}, 可用: {})",
+                    i + 1,
+                    device.name,
+                    device.id,
+                    device.is_default,
+                    device.is_available
+                );
             }
             Ok(devices)
-        },
+        }
         Err(e) => {
             eprintln!("获取音频设备失败: {}", e);
             Err(e.to_string())
@@ -192,38 +210,43 @@ pub async fn test_audio_input(
 ) -> Result<String, String> {
     let test_duration = duration_seconds.unwrap_or(3.0);
     println!("🧪 开始音频输入测试，持续时间: {:.1}秒", test_duration);
-    
+
     // 启动录音测试
     let start_result = {
         let mut recorder = state.audio_recorder.lock();
         recorder.start_recording()
     };
-    
+
     match start_result {
         Ok(_) => {
             println!("✅ 录音测试已启动");
-            
+
             // 等待指定时间
-            tokio::time::sleep(tokio::time::Duration::from_millis((test_duration * 1000.0) as u64)).await;
-            
+            tokio::time::sleep(tokio::time::Duration::from_millis(
+                (test_duration * 1000.0) as u64,
+            ))
+            .await;
+
             // 停止录音并分析
             let stop_result = {
                 let mut recorder = state.audio_recorder.lock();
                 recorder.stop_recording()
             };
-            
+
             match stop_result {
                 Ok(audio_data) => {
                     let audio_max = audio_data.iter().map(|&x| x.abs()).fold(0.0, f32::max);
-                    let audio_rms = (audio_data.iter().map(|&x| x * x).sum::<f32>() / audio_data.len() as f32).sqrt();
+                    let audio_rms = (audio_data.iter().map(|&x| x * x).sum::<f32>()
+                        / audio_data.len() as f32)
+                        .sqrt();
                     let sample_count = audio_data.len();
-                    
+
                     println!("📊 音频测试结果:");
                     println!("   - 样本数: {}", sample_count);
                     println!("   - 最大音量: {:.4}", audio_max);
                     println!("   - RMS音量: {:.4}", audio_rms);
                     println!("   - 持续时间: {:.2}秒", sample_count as f32 / 48000.0);
-                    
+
                     let result = if audio_max < 0.01 {
                         "❌ 音频输入异常：音量过低，请检查麦克风设置和权限"
                     } else if audio_rms < 0.005 {
@@ -231,18 +254,16 @@ pub async fn test_audio_input(
                     } else {
                         "✅ 音频输入正常"
                     };
-                    
-                    Ok(format!("{}\n样本数: {}, 最大音量: {:.4}, RMS音量: {:.4}", 
-                        result, sample_count, audio_max, audio_rms))
-                },
-                Err(e) => {
-                    Err(format!("停止录音测试失败: {}", e))
+
+                    Ok(format!(
+                        "{}\n样本数: {}, 最大音量: {:.4}, RMS音量: {:.4}",
+                        result, sample_count, audio_max, audio_rms
+                    ))
                 }
+                Err(e) => Err(format!("停止录音测试失败: {}", e)),
             }
-        },
-        Err(e) => {
-            Err(format!("启动录音测试失败: {}", e))
         }
+        Err(e) => Err(format!("启动录音测试失败: {}", e)),
     }
 }
 
@@ -255,20 +276,21 @@ pub async fn start_recording(
     if *is_recording {
         return Err("已在录音中".to_string());
     }
-    
+
     // 获取录音器引用
     let mut recorder = state.audio_recorder.lock();
-    
+
     // 启动真实的录音
     match recorder.start_recording() {
         Ok(_) => {
             *is_recording = true;
-            println!("🎙️ 录音已启动，使用设备: {:?}", device_id.as_deref().unwrap_or("默认设备"));
+            println!(
+                "🎙️ 录音已启动，使用设备: {:?}",
+                device_id.as_deref().unwrap_or("默认设备")
+            );
             Ok("录音已开始".to_string())
-        },
-        Err(e) => {
-            Err(format!("启动录音失败: {}", e))
         }
+        Err(e) => Err(format!("启动录音失败: {}", e)),
     }
 }
 
@@ -282,43 +304,59 @@ pub async fn stop_recording(
     if !*is_recording {
         return Err("当前没有在录音".to_string());
     }
-    
+
     // 获取录音器引用并停止录音
     let mut recorder = state.audio_recorder.lock();
-    
+
     match recorder.stop_recording() {
         Ok(audio_data) => {
             *is_recording = false;
             println!("🛑 录音已停止，捕获了 {} 个音频样本", audio_data.len());
-            
+
             // 自动进行转录
             if !audio_data.is_empty() {
                 println!("🎤 开始转录音频数据...");
-                
+
                 // 保存音频数据到临时文件
                 let temp_dir = std::env::temp_dir();
-                let temp_file = temp_dir.join(format!("recording_{}.wav", std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis()));
-                
+                let temp_file = temp_dir.join(format!(
+                    "recording_{}.wav",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis()
+                ));
+
                 // 音频质量分析
                 let audio_max = audio_data.iter().map(|&x| x.abs()).fold(0.0, f32::max);
-                let audio_rms = (audio_data.iter().map(|&x| x * x).sum::<f32>() / audio_data.len() as f32).sqrt();
-                println!("🎵 音频质量分析: 最大音量={:.4}, RMS音量={:.4}, 样本数={}", audio_max, audio_rms, audio_data.len());
-                
+                let audio_rms = (audio_data.iter().map(|&x| x * x).sum::<f32>()
+                    / audio_data.len() as f32)
+                    .sqrt();
+                println!(
+                    "🎵 音频质量分析: 最大音量={:.4}, RMS音量={:.4}, 样本数={}",
+                    audio_max,
+                    audio_rms,
+                    audio_data.len()
+                );
+
                 if audio_max < 0.01 {
-                    println!("⚠️ 警告：音频音量过低 (最大值={:.4})，可能影响转录质量", audio_max);
+                    println!(
+                        "⚠️ 警告：音频音量过低 (最大值={:.4})，可能影响转录质量",
+                        audio_max
+                    );
                 }
                 if audio_rms < 0.005 {
-                    println!("⚠️ 警告：音频信号较弱 (RMS={:.4})，建议提高麦克风音量或靠近说话", audio_rms);
+                    println!(
+                        "⚠️ 警告：音频信号较弱 (RMS={:.4})，建议提高麦克风音量或靠近说话",
+                        audio_rms
+                    );
                 }
-                
+
                 // 创建WAV文件
                 match crate::commands::create_wav_file(&temp_file, &audio_data, 48000, 1) {
                     Ok(_) => {
                         println!("📁 音频文件已保存: {:?}", temp_file);
-                        
+
                         // 使用用户选择的模型或默认配置进行转录
                         let selected_model = model.unwrap_or_else(|| "whisper-tiny".to_string());
                         println!("🔧 用户选择的模型: {}", selected_model);
@@ -337,13 +375,15 @@ pub async fn stop_recording(
                                 is_local: false,
                                 api_endpoint: None,
                             },
-                            model_name if model_name.starts_with("whisper-") => TranscriptionConfig {
-                                model_name: model_name.to_string(),
-                                language: Some("zh".to_string()), // 指定中文语言，避免误识别为西班牙语
-                                temperature: Some(0.0),
-                                is_local: true,
-                                api_endpoint: None,
-                            },
+                            model_name if model_name.starts_with("whisper-") => {
+                                TranscriptionConfig {
+                                    model_name: model_name.to_string(),
+                                    language: Some("zh".to_string()), // 指定中文语言，避免误识别为西班牙语
+                                    temperature: Some(0.0),
+                                    is_local: true,
+                                    api_endpoint: None,
+                                }
+                            }
                             _ => TranscriptionConfig {
                                 model_name: "whisper-tiny".to_string(),
                                 language: Some("zh".to_string()), // 默认也指定中文
@@ -352,18 +392,21 @@ pub async fn stop_recording(
                                 api_endpoint: None,
                             },
                         };
-                        
+
                         // 异步进行转录
                         let transcription_service = state.transcription_service.clone();
                         let temp_file_path = temp_file.to_string_lossy().to_string();
                         let database = state.database.clone();
                         let app_handle_clone = app_handle.clone();
-                        
+
                         tokio::spawn(async move {
-                            match transcription_service.transcribe_audio(&temp_file_path, &config).await {
+                            match transcription_service
+                                .transcribe_audio(&temp_file_path, &config)
+                                .await
+                            {
                                 Ok(result) => {
                                     println!("✅ 转录完成: {}", result.text);
-                                    
+
                                     // 保存到数据库
                                     let entry = TranscriptionEntry {
                                         id: uuid::Uuid::new_v4().to_string(),
@@ -371,7 +414,8 @@ pub async fn stop_recording(
                                         timestamp: std::time::SystemTime::now()
                                             .duration_since(std::time::UNIX_EPOCH)
                                             .unwrap()
-                                            .as_secs() as i64,
+                                            .as_secs()
+                                            as i64,
                                         duration: 0.0,
                                         model: config.model_name,
                                         confidence: 0.95,
@@ -381,31 +425,37 @@ pub async fn stop_recording(
                                         tags: None,
                                         metadata: None,
                                     };
-                                    
+
                                     if let Err(e) = database.insert_transcription(&entry) {
                                         eprintln!("保存转录记录失败: {}", e);
                                     }
-                                    
+
                                     // 发送转录结果事件到前端
-                                    match app_handle_clone.emit_all("transcription_result", &entry) { Err(e) => {
-                                        eprintln!("发送转录结果事件失败: {}", e);
-                                    } _ => {
-                                        println!("✅ 转录结果事件已发送到前端");
-                                    }}
-                                    
+                                    match app_handle_clone.emit_all("transcription_result", &entry)
+                                    {
+                                        Err(e) => {
+                                            eprintln!("发送转录结果事件失败: {}", e);
+                                        }
+                                        _ => {
+                                            println!("✅ 转录结果事件已发送到前端");
+                                        }
+                                    }
+
                                     // 清理临时文件
                                     if let Err(e) = std::fs::remove_file(&temp_file_path) {
                                         eprintln!("清理临时文件失败: {}", e);
                                     }
-                                },
+                                }
                                 Err(e) => {
                                     eprintln!("转录失败: {}", e);
-                                    
+
                                     // 发送转录错误事件到前端
-                                    if let Err(emit_error) = app_handle_clone.emit_all("transcription_error", &e.to_string()) {
+                                    if let Err(emit_error) = app_handle_clone
+                                        .emit_all("transcription_error", &e.to_string())
+                                    {
                                         eprintln!("发送转录错误事件失败: {}", emit_error);
                                     }
-                                    
+
                                     // 清理临时文件
                                     if let Err(e) = std::fs::remove_file(&temp_file_path) {
                                         eprintln!("清理临时文件失败: {}", e);
@@ -413,15 +463,18 @@ pub async fn stop_recording(
                                 }
                             }
                         });
-                    },
+                    }
                     Err(e) => {
                         eprintln!("保存音频文件失败: {}", e);
                     }
                 }
             }
-            
-            Ok(format!("录音已停止，录制了 {:.2} 秒音频，正在转录...", audio_data.len() as f32 / 48000.0))
-        },
+
+            Ok(format!(
+                "录音已停止，录制了 {:.2} 秒音频，正在转录...",
+                audio_data.len() as f32 / 48000.0
+            ))
+        }
         Err(e) => {
             *is_recording = false; // 确保状态正确
             Err(format!("停止录音失败: {}", e))
@@ -445,7 +498,7 @@ pub async fn update_app_settings(
         Ok(_) => {
             *state.settings.lock() = settings;
             Ok(())
-        },
+        }
         Err(e) => {
             eprintln!("保存设置失败: {}", e);
             Err(e.to_string())
@@ -454,29 +507,25 @@ pub async fn update_app_settings(
 }
 
 #[tauri::command]
-pub async fn get_recording_state(
-    state: State<'_, AppState>,
-) -> Result<bool, String> {
+pub async fn get_recording_state(state: State<'_, AppState>) -> Result<bool, String> {
     let is_recording = *state.is_recording.lock();
     println!("📊 获取录音状态: {}", is_recording);
     Ok(is_recording)
 }
 
 #[tauri::command]
-pub async fn reset_recording_state(
-    state: State<'_, AppState>,
-) -> Result<String, String> {
+pub async fn reset_recording_state(state: State<'_, AppState>) -> Result<String, String> {
     let mut is_recording = state.is_recording.lock();
     let was_recording = *is_recording;
     *is_recording = false;
-    
+
     // 同时重置录音器状态
     {
         let mut recorder = state.audio_recorder.lock();
         // 强制重置录音器状态，无论当前是否在录音
         recorder.force_reset();
     }
-    
+
     println!("🔄 重置录音状态: {} -> false", was_recording);
     Ok(format!("录音状态已重置: {} -> false", was_recording))
 }

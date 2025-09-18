@@ -1,105 +1,99 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import './ErrorBoundary.css';
+import React, { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  componentName?: string;
 }
 
 interface State {
   hasError: boolean;
-  error: Error | null;
-  errorInfo: ErrorInfo | null;
+  error?: Error;
+  errorInfo?: ErrorInfo;
 }
 
 class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null
-    };
+    this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null
-    };
+    console.error("ErrorBoundary caught an error:", error);
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('错误边界捕获到错误:', error, errorInfo);
+    console.error("ErrorBoundary详细错误信息:", {
+      error,
+      errorInfo,
+      componentName: this.props.componentName,
+      timestamp: new Date().toISOString(),
+    });
+
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
-    
-    // 可以在这里将错误日志发送到服务器
-    this.logErrorToService(error, errorInfo);
   }
-
-  logErrorToService = (error: Error, errorInfo: ErrorInfo) => {
-    // 实际项目中，这里应该将错误信息发送到错误监控服务
-    console.log('发送错误到监控服务:', {
-      message: error.toString(),
-      stack: errorInfo.componentStack,
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null
-    });
-  };
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return <>{this.props.fallback}</>;
-      }
-
-      return (
-        <div className="error-boundary">
-          <div className="error-container">
-            <div className="error-icon">⚠️</div>
-            <h2>哎呀，出现了一些问题！</h2>
-            <p className="error-message">
-              {this.state.error?.message || '应用程序遇到了意外错误'}
-            </p>
-            
-            {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
-              <details className="error-details">
-                <summary>错误详情（开发模式）</summary>
-                <pre className="error-stack">
-                  {this.state.error?.stack}
-                  {this.state.errorInfo.componentStack}
-                </pre>
-              </details>
-            )}
-            
-            <div className="error-actions">
-              <button 
-                className="reset-button"
-                onClick={this.handleReset}
-              >
-                重试
-              </button>
-              <button 
-                className="reload-button"
-                onClick={() => window.location.reload()}
-              >
-                刷新页面
-              </button>
-            </div>
-          </div>
+      const fallback = this.props.fallback || (
+        <div
+          style={{
+            padding: "20px",
+            border: "2px solid #ff6b6b",
+            borderRadius: "8px",
+            backgroundColor: "#ffe0e0",
+            margin: "10px 0",
+          }}
+        >
+          <h3 style={{ color: "#d63031", marginTop: 0 }}>
+            🚨 {this.props.componentName || "组件"} 加载失败
+          </h3>
+          <details style={{ marginTop: "10px" }}>
+            <summary style={{ cursor: "pointer", fontWeight: "bold" }}>
+              点击查看错误详情
+            </summary>
+            <pre
+              style={{
+                background: "#f8f8f8",
+                padding: "10px",
+                borderRadius: "4px",
+                overflow: "auto",
+                fontSize: "12px",
+                marginTop: "10px",
+              }}
+            >
+              {this.state.error?.message}
+              {this.state.errorInfo?.componentStack}
+            </pre>
+          </details>
+          <button
+            onClick={() =>
+              this.setState({
+                hasError: false,
+                error: undefined,
+                errorInfo: undefined,
+              })
+            }
+            style={{
+              marginTop: "10px",
+              padding: "8px 16px",
+              backgroundColor: "#74b9ff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            🔄 重试加载
+          </button>
         </div>
       );
+
+      return fallback;
     }
 
     return this.props.children;

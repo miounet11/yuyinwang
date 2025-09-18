@@ -7,49 +7,56 @@ pub enum AppError {
     AudioDeviceError(String),
     AudioRecordingError(String),
     AudioProcessingError(String),
-    
+
     // 转录相关错误
     TranscriptionError(String),
     WhisperError(String),
     ApiTranscriptionError(String),
-    
+
     // AI代理相关错误
     AiAgentError(String),
     OpenAiApiError(String),
     PromptProcessingError(String),
-    
+
     // 数据库相关错误
     DatabaseError(String),
     DataSerializationError(String),
-    
+
     // 文件系统相关错误
     FileSystemError(String),
     PathValidationError(String),
-    
+
     // 网络相关错误
     NetworkError(String),
     HttpRequestError(String),
-    
+
     // 权限相关错误
     PermissionError(String),
     AccessibilityError(String),
     SystemIntegrationError(String),
-    
+
     // 配置相关错误
     ConfigurationError(String),
-    
+
     // 快捷键相关错误
     ShortcutError(String),
-    
+
     // 窗口相关错误
     WindowError(String),
-    
+
     // 系统错误
     SystemError(String),
-    
+
     // 通用错误
     ValidationError(String),
     UnexpectedError(String),
+
+    // 模型相关错误
+    InvalidParameter(String),
+    ModelLoadError(String),
+
+    // 操作相关错误
+    InvalidOperation(String),
 }
 
 impl fmt::Display for AppError {
@@ -79,6 +86,9 @@ impl fmt::Display for AppError {
             AppError::SystemError(msg) => write!(f, "系统错误: {}", msg),
             AppError::ValidationError(msg) => write!(f, "验证错误: {}", msg),
             AppError::UnexpectedError(msg) => write!(f, "未预期的错误: {}", msg),
+            AppError::InvalidParameter(msg) => write!(f, "无效参数: {}", msg),
+            AppError::ModelLoadError(msg) => write!(f, "模型加载错误: {}", msg),
+            AppError::InvalidOperation(msg) => write!(f, "无效操作: {}", msg),
         }
     }
 }

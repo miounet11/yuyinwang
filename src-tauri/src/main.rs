@@ -1,23 +1,28 @@
 // Recording King - 重构版本
 // 模块化架构，统一错误处理，清晰的关注点分离
 
-use tauri::{Manager, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent, WindowBuilder, WindowUrl};
-use std::sync::Arc;
 use parking_lot::Mutex;
 use reqwest::Client;
+use std::sync::Arc;
+use tauri::{
+    CustomMenuItem, Manager, /* SystemTray, SystemTrayEvent, SystemTrayMenu, */ WindowBuilder,
+    WindowEvent, WindowUrl,
+};
 
 // 核心模块导入
-mod errors;
-mod types;
-mod config;
-mod audio;
-mod transcription;
+mod ai;
 mod ai_agent;
+mod audio;
+mod commands;
+mod config;
 mod database;
+mod errors;
+mod network;
+mod shortcuts;
 mod subtitle;
 mod system;
-mod commands;
-mod shortcuts;
+mod transcription;
+mod types;
 
 // 保留的遗留模块（待进一步重构）
 mod folder_watcher;
@@ -25,12 +30,17 @@ mod performance_optimizer;
 mod security;
 
 // 使用重构后的模块
-use errors::{AppError, AppResult};
-use config::AppSettings;
-use audio::AudioDeviceManager;
-use transcription::{TranscriptionService, TranscriptionEditor};
+use ai::ContentAnalysisConfig;
 use ai_agent::AIAgentService;
+use audio::AudioDeviceManager;
+use commands::content_analysis::ContentAnalysisService;
+use config::AppSettings;
 use database::{DatabaseManager, HistoryManager};
+use errors::{AppError, AppResult};
+use network::{NetworkMonitor, TranscriptionModeManager};
+use shortcuts::UnifiedShortcutManager;
+use system::UnifiedPermissionManagerSimple;
+use transcription::{LocalModelManager, TranscriptionEditor, TranscriptionService};
 
 // 安全模块
 
@@ -38,11 +48,14 @@ use database::{DatabaseManager, HistoryManager};
 #[cfg(target_os = "macos")]
 fn check_accessibility_permission() -> bool {
     let status = std::process::Command::new("osascript")
-        .args(&["-e", "tell application \"System Events\" to get name of first process"])
+        .args(&[
+            "-e",
+            "tell application \"System Events\" to get name of first process",
+        ])
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false);
-    
+
     if !status {
         println!("🔍 请在 系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能 中启用此应用");
     }
@@ -57,46 +70,53 @@ pub struct AppState {
     pub history_manager: Arc<HistoryManager>,
     pub transcription_service: Arc<TranscriptionService>,
     pub transcription_editor: Arc<TranscriptionEditor>,
+    pub local_model_manager: Arc<LocalModelManager>,
     pub ai_agent_service: Arc<Mutex<AIAgentService>>,
     pub audio_device_manager: Arc<AudioDeviceManager>,
     pub audio_recorder: Arc<Mutex<audio::AudioRecorder>>,
     pub folder_watcher: Arc<folder_watcher::FolderWatcher>,
     pub performance_optimizer: Arc<Mutex<performance_optimizer::PerformanceOptimizer>>,
+    pub unified_permission_manager: Arc<Mutex<UnifiedPermissionManagerSimple>>,
+    pub unified_shortcut_manager: Arc<Mutex<UnifiedShortcutManager>>,
+    pub audio_visualization_manager:
+        Arc<commands::audio_visualization::AudioVisualizationSubscriptionManager>,
+    pub content_analysis_service: Arc<ContentAnalysisService>,
+    // Story 1.4: Network monitoring and transcription mode management
+    pub network_monitor: Arc<NetworkMonitor>,
+    pub transcription_mode_manager: Arc<TranscriptionModeManager>,
 }
 
 impl AppState {
-    pub fn new() -> AppResult<Self> {
+    pub fn new(app_handle: tauri::AppHandle) -> AppResult<Self> {
         // 加载配置
         let settings = AppSettings::load()?;
         settings.ensure_directories()?;
-        
+
         // 创建HTTP客户端
         let http_client = Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .build()
             .map_err(|e| AppError::NetworkError(format!("创建HTTP客户端失败: {}", e)))?;
-        
+
         // 初始化数据库
         let db_path = settings.storage.data_dir.join("spokenly.db");
         let database = Arc::new(DatabaseManager::new(&db_path)?);
-        
+
         // 初始化历史管理器
         let history_manager = HistoryManager::new(database.clone());
-        
+
         // 初始化服务
-        let transcription_service = TranscriptionService::new(
-            http_client.clone(),
-            settings.ai.openai_api_key.clone(),
-        );
-        
+        let transcription_service =
+            TranscriptionService::new(http_client.clone(), settings.ai.openai_api_key.clone());
+
         let ai_agent_service = AIAgentService::new(
             http_client,
             settings.ai.openai_api_key.clone().unwrap_or_default(),
             ai_agent::AgentConfig::default(),
         );
-        
+
         let audio_device_manager = AudioDeviceManager::new();
-        
+
         // 初始化音频录制器
         let default_config = types::RecordingConfig {
             device_id: None,
@@ -106,10 +126,45 @@ impl AppState {
             buffer_duration: Some(3.0),
         };
         let audio_recorder = audio::AudioRecorder::new(default_config);
-        
+
         // 初始化转录编辑器
         let transcription_editor = TranscriptionEditor::new();
-        
+
+        // 初始化本地模型管理器
+        let local_model_manager = LocalModelManager::new(
+            database.clone(),
+            settings.storage.data_dir.clone(),
+            app_handle.clone(),
+        )?;
+
+        // 初始化统一权限管理器
+        let unified_permission_manager = UnifiedPermissionManagerSimple::new(app_handle.clone())?;
+
+        // 初始化统一快捷键管理器
+        let unified_shortcut_manager = UnifiedShortcutManager::new(app_handle.clone())?;
+
+        // 初始化音频可视化管理器
+        let audio_visualization_manager =
+            commands::audio_visualization::AudioVisualizationSubscriptionManager::new();
+
+        // 初始化AI内容分析服务
+        let content_analysis_config = ContentAnalysisConfig {
+            openai_config: ai::OpenAIConfig {
+                api_key: settings.ai.openai_api_key.clone().unwrap_or_default(),
+                model: "gpt-4o-mini".to_string(),
+                temperature: 0.3,
+                max_tokens: 2000,
+                base_url: None,
+            },
+            ..Default::default()
+        };
+        let content_analysis_service = ContentAnalysisService::new(content_analysis_config);
+
+        // Story 1.4: 初始化网络监控和转录模式管理器
+        let network_monitor = Arc::new(NetworkMonitor::new());
+        let transcription_mode_manager =
+            Arc::new(TranscriptionModeManager::new(network_monitor.clone()));
+
         Ok(Self {
             settings: Arc::new(Mutex::new(settings)),
             is_recording: Arc::new(Mutex::new(false)),
@@ -117,23 +172,33 @@ impl AppState {
             history_manager: Arc::new(history_manager),
             transcription_service: Arc::new(transcription_service),
             transcription_editor: Arc::new(transcription_editor),
+            local_model_manager: Arc::new(local_model_manager),
             ai_agent_service: Arc::new(Mutex::new(ai_agent_service)),
             audio_device_manager: Arc::new(audio_device_manager),
             audio_recorder: Arc::new(Mutex::new(audio_recorder)),
             folder_watcher: Arc::new(folder_watcher::FolderWatcher::new()),
-            performance_optimizer: Arc::new(Mutex::new(performance_optimizer::PerformanceOptimizer::new())),
+            performance_optimizer: Arc::new(Mutex::new(
+                performance_optimizer::PerformanceOptimizer::new(),
+            )),
+            unified_permission_manager: Arc::new(Mutex::new(unified_permission_manager)),
+            unified_shortcut_manager: Arc::new(Mutex::new(unified_shortcut_manager)),
+            audio_visualization_manager: Arc::new(audio_visualization_manager),
+            content_analysis_service: Arc::new(content_analysis_service),
+            network_monitor,
+            transcription_mode_manager,
         })
     }
 }
 
-
 /// 创建悬浮输入窗口
-fn create_floating_input_window(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+fn create_floating_input_window(
+    app_handle: &tauri::AppHandle,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 检查窗口是否已存在
     if app_handle.get_window("floating-input").is_some() {
         return Ok(());
     }
-    
+
     // 创建悬浮输入窗口
     let window = WindowBuilder::new(
         app_handle,
@@ -147,54 +212,38 @@ fn create_floating_input_window(app_handle: &tauri::AppHandle) -> Result<(), Box
     .skip_taskbar(true)
     .inner_size(600.0, 120.0)
     .center()
-    .visible(false)  // 初始隐藏，由快捷键触发显示
+    .visible(false) // 初始隐藏，由快捷键触发显示
     .build()?;
-    
+
     Ok(())
 }
 
 fn main() {
     println!("🎙️ Recording King 启动中...");
-    
-    // 初始化应用状态
-    let app_state = match AppState::new() {
-        Ok(state) => state,
-        Err(e) => {
-            eprintln!("❌ 应用初始化失败: {}", e);
-            std::process::exit(1);
-        }
-    };
-    
-    // 创建系统托盘
-    let quit = CustomMenuItem::new("quit".to_string(), "退出");
-    let show = CustomMenuItem::new("show".to_string(), "显示");
-    let tray_menu = SystemTrayMenu::new()
-        .add_item(show)
-        .add_item(quit);
-    let system_tray = SystemTray::new().with_menu(tray_menu);
-    
+
+    // 创建系统托盘 - 暂时禁用
+    // let quit = CustomMenuItem::new("quit".to_string(), "退出");
+    // let show = CustomMenuItem::new("show".to_string(), "显示");
+    // let tray_menu = SystemTrayMenu::new().add_item(show).add_item(quit);
+    // let system_tray = SystemTray::new().with_menu(tray_menu);
+
     tauri::Builder::default()
-        .manage(app_state)
-        .system_tray(system_tray)
-        .on_system_tray_event(|app, event| {
-            match event {
-                SystemTrayEvent::MenuItemClick { id, .. } => {
-                    match id.as_str() {
-                        "quit" => {
-                            std::process::exit(0);
-                        }
-                        "show" => {
-                            if let Some(window) = app.get_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                _ => {}
-            }
-        })
+        // .system_tray(system_tray)
+        // .on_system_tray_event(|app, event| match event {
+        //     SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+        //         "quit" => {
+        //             std::process::exit(0);
+        //         }
+        //         "show" => {
+        //             if let Some(window) = app.get_window("main") {
+        //                 let _ = window.show();
+        //                 let _ = window.set_focus();
+        //             }
+        //         }
+        //         _ => {}
+        //     },
+        //     _ => {}
+        // })
         .on_window_event(|event| match event.event() {
             WindowEvent::CloseRequested { api, .. } => {
                 event.window().hide().unwrap();
@@ -222,6 +271,18 @@ fn main() {
             system::get_permission_guide,
             system::show_permission_warning_dialog,
             system::check_critical_permissions,
+            // 统一权限管理命令
+            commands::unified_permissions_simple::unified_check_all_permissions,
+            commands::unified_permissions_simple::unified_request_permission,
+            commands::unified_permissions_simple::unified_get_permission_guidance,
+            commands::unified_permissions_simple::unified_is_wizard_completed,
+            commands::unified_permissions_simple::unified_mark_wizard_completed,
+            commands::unified_permissions_simple::unified_start_permission_monitoring,
+            commands::unified_permissions_simple::unified_stop_permission_monitoring,
+            commands::unified_permissions_simple::unified_quick_permission_check,
+            commands::unified_permissions_simple::unified_test_permissions,
+            commands::unified_permissions_simple::unified_get_permission_summary,
+            commands::unified_permissions_simple::unified_reset_permission_state,
             // 历史记录管理命令
             commands::advanced_search_entries,
             commands::grouped_search_entries,
@@ -283,6 +344,11 @@ fn main() {
             commands::get_default_text_injection_config,
             commands::validate_text_injection_config,
             commands::clear_text_injection_history,
+            // Story 1.6: 增强的文本注入命令
+            commands::validate_injection_environment,
+            commands::enhanced_smart_inject,
+            commands::text_injection_health_check,
+            commands::fix_text_injection_issues,
             // 快捷键管理命令
             commands::register_global_shortcut,
             commands::unregister_global_shortcut,
@@ -307,6 +373,29 @@ fn main() {
             commands::trigger_voice_input_test,
             commands::show_floating_input,
             commands::debug_shortcut_status,
+            // 统一快捷键管理命令
+            commands::unified_shortcuts::register_unified_shortcut,
+            commands::unified_shortcuts::unregister_unified_shortcut,
+            commands::unified_shortcuts::get_unified_registered_shortcuts,
+            commands::unified_shortcuts::check_shortcut_conflict,
+            commands::unified_shortcuts::get_shortcut_presets,
+            commands::unified_shortcuts::apply_shortcut_preset,
+            commands::unified_shortcuts::get_shortcut_metrics,
+            commands::unified_shortcuts::get_performance_report,
+            commands::unified_shortcuts::run_shortcut_benchmark,
+            commands::unified_shortcuts::export_shortcut_config,
+            commands::unified_shortcuts::import_shortcut_config,
+            commands::unified_shortcuts::reset_all_shortcuts,
+            // Story 1.3 实时转录命令
+            commands::realtime_transcription::start_realtime_transcription,
+            commands::realtime_transcription::stop_realtime_transcription,
+            commands::realtime_transcription::get_realtime_session_status,
+            commands::realtime_transcription::get_audio_quality_analysis,
+            commands::realtime_transcription::get_available_audio_devices,
+            commands::realtime_transcription::switch_audio_device,
+            commands::realtime_transcription::start_device_monitoring,
+            commands::realtime_transcription::test_audio_input_quality,
+            commands::realtime_transcription::get_transcription_performance_report,
             // 悬浮助手命令
             commands::show_main_window,
             commands::show_settings,
@@ -320,29 +409,90 @@ fn main() {
             commands::start_long_press_monitoring,
             commands::test_long_press_trigger,
             commands::get_long_press_status,
+            // 本地模型管理命令 (Story 1.4)
+            commands::model_management::list_whisper_models,
+            commands::model_management::download_whisper_model,
+            commands::model_management::delete_whisper_model,
+            commands::model_management::verify_whisper_model,
+            commands::model_management::get_models_storage_info,
+            commands::model_management::detect_gpu_capabilities,
+            commands::model_management::get_gpu_capabilities,
+            commands::model_management::recommend_whisper_model,
+            commands::model_management::is_model_available,
+            // 音频可视化命令 (Story 1.5)
+            commands::audio_visualization::get_audio_visualization_data,
+            commands::audio_visualization::subscribe_audio_visualization,
+            commands::audio_visualization::unsubscribe_audio_visualization,
+            commands::audio_visualization::update_visualization_config,
+            commands::audio_visualization::get_visualization_metrics,
+            commands::audio_visualization::clear_visualization_history,
+            commands::audio_visualization::set_voice_activity_threshold,
+            commands::audio_visualization::get_waveform_color_schemes,
+            // AI内容分析命令 (Story 2.1)
+            commands::content_analysis::analyze_content,
+            commands::content_analysis::batch_analyze_content,
+            commands::content_analysis::get_analysis_performance_stats,
+            commands::content_analysis::update_analysis_config,
+            commands::content_analysis::clear_analysis_cache,
+            commands::content_analysis::quick_topic_identification,
+            commands::content_analysis::quick_sentiment_analysis,
+            commands::content_analysis::quick_key_info_extraction,
+            commands::content_analysis::start_realtime_analysis,
+            commands::content_analysis::cancel_realtime_analysis,
+            // 转录模式管理命令 (Story 1.4)
+            commands::mode_management::get_transcription_mode_status,
+            commands::mode_management::set_transcription_mode,
+            commands::mode_management::update_mode_config,
+            commands::mode_management::force_reevaluate_mode,
+            commands::mode_management::get_network_status,
+            commands::mode_management::check_network_now,
+            commands::mode_management::test_api_endpoint,
+            commands::mode_management::subscribe_mode_changes,
+            commands::mode_management::subscribe_network_changes,
         ])
         .setup(|app| {
             let app_handle = app.handle();
-            
-            // 获取应用状态以便管理历史管理器
+
+            // 初始化应用状态
+            let app_state = match AppState::new(app_handle.clone()) {
+                Ok(state) => state,
+                Err(e) => {
+                    eprintln!("❌ 应用初始化失败: {}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            // 管理各个组件
+            app.manage(app_state.history_manager.clone());
+            app.manage(app_state.transcription_editor.clone());
+            app.manage(app_state.local_model_manager.clone());
+            app.manage(app_state.unified_permission_manager.clone());
+
+            // Story 1.4: 管理网络监控和转录模式管理器
+            app.manage(app_state.network_monitor.clone());
+            app.manage(app_state.transcription_mode_manager.clone());
+
+            // 管理整个应用状态
+            app.manage(app_state);
+
+            // 重新获取状态引用用于后续操作
             let state = app.state::<AppState>();
-            app.manage(state.history_manager.clone());
-            app.manage(state.transcription_editor.clone());
-            
+
             // 初始化原有的快捷键管理器
             let shortcut_manager = commands::shortcut_management::ShortcutManager::new();
             app.manage(shortcut_manager);
-            
+
             // 初始化语音输入快捷键管理器
-            let voice_shortcut_manager = Arc::new(shortcuts::ShortcutManager::new(app_handle.clone()));
+            let voice_shortcut_manager =
+                Arc::new(shortcuts::ShortcutManager::new(app_handle.clone()));
             app.manage(voice_shortcut_manager.clone());
-            
+
             // 创建悬浮输入窗口
             match create_floating_input_window(&app_handle) {
                 Ok(_) => println!("✅ 悬浮输入窗口创建成功"),
                 Err(e) => eprintln!("❌ 悬浮输入窗口创建失败: {}", e),
             }
-            
+
             // 使用新的全局快捷键管理器
             match shortcuts::EnhancedShortcutManager::new(app_handle.clone()) {
                 Ok(global_manager) => {
@@ -355,22 +505,47 @@ fn main() {
                 Err(e) => {
                     eprintln!("⚠️ 创建全局快捷键管理器失败: {}", e);
                     // 回退到旧的快捷键系统
-                    if let Err(e) = voice_shortcut_manager.register_voice_input_shortcut("Option+Space", "press") {
+                    if let Err(e) = voice_shortcut_manager
+                        .register_voice_input_shortcut("Option+Space", "press")
+                    {
                         eprintln!("⚠️ 回退快捷键注册也失败: {}", e);
                     }
                 }
             }
-            
+
             println!("✅ 历史管理器已注册");
             println!("✅ 转录编辑器已注册");
             println!("✅ 快捷键管理器已注册");
             println!("✅ 语音输入快捷键管理器已注册");
-            
+
+            // Story 1.4: 启动网络监控和转录模式管理
+            let network_monitor = state.network_monitor.clone();
+            let mode_manager = state.transcription_mode_manager.clone();
+
+            tokio::spawn(async move {
+                println!("🌐 启动网络监控...");
+                if let Err(e) = network_monitor
+                    .start_monitoring(std::time::Duration::from_secs(10))
+                    .await
+                {
+                    eprintln!("❌ 网络监控启动失败: {}", e);
+                } else {
+                    println!("✅ 网络监控已启动");
+                }
+
+                println!("🤖 启动自动模式管理...");
+                if let Err(e) = mode_manager.start_auto_management().await {
+                    eprintln!("❌ 自动模式管理启动失败: {}", e);
+                } else {
+                    println!("✅ 自动模式管理已启动");
+                }
+            });
+
             // 移除直接快捷键注册，改由 enhancedShortcutManager 统一管理
             println!("ℹ️ 快捷键注册已委托给 enhancedShortcutManager");
-            
+
             println!("⌨️ 快捷键系统已启用 (CommandOrControl+Shift+R)");
-            
+
             // 检查macOS权限
             #[cfg(target_os = "macos")]
             {
@@ -382,7 +557,7 @@ fn main() {
                     println!("✅ 辅助功能权限已启用");
                 }
             }
-            
+
             println!("🚀 Recording King 启动完成");
             Ok(())
         })

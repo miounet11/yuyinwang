@@ -5,25 +5,13 @@
     "devPath": "http://localhost:1420",
     "distDir": "../dist"
   },
-    "package": {
-      "productName": "Recording King",
-      "version": "3.4.3"
-    },
+  "package": {
+    "productName": "Recording King",
+    "version": "6.0.1"
+  },
   "tauri": {
     "allowlist": {
       "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": false,
-        "open": true,
-        "save": true,
-        "message": true,
-        "ask": true,
-        "confirm": true
-      },
       "fs": {
         "all": false,
         "readFile": true,
@@ -32,86 +20,46 @@
         "createDir": true,
         "removeDir": true,
         "removeFile": true,
-        "exists": true,
-        "scope": ["$AUDIO", "$DOWNLOAD", "$DOCUMENT", "$DESKTOP", "$HOME/Library/Application Support/spokenly-clone"]
+        "exists": true
       },
-      "path": {
+      "window": {
+        "all": true
+      },
+      "dialog": {
         "all": true
       },
       "globalShortcut": {
         "all": true
       },
-      "window": {
-        "all": true
-      },
       "os": {
         "all": true
       },
+      "path": {
+        "all": true
+      },
       "shell": {
-        "all": false,
-        "open": "^x-apple\\.systempreferences:.*"
+        "open": true
       }
     },
     "bundle": {
       "active": true,
-      "identifier": "com.recordingking.app",
       "targets": "all",
-      "copyright": "Copyright © 2025 Recording King. All rights reserved.",
-      "category": "Productivity",
-      "shortDescription": "Recording King - AI语音转录工具",
-      "longDescription": "Recording King是一个功能强大的AI语音转录桌面应用，支持实时录音、多模型转录、全局快捷键等高级功能。",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png", 
-        "icons/128x128@2x.png"
-      ],
-      "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.13",
-        "exceptionDomain": "",
-        "entitlements": "./Entitlements.plist"
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "tsp": false,
-        "webviewInstallMode": {
-          "type": "downloadBootstrapper"
-        },
-        "allowDowngrades": true,
-        "nsis": {
-          "displayLanguageSelector": true,
-          "installerIcon": null,
-          "installMode": "currentUser",
-          "languages": ["English", "SimpChinese"],
-          "template": null
-        }
-      }
+      "identifier": "com.recordingking.app",
+      "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png"]
     },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://api.openai.com https://api.deepgram.com https://ly.gl173.com https://ttkk.inping.com; media-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
-    },
-    "updater": {
-      "active": false
+      "csp": null
     },
     "windows": [
       {
-        "fullscreen": false,
-        "resizable": true,
         "title": "Recording King",
         "width": 1100,
         "height": 700,
-        "visible": true,
+        "resizable": true,
         "center": true,
         "minWidth": 900,
         "minHeight": 600
       }
-    ],
-    "systemTray": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false
-    }
+    ]
   }
 }
