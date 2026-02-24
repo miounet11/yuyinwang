@@ -1,0 +1,392 @@
+/* ShortcutSettings.css */
+
+/* 行内图标 */
+.row-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* 快捷键控件区域：两个下拉框并排 */
+.shortcut-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 行内下拉框 - 与 GeneralSettings 的 select 风格一致 */
+.inline-select {
+  padding: 6px 28px 6px 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L4 4L7 1' stroke='%23666670' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+.inline-select:hover {
+  border-color: var(--border-light);
+}
+
+.inline-select:focus {
+  border-color: var(--accent);
+}
+
+/* section 下方的提示文字 */
+.section-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+/* Fn 键警告 */
+.fn-warning-row {
+  display: block;
+  padding: 16px;
+}
+
+.fn-warning-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fn-warning-icon {
+  font-size: 16px;
+}
+
+.fn-warning-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f5a623;
+}
+
+.fn-warning-body {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.fn-steps {
+  margin: 6px 0 0 0;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.fn-steps li {
+  margin-bottom: 3px;
+  font-size: 12px;
+}
+
+/* ============================================ */
+/* 测试快捷键区域                              */
+/* ============================================ */
+
+.test-area {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.test-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary);
+  transition: background 0.2s;
+}
+
+.test-hint.recording {
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.test-hint.transcribing {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.test-hint-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.test-hint-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.test-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  resize: vertical;
+  outline: none;
+  transition: background 0.15s;
+  border-top: 1px solid var(--border);
+}
+
+.test-textarea:focus {
+  background: rgba(59, 130, 246, 0.03);
+}
+
+.test-textarea.test-recording {
+  background: rgba(255, 59, 48, 0.03);
+}
+
+.test-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* ============================================ */
+/* 录制快捷键弹窗                              */
+/* ============================================ */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  animation: modal-fade-in 0.2s ease;
+}
+
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: modal-slide-up 0.2s ease;
+}
+
+@keyframes modal-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.modifier-keys {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.modifier-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  background: var(--modifier-key-bg);
+  border: 2px solid var(--modifier-key-border);
+  border-radius: 10px;
+  transition: all 0.15s;
+}
+
+.modifier-key.active {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+.modifier-symbol {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+}
+
+.modifier-key.active .modifier-symbol {
+  color: var(--accent);
+}
+
+.modifier-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.modifier-key.active .modifier-label {
+  color: var(--accent);
+}
+
+.key-capture-area {
+  margin-bottom: 16px;
+}
+
+.key-capture-input {
+  width: 100%;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 500;
+  text-align: center;
+  outline: none;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.key-capture-input:focus {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.key-capture-input::placeholder {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.validation-message {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.validation-message.error {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.validation-message.error::before {
+  content: '✕';
+  font-size: 14px;
+}
+
+.validation-message.warning {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+.validation-message.warning::before {
+  content: '⚠';
+  font-size: 14px;
+}
+
+.validation-message.success {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.validation-message.success::before {
+  content: '✓';
+  font-size: 14px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--bg-hover);
+}

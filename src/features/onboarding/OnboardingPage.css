@@ -1,0 +1,259 @@
+/* OnboardingPage.css - 入门引导页面样式 */
+
+.onboarding-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: var(--bg-primary);
+}
+
+.onboarding-container {
+  max-width: 600px;
+  width: 100%;
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 48px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* 进度指示器 */
+.onboarding-progress {
+  margin-bottom: 40px;
+}
+
+.onboarding-progress-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.onboarding-progress-bar {
+  height: 4px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.onboarding-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+  border-radius: 2px;
+}
+
+/* 步骤内容 */
+.onboarding-content {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.onboarding-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  line-height: 1;
+}
+
+.onboarding-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 12px 0;
+}
+
+.onboarding-description {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin: 0 0 32px 0;
+  line-height: 1.6;
+}
+
+/* 步骤特定内容 */
+.onboarding-step-content {
+  margin-top: 32px;
+}
+
+.onboarding-info-box {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  padding: 24px;
+  text-align: left;
+}
+
+.onboarding-info-box p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.onboarding-info-box p:last-child {
+  margin-bottom: 0;
+}
+
+.onboarding-info-box strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 权限被拒提示 */
+.onboarding-permission-denied {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.onboarding-warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.onboarding-permission-denied strong {
+  display: block;
+  color: var(--danger);
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.onboarding-permission-denied p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* 模型选择器 */
+.onboarding-model-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.onboarding-model-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboarding-model-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.onboarding-model-option input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+
+.onboarding-model-option input[type="radio"]:checked ~ .onboarding-model-info {
+  color: var(--text-primary);
+}
+
+.onboarding-model-option:has(input[type="radio"]:checked) {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--accent);
+}
+
+.onboarding-model-info {
+  flex: 1;
+  text-align: left;
+}
+
+.onboarding-model-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.onboarding-model-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* 操作按钮 */
+.onboarding-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.onboarding-btn {
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.onboarding-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.onboarding-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.onboarding-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.onboarding-btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.onboarding-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .onboarding-container {
+    padding: 32px 24px;
+  }
+
+  .onboarding-icon {
+    font-size: 48px;
+  }
+
+  .onboarding-title {
+    font-size: 24px;
+  }
+
+  .onboarding-description {
+    font-size: 14px;
+  }
+
+  .onboarding-actions {
+    flex-direction: column;
+  }
+
+  .onboarding-btn {
+    width: 100%;
+  }
+}

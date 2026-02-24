@@ -12,7 +12,7 @@ interface TranscribeResult {
 }
 
 export const TranscribeFilePage: React.FC = () => {
-  const { addToast, addHistoryEntry, settings } = useAppStore();
+  const { addToast, addHistoryEntry, settings, setCurrentPage } = useAppStore();
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileName, setFileName] = useState('');
   const [fileSize, setFileSize] = useState('');
@@ -42,6 +42,33 @@ export const TranscribeFilePage: React.FC = () => {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length === 0) {
+      addToast('error', '未检测到文件');
+      return;
+    }
+
+    const file = files[0];
+    const fileName = file.name;
+    const ext = '.' + fileName.split('.').pop()?.toLowerCase();
+
+    if (!SUPPORTED_FORMATS.includes(ext)) {
+      addToast('error', `不支持的文件格式: ${ext}`);
+      return;
+    }
+
+    // @ts-ignore - Tauri provides file.path
+    const filePath = file.path || fileName;
+    setSelectedFile(filePath);
+    setFileName(fileName);
+    setResult('');
+    setProgress(0);
   };
 
   const handleTranscribe = async () => {
@@ -127,10 +154,33 @@ export const TranscribeFilePage: React.FC = () => {
     return '🎵';
   };
 
+  const currentModelName = (() => {
+    const modelMap: Record<string, string> = {
+      'luyin-free': 'LuYinWang Transcribe',
+      'gpt-4o-mini-transcribe': 'GPT-4o mini',
+      'whisper-tiny': 'Whisper Tiny',
+      'whisper-base': 'Whisper Base',
+      'whisper-small': 'Whisper Small',
+      'whisper-medium': 'Whisper Medium',
+      'whisper-large-v3': 'Whisper Large v3',
+      'whisper-large-v3-turbo': 'Large v3 Turbo',
+    };
+    return modelMap[settings.selected_model] || settings.selected_model;
+  })();
+
   return (
     <div className="page">
       <h1 className="page-title">转录文件</h1>
       <p className="page-desc">上传音频或视频文件进行转录</p>
+
+      {/* 当前模型指示器 */}
+      <div className="current-model-indicator">
+        <span className="model-label">当前模型:</span>
+        <span className="model-name">{currentModelName}</span>
+        <button className="model-change-btn" onClick={() => setCurrentPage('models')}>
+          更改模型
+        </button>
+      </div>
 
       <div className="section">
         <h2 className="section-title">选择文件</h2>
@@ -141,7 +191,7 @@ export const TranscribeFilePage: React.FC = () => {
           onClick={!selectedFile ? handleSelectFile : undefined}
           onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
           onDragLeave={() => setIsDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setIsDragOver(false); }}
+          onDrop={handleDrop}
         >
           {selectedFile ? (
             <div className="file-info">
@@ -225,6 +275,22 @@ export const TranscribeFilePage: React.FC = () => {
             }}>{fmt}</span>
           ))}
         </div>
+      </div>
+
+      {/* 底部操作栏 */}
+      <div className="action-bar">
+        <button className="action-bar-btn" onClick={handleSelectFile}>
+          <span className="action-icon">🎙️</span>
+          <span className="action-label">录制音频</span>
+        </button>
+        <button className="action-bar-btn" onClick={() => setCurrentPage('models')}>
+          <span className="action-icon">🔄</span>
+          <span className="action-label">更改模型</span>
+        </button>
+        <button className="action-bar-btn" onClick={() => setCurrentPage('general')}>
+          <span className="action-icon">⚙️</span>
+          <span className="action-label">本地 Whisper 设置</span>
+        </button>
       </div>
     </div>
   );

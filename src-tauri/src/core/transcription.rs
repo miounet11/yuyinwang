@@ -1,5 +1,6 @@
 use crate::core::{error::Result, types::*};
 use reqwest::multipart;
+use rubato::{SincFixedIn, SincInterpolationParameters, SincInterpolationType, WindowFunction, Resampler};
 use std::path::Path;
 
 const LUYIN_BASE_URL: &str = "https://ly.gl173.com";
@@ -46,6 +47,41 @@ impl TranscriptionService {
         samples: &[f32],
         sample_rate: u32,
     ) -> Result<TranscriptionResult> {
+        let provider = ModelProvider::from_model_id(&self.settings.selected_model);
+
+        // 本地模型：直接传 f32 samples，跳过 WAV 中间步骤
+        if provider == ModelProvider::LocalWhisper {
+            let app_data_dir = self.app_data_dir.as_ref().ok_or_else(|| {
+                crate::core::error::AppError::Transcription(
+                    "应用数据目录未设置，无法使用本地模型".into(),
+                )
+            })?;
+
+            let model_id = &self.settings.selected_model;
+            if !crate::core::local_whisper::is_model_downloaded(app_data_dir, model_id) {
+                return Err(crate::core::error::AppError::Transcription(format!(
+                    "模型 {} 尚未下载，请先在「听写模型」页面下载",
+                    model_id
+                )));
+            }
+
+            // 重采样到 16kHz（如果需要）
+            let resampled = Self::ensure_16khz(samples, sample_rate)?;
+
+            let models_dir = crate::core::local_whisper::get_models_dir(app_data_dir);
+            let file_name = Self::get_model_filename(model_id);
+            let model_path = models_dir.join(file_name);
+
+            return tokio::task::spawn_blocking(move || {
+                crate::core::local_whisper::transcribe_local(&model_path, &resampled, None)
+            })
+            .await
+            .map_err(|e| {
+                crate::core::error::AppError::Transcription(format!("推理线程异常: {}", e))
+            })?;
+        }
+
+        // 在线模型：需要写 WAV 文件上传
         let temp_dir = std::env::temp_dir();
         let temp_path = temp_dir.join(format!("recording_{}.wav", chrono::Utc::now().timestamp()));
 
@@ -298,9 +334,12 @@ impl TranscriptionService {
             )));
         }
 
-        // 读取音频文件为 f32 samples
+        // 读取音频文件并获取采样率
         let file_bytes = tokio::fs::read(audio_path).await?;
-        let samples = Self::decode_audio_to_f32(&file_bytes)?;
+        let (samples, source_sample_rate) = Self::decode_audio_to_f32_with_rate(&file_bytes)?;
+
+        // 重采样到 16kHz（如果需要）
+        let samples = Self::ensure_16khz(&samples, source_sample_rate)?;
 
         // 本地推理（在阻塞线程中运行，避免阻塞 tokio）
         let models_dir = crate::core::local_whisper::get_models_dir(app_data_dir);
@@ -328,14 +367,16 @@ impl TranscriptionService {
         }
     }
 
-    /// 将 WAV 文件字节解码为 f32 samples (16kHz mono)
-    fn decode_audio_to_f32(wav_bytes: &[u8]) -> Result<Vec<f32>> {
+    /// 将 WAV 文件字节解码为 f32 samples (mono)，同时返回原始采样率
+    fn decode_audio_to_f32_with_rate(wav_bytes: &[u8]) -> Result<(Vec<f32>, u32)> {
         let cursor = std::io::Cursor::new(wav_bytes);
         let reader = hound::WavReader::new(cursor).map_err(|e| {
             crate::core::error::AppError::Transcription(format!("WAV 解码失败: {}", e))
         })?;
 
         let spec = reader.spec();
+        let source_rate = spec.sample_rate;
+
         let samples: Vec<f32> = match spec.sample_format {
             hound::SampleFormat::Int => {
                 let max_val = (1 << (spec.bits_per_sample - 1)) as f32;
@@ -361,6 +402,77 @@ impl TranscriptionService {
             samples
         };
 
-        Ok(mono)
+        Ok((mono, source_rate))
+    }
+
+    /// 确保 samples 是 16kHz，如果不是则重采样
+    fn ensure_16khz(samples: &[f32], source_rate: u32) -> Result<Vec<f32>> {
+        const TARGET_RATE: u32 = 16000;
+        if source_rate == TARGET_RATE {
+            return Ok(samples.to_vec());
+        }
+
+        Self::resample(samples, source_rate, TARGET_RATE)
+    }
+
+    /// 使用 rubato 进行高质量重采样
+    fn resample(samples: &[f32], from_rate: u32, to_rate: u32) -> Result<Vec<f32>> {
+        if samples.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let params = SincInterpolationParameters {
+            sinc_len: 256,
+            f_cutoff: 0.95,
+            interpolation: SincInterpolationType::Linear,
+            oversampling_factor: 256,
+            window: WindowFunction::BlackmanHarris2,
+        };
+
+        let ratio = to_rate as f64 / from_rate as f64;
+        let chunk_size = 1024;
+
+        let mut resampler = SincFixedIn::<f64>::new(
+            ratio,
+            2.0,
+            params,
+            chunk_size,
+            1, // mono
+        )
+        .map_err(|e| {
+            crate::core::error::AppError::Transcription(format!("创建重采样器失败: {}", e))
+        })?;
+
+        let mut output: Vec<f32> = Vec::with_capacity((samples.len() as f64 * ratio) as usize + 1024);
+
+        // 分块处理
+        let mut pos = 0;
+        while pos < samples.len() {
+            let end = (pos + chunk_size).min(samples.len());
+            let mut chunk: Vec<f64> = samples[pos..end].iter().map(|&s| s as f64).collect();
+
+            // 最后一块需要填充到 chunk_size
+            if chunk.len() < chunk_size {
+                chunk.resize(chunk_size, 0.0);
+            }
+
+            let input = vec![chunk];
+            let result = resampler.process(&input, None).map_err(|e| {
+                crate::core::error::AppError::Transcription(format!("重采样失败: {}", e))
+            })?;
+
+            if !result.is_empty() {
+                output.extend(result[0].iter().map(|&s| s as f32));
+            }
+
+            pos += chunk_size;
+        }
+
+        // 裁剪到预期长度
+        let expected_len = (samples.len() as f64 * ratio).round() as usize;
+        output.truncate(expected_len);
+
+        println!("🔄 重采样: {}Hz → {}Hz ({} → {} samples)", from_rate, to_rate, samples.len(), output.len());
+        Ok(output)
     }
 }

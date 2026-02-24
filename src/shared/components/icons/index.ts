@@ -1,0 +1,9 @@
+export { SettingsIcon } from './SettingsIcon';
+export { ShortcutIcon } from './ShortcutIcon';
+export { ModelIcon } from './ModelIcon';
+export { TranscribeIcon } from './TranscribeIcon';
+export { AIPromptsIcon } from './AIPromptsIcon';
+export { HistoryIcon } from './HistoryIcon';
+export { PermissionsIcon } from './PermissionsIcon';
+export { RecordingIcon } from './RecordingIcon';
+export { OnboardingIcon } from './OnboardingIcon';

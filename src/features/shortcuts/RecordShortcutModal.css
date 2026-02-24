@@ -1,0 +1,291 @@
+/**
+ * RecordShortcutModal 样式
+ * 录制快捷键弹窗的样式定义
+ */
+
+/* 模态框遮罩层 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: modal-fade-in 0.15s ease;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 模态框内容 */
+.modal-content {
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modal-slide-up 0.2s ease;
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 模态框头部 */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* 模态框主体 */
+.modal-body {
+  padding: 24px;
+}
+
+.modal-instruction {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 24px 0;
+  line-height: 1.5;
+}
+
+/* 修饰键网格 */
+.modifier-keys-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.modifier-key {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 8px;
+  background: var(--modifier-key-bg);
+  border: 2px solid var(--modifier-key-border);
+  border-radius: 10px;
+  transition: all 0.15s;
+  cursor: default;
+  user-select: none;
+}
+
+.modifier-key.active {
+  background: var(--accent-light);
+  border-color: var(--modifier-key-active);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modifier-symbol {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.modifier-key.active .modifier-symbol {
+  color: var(--modifier-key-active);
+}
+
+.modifier-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.modifier-key.active .modifier-label {
+  color: var(--modifier-key-active);
+}
+
+/* 当前组合显示 */
+.current-combination {
+  margin-bottom: 16px;
+}
+
+.combination-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.combination-display {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.15s;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.5px;
+}
+
+.combination-display.valid {
+  background: var(--success-light);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.combination-display.invalid {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* 验证消息 */
+.validation-message {
+  background: var(--danger-light);
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--danger);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.validation-message::before {
+  content: '⚠';
+  font-size: 14px;
+}
+
+/* 当前快捷键提示 */
+.current-shortcut-hint {
+  background: var(--accent-light);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.current-shortcut-hint::before {
+  content: 'ℹ';
+  font-size: 14px;
+}
+
+/* 模态框底部 */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.modal-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  outline: none;
+}
+
+.modal-btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.modal-btn-secondary:hover {
+  background: var(--bg-hover);
+}
+
+.modal-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.modal-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.modal-btn-primary:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-disabled);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* 响应式调整 */
+@media (max-width: 600px) {
+  .modal-content {
+    width: 95%;
+    max-width: none;
+  }
+
+  .modifier-keys-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .modal-header,
+  .modal-footer {
+    padding: 16px 20px;
+  }
+}

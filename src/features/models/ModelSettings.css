@@ -1,0 +1,592 @@
+/* 筛选标签栏 */
+.filter-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.filter-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.filter-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.filter-tabs::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.filter-tab {
+  padding: 8px 16px;
+  background: var(--filter-tag-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.filter-tab:hover {
+  background: var(--filter-tag-hover);
+  color: var(--text-primary);
+}
+
+.filter-tab.active {
+  background: var(--filter-tag-active);
+  color: var(--filter-tag-active-text);
+  border-color: var(--filter-tag-active);
+}
+
+/* Token 状态徽章 */
+.token-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.token-badge:hover {
+  background: var(--bg-hover);
+}
+
+.token-badge.ok {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.token-badge.missing {
+  color: var(--text-muted);
+}
+
+.token-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.word-replace-btn {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 模型卡片网格 */
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.model-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.model-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.model-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+}
+
+.model-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.model-card.disabled:hover {
+  border-color: var(--border);
+  background: var(--bg-card);
+}
+
+.model-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.model-icon {
+  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.model-title {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--card-tag-bg);
+  color: var(--card-tag-text);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tag.badge-tag {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tag.free {
+  background: var(--success);
+  color: #fff;
+}
+
+.tag.downloaded {
+  background: var(--success-light);
+  color: var(--success);
+}
+
+.tag.realtime {
+  background: var(--warning-light);
+  color: var(--warning);
+}
+
+.tag.multilingual {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.model-provider {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: -4px 0;
+}
+
+.model-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* 模型统计 */
+.model-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.stat-label {
+  color: var(--text-muted);
+}
+
+.stat-value {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* 评分条 */
+.dot-bar {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rating-bar-bg);
+  transition: background 0.15s;
+}
+
+.dot.filled {
+  background: var(--rating-bar-fill);
+}
+
+/* 下载进度 */
+.download-progress {
+  height: 4px;
+  background: var(--progress-bg);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: -4px 0;
+}
+
+.download-bar {
+  height: 100%;
+  background: var(--progress-fill);
+  transition: width 0.3s ease;
+}
+
+/* 模型操作按钮 */
+.model-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.model-action {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.model-action.download {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.model-action.download:hover {
+  background: var(--accent-hover);
+}
+
+.model-action.use {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.model-action.use:hover {
+  background: var(--accent-hover);
+}
+
+.model-action.delete {
+  background: transparent;
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.model-action.delete:hover {
+  background: var(--danger-light);
+}
+
+.model-action.active {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: var(--success);
+  cursor: default;
+}
+
+.model-action.unavailable {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+
+.model-action.downloading {
+  background: var(--accent-light);
+  color: var(--accent);
+  border-color: var(--accent);
+  cursor: wait;
+}
+
+/* API Key 配置弹窗 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--modal-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fade-in 0.15s ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: var(--bg-modal);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 480px;
+  width: 90%;
+  animation: slide-up 0.2s ease;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.modal-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-group input:focus {
+  border-color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn-cancel,
+.btn-confirm {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-cancel {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-tertiary);
+}
+
+.btn-confirm {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-confirm:hover {
+  background: var(--accent-hover);
+}
+
+/* ============================================ */
+/* 模型设置弹窗 - Spokenly 风格                */
+/* ============================================ */
+
+.model-config-modal {
+  padding: 0;
+  max-width: 520px;
+}
+
+.model-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.model-config-header h3 {
+  margin: 0;
+}
+
+.model-config-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+  line-height: 1;
+}
+
+.model-config-close:hover {
+  color: var(--text-primary);
+}
+
+.model-config-body {
+  padding: 24px;
+}
+
+.config-section {
+  margin-bottom: 24px;
+}
+
+.config-section:last-child {
+  margin-bottom: 0;
+}
+
+.config-label-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.config-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.config-info {
+  font-size: 14px;
+  color: var(--accent);
+  cursor: help;
+  user-select: none;
+}
+
+.config-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.config-select {
+  width: 100%;
+  padding: 10px 32px 10px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%23666670' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+.config-select:focus {
+  border-color: var(--accent);
+}
+
+.config-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+}
+
+.config-textarea:focus {
+  border-color: var(--accent);
+}
+
+.config-textarea::placeholder {
+  color: var(--text-muted);
+}
+
+.model-config-modal .modal-actions {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  margin-top: 0;
+}
+
+/* Settings 按钮 */
+.model-action.settings-btn {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.model-action.settings-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

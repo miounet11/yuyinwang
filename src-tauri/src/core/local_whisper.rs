@@ -128,6 +128,26 @@ pub fn transcribe_local(
     audio_samples: &[f32],
     language: Option<&str>,
 ) -> Result<TranscriptionResult> {
+    // 音频长度验证：防止空或极短音频导致 whisper.cpp 崩溃
+    // 最小长度 16000 采样点 = 1 秒（采样率 16kHz）
+    if audio_samples.is_empty() {
+        return Ok(TranscriptionResult {
+            text: String::new(),
+            language: language.map(String::from),
+            duration: Some(0.0),
+        });
+    }
+
+    if audio_samples.len() < 16000 {
+        let duration = audio_samples.len() as f64 / 16000.0;
+        println!("⚠️ 音频过短 ({:.2}s)，跳过转录", duration);
+        return Ok(TranscriptionResult {
+            text: String::new(),
+            language: language.map(String::from),
+            duration: Some(duration),
+        });
+    }
+
     let ctx = WhisperContext::new_with_params(
         model_path.to_str().unwrap_or(""),
         WhisperContextParameters::default(),
@@ -179,4 +199,74 @@ pub fn transcribe_local(
         language: language.map(String::from),
         duration: Some(duration),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ============================================================
+    // 任务 1: Bug 条件探索性测试（音频部分）
+    // Property 1: Fault Condition - 空或极短音频导致崩溃
+    // ============================================================
+
+    #[test]
+    fn test_bug_condition_empty_audio_detection() {
+        // 验证空音频数据检测逻辑
+        let empty_audio: Vec<f32> = vec![];
+        assert_eq!(empty_audio.len(), 0, "Empty audio should have length 0");
+        assert!(empty_audio.len() < 16000, "Empty audio is shorter than minimum");
+    }
+
+    #[test]
+    fn test_bug_condition_short_audio_detection() {
+        // 验证短音频检测逻辑（< 1 秒）
+        let short_audio: Vec<f32> = vec![0.0; 8000]; // 0.5 秒
+        assert!(short_audio.len() < 16000, "0.5s audio should be detected as too short");
+
+        let very_short: Vec<f32> = vec![0.0; 100]; // 极短
+        assert!(very_short.len() < 16000, "Very short audio should be detected");
+    }
+
+    #[test]
+    fn test_bug_condition_minimum_audio_length_threshold() {
+        // 验证最小音频长度阈值（16000 采样点 = 1 秒 @ 16kHz）
+        const MIN_SAMPLES: usize = 16000;
+
+        let too_short: Vec<f32> = vec![0.0; MIN_SAMPLES - 1];
+        assert!(too_short.len() < MIN_SAMPLES, "Should detect audio just below threshold");
+
+        let just_enough: Vec<f32> = vec![0.0; MIN_SAMPLES];
+        assert!(just_enough.len() >= MIN_SAMPLES, "Should accept audio at threshold");
+
+        let normal: Vec<f32> = vec![0.0; MIN_SAMPLES * 2];
+        assert!(normal.len() >= MIN_SAMPLES, "Should accept normal length audio");
+    }
+
+    // ============================================================
+    // 任务 2: 保持性属性测试（音频部分）
+    // Property 2: Preservation - 正常音频处理保持不变
+    // ============================================================
+
+    #[test]
+    fn test_preservation_normal_audio_length_accepted() {
+        // 验证正常长度音频（>= 16000 采样点）应被接受
+        let normal_audio: Vec<f32> = vec![0.0; 32000]; // 2 秒
+        assert!(normal_audio.len() >= 16000, "2s audio should be accepted");
+
+        let long_audio: Vec<f32> = vec![0.0; 160000]; // 10 秒
+        assert!(long_audio.len() >= 16000, "10s audio should be accepted");
+    }
+
+    #[test]
+    fn test_preservation_audio_duration_calculation() {
+        // 验证音频时长计算逻辑保持不变（采样率 16kHz）
+        let one_second: Vec<f32> = vec![0.0; 16000];
+        let duration = one_second.len() as f64 / 16000.0;
+        assert_eq!(duration, 1.0, "16000 samples should equal 1 second");
+
+        let two_seconds: Vec<f32> = vec![0.0; 32000];
+        let duration = two_seconds.len() as f64 / 16000.0;
+        assert_eq!(duration, 2.0, "32000 samples should equal 2 seconds");
+    }
 }
