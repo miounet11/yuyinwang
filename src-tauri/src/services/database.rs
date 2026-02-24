@@ -99,12 +99,16 @@ impl Database {
         let mut stmt = conn.prepare(
             "SELECT id, text, timestamp, duration, model, confidence, audio_file_path
              FROM transcriptions
-             WHERE text LIKE ?1
+             WHERE text LIKE ?1 ESCAPE '\\'
              ORDER BY timestamp DESC
              LIMIT ?2",
         )?;
 
-        let search_pattern = format!("%{}%", query);
+        // 转义 LIKE 特殊字符 % 和 _
+        let escaped_query = query.replace('\\', "\\\\")
+                                 .replace('%', "\\%")
+                                 .replace('_', "\\_");
+        let search_pattern = format!("%{}%", escaped_query);
         let entries = stmt
             .query_map(rusqlite::params![search_pattern, limit], |row| {
                 Ok(TranscriptionEntry {
@@ -213,6 +217,19 @@ mod tests {
             auto_inject: true,
             inject_delay_ms: 200,
             shortcut_key: Some("Ctrl+Shift+V".to_string()),
+            display_style: "notch".to_string(),
+            appearance: "dark".to_string(),
+            ui_language: "zh-CN".to_string(),
+            launch_at_login: true,
+            show_in_dock: false,
+            show_in_menu_bar: true,
+            esc_to_cancel: true,
+            shortcut_preset: "right-cmd".to_string(),
+            custom_shortcut: None,
+            activation_mode: "toggle".to_string(),
+            microphone_priority: vec!["device-1".to_string(), "device-2".to_string()],
+            onboarding_complete: true,
+            word_replacements: vec![],
         };
 
         db.save_settings(&settings).unwrap();
@@ -244,6 +261,7 @@ mod tests {
             auto_inject: false,
             inject_delay_ms: 100,
             shortcut_key: None,
+            ..Default::default()
         };
 
         db.save_settings(&settings).unwrap();
@@ -310,6 +328,7 @@ mod tests {
                 auto_inject,
                 inject_delay_ms: delay,
                 shortcut_key: None,
+                ..Default::default()
             };
 
             db.save_settings(&settings).unwrap();
@@ -317,6 +336,103 @@ mod tests {
 
             prop_assert_eq!(loaded, settings);
         }
+    }
+
+    #[test]
+    fn test_backward_compatibility_old_settings() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = Database::new(&db_path).unwrap();
+
+        // Simulate old settings JSON without new fields
+        let old_settings_json = r#"{
+            "openai_api_key": null,
+            "luyin_token": null,
+            "selected_model": "luyin-free",
+            "auto_inject": false,
+            "inject_delay_ms": 100,
+            "shortcut_key": null
+        }"#;
+
+        let conn = db.conn.lock();
+        conn.execute(
+            "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('settings', ?1)",
+            [old_settings_json],
+        )
+        .unwrap();
+        drop(conn);
+
+        // Load settings should fill in defaults for missing fields
+        let loaded = db.load_settings().unwrap();
+        assert_eq!(loaded.display_style, "panel");
+        assert_eq!(loaded.appearance, "system");
+        assert_eq!(loaded.ui_language, "system");
+        assert_eq!(loaded.launch_at_login, false);
+        assert_eq!(loaded.show_in_dock, true);
+        assert_eq!(loaded.show_in_menu_bar, true);
+        assert_eq!(loaded.esc_to_cancel, true);
+        assert_eq!(loaded.shortcut_preset, "none");
+        assert_eq!(loaded.activation_mode, "hold-or-toggle");
+        assert_eq!(loaded.microphone_priority.len(), 0);
+        assert_eq!(loaded.onboarding_complete, false);
+        assert_eq!(loaded.word_replacements.len(), 0);
+    }
+
+    #[test]
+    fn test_new_settings_fields() {
+        let dir = tempdir().unwrap();
+        let db_path = dir.path().join("test.db");
+        let db = Database::new(&db_path).unwrap();
+
+        use crate::core::types::{CustomShortcut, WordReplacement};
+
+        let settings = AppSettings {
+            openai_api_key: Some("test-key".to_string()),
+            luyin_token: None,
+            selected_model: "whisper-base".to_string(),
+            auto_inject: true,
+            inject_delay_ms: 150,
+            shortcut_key: Some("RightCommand".to_string()),
+            display_style: "notch".to_string(),
+            appearance: "dark".to_string(),
+            ui_language: "zh-CN".to_string(),
+            launch_at_login: true,
+            show_in_dock: false,
+            show_in_menu_bar: true,
+            esc_to_cancel: false,
+            shortcut_preset: "custom".to_string(),
+            custom_shortcut: Some(CustomShortcut {
+                r#type: "custom".to_string(),
+                modifiers: vec!["cmd".to_string(), "shift".to_string()],
+                key: "Space".to_string(),
+                display_label: "⌘⇧Space".to_string(),
+            }),
+            activation_mode: "toggle".to_string(),
+            microphone_priority: vec!["mic-1".to_string(), "mic-2".to_string()],
+            onboarding_complete: true,
+            word_replacements: vec![
+                WordReplacement {
+                    id: "1".to_string(),
+                    from: "AI".to_string(),
+                    to: "人工智能".to_string(),
+                    enabled: true,
+                },
+                WordReplacement {
+                    id: "2".to_string(),
+                    from: "ML".to_string(),
+                    to: "机器学习".to_string(),
+                    enabled: false,
+                },
+            ],
+        };
+
+        db.save_settings(&settings).unwrap();
+        let loaded = db.load_settings().unwrap();
+
+        assert_eq!(loaded, settings);
+        assert_eq!(loaded.word_replacements.len(), 2);
+        assert_eq!(loaded.word_replacements[0].from, "AI");
+        assert_eq!(loaded.custom_shortcut.as_ref().unwrap().key, "Space");
     }
 
     #[test]

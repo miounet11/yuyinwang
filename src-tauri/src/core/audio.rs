@@ -2,19 +2,30 @@ use crate::core::{error::Result, types::*};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use parking_lot::Mutex;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
+
+// 最大录音时长：5 分钟
+const MAX_RECORDING_DURATION_SECS: u64 = 300;
+// 最大 buffer 大小：5 分钟 * 16kHz = 4.8M samples ≈ 19MB
+const MAX_BUFFER_SAMPLES: usize = 16000 * MAX_RECORDING_DURATION_SECS as usize;
 
 pub struct AudioRecorder {
     config: RecordingConfig,
     buffer: Arc<Mutex<Vec<f32>>>,
     stream: Arc<Mutex<Option<cpal::Stream>>>,
+    start_time: Arc<Mutex<Option<Instant>>>,
+    buffer_overflow: Arc<AtomicBool>,
 }
 
 impl AudioRecorder {
     pub fn new(config: RecordingConfig) -> Self {
         Self {
             config,
-            buffer: Arc::new(Mutex::new(Vec::new())),
+            buffer: Arc::new(Mutex::new(Vec::with_capacity(16000 * 10))), // 预分配 10 秒
             stream: Arc::new(Mutex::new(None)),
+            start_time: Arc::new(Mutex::new(None)),
+            buffer_overflow: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -36,10 +47,18 @@ impl AudioRecorder {
         };
 
         let buffer = self.buffer.clone();
+        let buffer_overflow = self.buffer_overflow.clone();
         let stream = device.build_input_stream(
             &config,
             move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                buffer.lock().extend_from_slice(data);
+                let mut buf = buffer.lock();
+                // 检查是否超过最大 buffer 大小
+                if buf.len() + data.len() > MAX_BUFFER_SAMPLES {
+                    buffer_overflow.store(true, Ordering::Relaxed);
+                    eprintln!("⚠️ 录音 buffer 溢出，已达到最大时长 {} 秒", MAX_RECORDING_DURATION_SECS);
+                    return; // 停止接收新数据
+                }
+                buf.extend_from_slice(data);
             },
             |err| eprintln!("Audio stream error: {}", err),
             None,
@@ -47,14 +66,29 @@ impl AudioRecorder {
 
         stream.play()?;
         *self.stream.lock() = Some(stream);
+        *self.start_time.lock() = Some(Instant::now());
+        self.buffer_overflow.store(false, Ordering::Relaxed);
         Ok(())
     }
 
     pub fn stop(&self) -> Result<Vec<f32>> {
         if let Some(stream) = self.stream.lock().take() {
             drop(stream);
+            // 等待 stream 完全停止，确保所有回调完成
+            std::thread::sleep(Duration::from_millis(20));
         }
-        let data = self.buffer.lock().drain(..).collect();
+
+        let data: Vec<f32> = self.buffer.lock().drain(..).collect();
+        let duration = self.start_time.lock().take()
+            .map(|t| t.elapsed().as_secs_f32())
+            .unwrap_or(0.0);
+
+        // 检查是否发生 buffer 溢出
+        if self.buffer_overflow.load(Ordering::Relaxed) {
+            eprintln!("⚠️ 录音已达到最大时长 {} 秒，已自动截断", MAX_RECORDING_DURATION_SECS);
+        }
+
+        println!("🎤 录音停止: {:.2}s, {} samples", duration, data.len());
         Ok(data)
     }
 

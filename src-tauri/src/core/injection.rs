@@ -71,18 +71,21 @@ fn inject_via_cgevent(text: &str) -> Result<()> {
             "CGEventSource creation failed".into()
         ))?;
 
-    let utf16: Vec<u16> = text.encode_utf16().collect();
+    // 按 Unicode 字符边界分块，避免 Emoji 被错误分割
+    let chars: Vec<char> = text.chars().collect();
+    for chunk in chars.chunks(20) {
+        let chunk_str: String = chunk.iter().collect();
+        let utf16: Vec<u16> = chunk_str.encode_utf16().collect();
 
-    for chunk in utf16.chunks(20) {
         let event = CGEvent::new_keyboard_event(source.clone(), 0, true)
             .map_err(|_| crate::core::error::AppError::Other(
                 "CGEvent creation failed".into()
             ))?;
 
-        event.set_string_from_utf16_unchecked(chunk);
+        event.set_string_from_utf16_unchecked(&utf16);
         event.post(CGEventTapLocation::HID);
 
-        if utf16.len() > 20 {
+        if chars.len() > 20 {
             std::thread::sleep(std::time::Duration::from_micros(500));
         }
     }
@@ -138,8 +141,9 @@ fn inject_via_clipboard(text: &str) -> Result<()> {
     up.post(CGEventTapLocation::HID);
 
     // 恢复原始剪贴板（延迟，确保粘贴完成）
+    // 增加延迟到 300ms 以兼容慢速应用（如 Electron）
     if let Some(orig) = original {
-        thread::sleep(Duration::from_millis(150));
+        thread::sleep(Duration::from_millis(300));
         if let Ok(mut c) = Command::new("pbcopy").stdin(std::process::Stdio::piped()).spawn() {
             if let Some(stdin) = c.stdin.as_mut() {
                 let _ = stdin.write_all(orig.as_bytes());

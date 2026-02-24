@@ -19,9 +19,23 @@ impl QuickInputService {
         }
     }
 
-    pub fn register_shortcut(&self, key: &str, app_handle: AppHandle) -> Result<()> {
+    pub fn set_activation_mode(&self, mode: &str) {
+        self.listener.set_activation_mode(mode);
+    }
+
+    pub fn register_shortcut(&self, key: &str, mode: &str, app_handle: AppHandle) -> Result<()> {
+        // 检查是否正在录音
+        let is_active = tauri::async_runtime::block_on(self.is_active.lock());
+        if *is_active {
+            return Err(crate::core::error::AppError::Other(
+                "请先停止当前录音再切换快捷键".into()
+            ));
+        }
+        drop(is_active);
+
         self.listener.stop();
         self.listener.set_shortcut(key);
+        self.listener.set_activation_mode(mode);
 
         let is_active = self.is_active.clone();
         let original_app = self.original_app.clone();
@@ -63,11 +77,12 @@ impl QuickInputService {
 
         let is_active_release = self.is_active.clone();
         let original_app_release = self.original_app.clone();
+        let app_handle_release_clone = app_handle_release.clone();
 
         let on_release = move || {
             let is_active = is_active_release.clone();
             let original_app = original_app_release.clone();
-            let app = app_handle_release.clone();
+            let app = app_handle_release_clone.clone();
 
             tauri::async_runtime::spawn(async move {
                 if !*is_active.lock().await {
@@ -97,6 +112,8 @@ impl QuickInputService {
                 #[cfg(target_os = "macos")]
                 if let Some(ref bundle_id) = saved_app {
                     let _ = crate::core::injection::activate_app(bundle_id);
+                    // 等待焦点切换完成
+                    tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
                 }
 
                 // 从设置读取 token + model
@@ -124,9 +141,32 @@ impl QuickInputService {
                         if settings.auto_inject && !transcription.text.is_empty() {
                             let text = transcription.text.clone();
                             let delay = settings.inject_delay_ms;
+                            let app_clone = app.clone();
                             std::thread::spawn(move || {
                                 std::thread::sleep(std::time::Duration::from_millis(100));
-                                let _ = crate::core::injection::inject_text(&text, delay);
+
+                                // 重试机制：最多尝试 3 次
+                                let mut attempts = 0;
+                                let max_attempts = 3;
+                                loop {
+                                    match crate::core::injection::inject_text(&text, delay) {
+                                        Ok(_) => {
+                                            println!("✅ 文本注入成功");
+                                            break;
+                                        }
+                                        Err(e) if attempts < max_attempts => {
+                                            attempts += 1;
+                                            eprintln!("⚠️ 文本注入失败（尝试 {}/{}）: {}", attempts, max_attempts, e);
+                                            std::thread::sleep(std::time::Duration::from_millis(200));
+                                        }
+                                        Err(e) => {
+                                            eprintln!("❌ 文本注入最终失败: {}", e);
+                                            let error_msg = format!("文本注入失败: {}。转录结果: {}", e, text);
+                                            let _ = app_clone.emit_all("quick-input-injection-failed", error_msg);
+                                            break;
+                                        }
+                                    }
+                                }
                             });
                         }
                     }
@@ -200,9 +240,19 @@ impl QuickInputService {
                         if settings.auto_inject && !transcription.text.is_empty() {
                             let text = transcription.text.clone();
                             let delay = settings.inject_delay_ms;
+                            let app_clone = app_handle.clone();
                             std::thread::spawn(move || {
                                 std::thread::sleep(std::time::Duration::from_millis(100));
-                                let _ = crate::core::injection::inject_text(&text, delay);
+                                match crate::core::injection::inject_text(&text, delay) {
+                                    Ok(_) => {
+                                        println!("✅ 文本注入成功");
+                                    }
+                                    Err(e) => {
+                                        eprintln!("❌ 文本注入失败: {}", e);
+                                        let error_msg = format!("文本注入失败: {}。转录结果: {}", e, text);
+                                        let _ = app_clone.emit_all("quick-input-injection-failed", error_msg);
+                                    }
+                                }
                             });
                         }
                     }

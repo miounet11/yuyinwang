@@ -40,10 +40,19 @@ fn main() {
             }
             SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
                 "quit" => {
+                    println!("👋 Recording King shutting down...");
                     let service = app.state::<QuickInputService>();
                     service.unregister_shortcut();
-                    println!("👋 Recording King shutting down");
-                    std::process::exit(0);
+
+                    // 检查是否有正在进行的录音
+                    let state = app.state::<AppState>();
+                    if state.is_recording() {
+                        println!("⚠️ 检测到正在录音，等待停止...");
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+
+                    // 使用 app.exit() 优雅退出，而非 std::process::exit()
+                    app.exit(0);
                 }
                 "show" => {
                     if let Some(window) = app.get_window("main") {
@@ -98,6 +107,7 @@ fn main() {
             }
 
             let saved_shortcut = state.settings.lock().shortcut_key.clone();
+            let saved_mode = state.settings.lock().activation_mode.clone();
             app.manage(state);
 
             let quick_input = QuickInputService::new();
@@ -107,7 +117,7 @@ fn main() {
             if let Some(shortcut_key) = saved_shortcut {
                 let service = app.state::<QuickInputService>();
                 let app_handle = app.app_handle();
-                if let Err(e) = service.register_shortcut(&shortcut_key, app_handle) {
+                if let Err(e) = service.register_shortcut(&shortcut_key, &saved_mode, app_handle) {
                     eprintln!("Failed to restore shortcut {}: {}", shortcut_key, e);
                 }
             }
@@ -150,9 +160,11 @@ fn main() {
             commands::quick_input::quick_input_is_active,
             commands::quick_input::register_global_shortcut,
             commands::quick_input::unregister_global_shortcut,
+            commands::quick_input::update_activation_mode,
             commands::models::get_local_model_status,
             commands::models::download_local_model,
             commands::models::delete_local_model,
+            commands::prompt_actions::execute_prompt_action,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
