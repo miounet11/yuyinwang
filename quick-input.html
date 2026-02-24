@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick Input</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+        background: transparent;
+        color: #fff;
+        overflow: hidden;
+        -webkit-user-select: none;
+      }
+
+      .container {
+        width: 100%;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        background: rgba(28, 28, 30, 0.88);
+        backdrop-filter: blur(40px) saturate(180%);
+        -webkit-backdrop-filter: blur(40px) saturate(180%);
+        border-radius: 14px;
+        border: 0.5px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255,255,255,0.06);
+      }
+
+      .app-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 18px;
+      }
+
+      .content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        margin-left: 14px;
+      }
+
+      .indicator-wrap {
+        position: relative;
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+      }
+
+      .indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+
+      .indicator-ring {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 0;
+      }
+
+      .recording .indicator {
+        background: #ff453a;
+        box-shadow: 0 0 6px rgba(255, 69, 58, 0.5);
+      }
+      .recording .indicator-ring {
+        border: 1.5px solid #ff453a;
+        animation: ring-pulse 1.5s ease-out infinite;
+        opacity: 1;
+      }
+
+      .transcribing .indicator {
+        background: #ff9f0a;
+        animation: spin-dot 0.8s linear infinite;
+      }
+
+      .done .indicator {
+        background: #30d158;
+      }
+
+      .error .indicator {
+        background: #ff453a;
+      }
+
+      .status-text {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.85);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: -0.1px;
+      }
+
+      .close-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-left: auto;
+        transition: all 0.15s;
+        line-height: 1;
+      }
+
+      .close-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      @keyframes ring-pulse {
+        0% { transform: scale(1); opacity: 0.6; }
+        100% { transform: scale(2.2); opacity: 0; }
+      }
+
+      @keyframes spin-dot {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(0.7); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="app-icon">🎙</div>
+      <div class="content">
+        <div class="indicator-wrap recording" id="indicator-wrap">
+          <div class="indicator"></div>
+          <div class="indicator-ring"></div>
+        </div>
+        <div class="status-text" id="status-text">正在录音...</div>
+      </div>
+      <button class="close-btn" id="close-btn">✕</button>
+    </div>
+
+    <script type="module">
+      import { listen } from '@tauri-apps/api/event';
+      import { appWindow } from '@tauri-apps/api/window';
+
+      const wrap = document.getElementById('indicator-wrap');
+      const statusText = document.getElementById('status-text');
+      const closeBtn = document.getElementById('close-btn');
+
+      function setState(state, text) {
+        wrap.className = 'indicator-wrap ' + state;
+        statusText.textContent = text;
+      }
+
+      listen('quick-input-started', () => {
+        setState('recording', '正在录音...');
+      });
+
+      listen('quick-input-transcribing', () => {
+        setState('transcribing', '转录中...');
+      });
+
+      listen('quick-input-result', (event) => {
+        const text = event.payload;
+        setState('done', '✓ ' + (text.length > 40 ? text.substring(0, 40) + '...' : text));
+        setTimeout(() => appWindow.hide(), 1500);
+      });
+
+      listen('quick-input-error', (event) => {
+        setState('error', '✗ ' + event.payload);
+        setTimeout(() => appWindow.hide(), 2000);
+      });
+
+      closeBtn.addEventListener('click', () => {
+        appWindow.hide();
+      });
+
+      appWindow.onCloseRequested((event) => {
+        event.preventDefault();
+        appWindow.hide();
+      });
+    </script>
+  </body>
+</html>

@@ -1,432 +1,159 @@
-// Recording King - 重构版本
-// 模块化架构，统一错误处理，清晰的关注点分离
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{Manager, CustomMenuItem, SystemTray, SystemTrayMenu, SystemTrayEvent, WindowEvent, WindowBuilder, WindowUrl};
-use std::sync::Arc;
-use parking_lot::Mutex;
-use reqwest::Client;
-
-// 核心模块导入
-mod errors;
-mod types;
-mod config;
-mod audio;
-mod transcription;
-mod ai_agent;
-mod database;
-mod subtitle;
-mod system;
 mod commands;
-mod shortcuts;
-mod diagnostics;
+mod core;
+mod services;
 
-// 保留的遗留模块（待进一步重构）
-mod folder_watcher;
-mod performance_optimizer;
-mod security;
-
-// 使用重构后的模块
-use errors::{AppError, AppResult};
-use config::AppSettings;
-use audio::AudioDeviceManager;
-use transcription::{TranscriptionService, TranscriptionEditor};
-use ai_agent::AIAgentService;
-use database::{DatabaseManager, HistoryManager};
-
-// 安全模块
-
-// 权限检查相关（macOS）
-#[cfg(target_os = "macos")]
-fn check_accessibility_permission() -> bool {
-    let status = std::process::Command::new("osascript")
-        .args(&["-e", "tell application \"System Events\" to get name of first process"])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false);
-    
-    if !status {
-        println!("🔍 请在 系统偏好设置 > 安全性与隐私 > 隐私 > 辅助功能 中启用此应用");
-    }
-    status
-}
-
-// 应用状态管理
-pub struct AppState {
-    pub settings: Arc<Mutex<AppSettings>>,
-    pub is_recording: Arc<Mutex<bool>>,
-    pub database: Arc<DatabaseManager>,
-    pub history_manager: Arc<HistoryManager>,
-    pub transcription_service: Arc<TranscriptionService>,
-    pub transcription_editor: Arc<TranscriptionEditor>,
-    pub ai_agent_service: Arc<Mutex<AIAgentService>>,
-    pub audio_device_manager: Arc<AudioDeviceManager>,
-    pub audio_recorder: Arc<Mutex<audio::AudioRecorder>>,
-    pub folder_watcher: Arc<folder_watcher::FolderWatcher>,
-    pub performance_optimizer: Arc<Mutex<performance_optimizer::PerformanceOptimizer>>,
-    pub smart_text_injector: Arc<system::SmartTextInjector>,
-    pub previous_active_app: Arc<Mutex<Option<system::ApplicationInfo>>>,
-}
-
-impl AppState {
-    pub fn new() -> AppResult<Self> {
-        // 加载配置
-        let settings = AppSettings::load()?;
-        settings.ensure_directories()?;
-        
-        // 创建HTTP客户端
-        let http_client = Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .build()
-            .map_err(|e| AppError::NetworkError(format!("创建HTTP客户端失败: {}", e)))?;
-        
-        // 初始化数据库
-        let db_path = settings.storage.data_dir.join("spokenly.db");
-        let database = Arc::new(DatabaseManager::new(&db_path)?);
-        
-        // 初始化历史管理器
-        let history_manager = HistoryManager::new(database.clone());
-        
-        // 初始化服务
-        let transcription_service = TranscriptionService::new(
-            http_client.clone(),
-            settings.ai.openai_api_key.clone(),
-        );
-        
-        let ai_agent_service = AIAgentService::new(
-            http_client,
-            settings.ai.openai_api_key.clone().unwrap_or_default(),
-            ai_agent::AgentConfig::default(),
-        );
-        
-        let audio_device_manager = AudioDeviceManager::new();
-        
-        // 初始化音频录制器
-        let default_config = types::RecordingConfig {
-            device_id: None,
-            sample_rate: 16000,
-            channels: 1,
-            duration_seconds: None,
-            buffer_duration: Some(3.0),
-        };
-        let audio_recorder = audio::AudioRecorder::new(default_config);
-        
-        // 初始化转录编辑器
-        let transcription_editor = TranscriptionEditor::new();
-        
-        // 初始化优化的文本注入器
-        let text_injection_config = system::OptimizedTextInjectionConfig::default();
-        let smart_text_injector = system::SmartTextInjector::new(text_injection_config);
-        
-        Ok(Self {
-            settings: Arc::new(Mutex::new(settings)),
-            is_recording: Arc::new(Mutex::new(false)),
-            database: database.clone(),
-            history_manager: Arc::new(history_manager),
-            transcription_service: Arc::new(transcription_service),
-            transcription_editor: Arc::new(transcription_editor),
-            ai_agent_service: Arc::new(Mutex::new(ai_agent_service)),
-            audio_device_manager: Arc::new(audio_device_manager),
-            audio_recorder: Arc::new(Mutex::new(audio_recorder)),
-            folder_watcher: Arc::new(folder_watcher::FolderWatcher::new()),
-            performance_optimizer: Arc::new(Mutex::new(performance_optimizer::PerformanceOptimizer::new())),
-            smart_text_injector: Arc::new(smart_text_injector),
-            previous_active_app: Arc::new(Mutex::new(None)),
-        })
-    }
-}
-
-
-/// 创建悬浮输入窗口
-fn create_floating_input_window(app_handle: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    // 检查窗口是否已存在
-    if app_handle.get_window("floating-input").is_some() {
-        return Ok(());
-    }
-    
-    // 创建悬浮输入窗口
-    let window = WindowBuilder::new(
-        app_handle,
-        "floating-input",
-        WindowUrl::App("floating-input.html".into()),
-    )
-    .title("")
-    .decorations(false)
-    .always_on_top(true)
-    .resizable(false)
-    .skip_taskbar(true)
-    .inner_size(600.0, 120.0)
-    .center()
-    .visible(false)  // 初始隐藏，由快捷键触发显示
-    .build()?;
-    
-    Ok(())
-}
+use services::{quick_input::QuickInputService, state::AppState};
+use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem, WindowBuilder, WindowUrl};
 
 fn main() {
-    println!("🎙️ Recording King 启动中...");
-    
-    // 初始化应用状态
-    let app_state = match AppState::new() {
-        Ok(state) => state,
-        Err(e) => {
-            eprintln!("❌ 应用初始化失败: {}", e);
-            std::process::exit(1);
-        }
-    };
-    
-    // 创建系统托盘
-    let quit = CustomMenuItem::new("quit".to_string(), "退出");
-    let show = CustomMenuItem::new("show".to_string(), "显示");
-    let about = CustomMenuItem::new("about".to_string(), "关于 Recording King");
+    let voice_input = CustomMenuItem::new("voice_input".to_string(), "🎤 语音输入");
+    let start_recording = CustomMenuItem::new("start_recording".to_string(), "开始录音");
+    let show = CustomMenuItem::new("show".to_string(), "显示主窗口");
+    let settings = CustomMenuItem::new("settings".to_string(), "设置");
+    let shortcut_hint = CustomMenuItem::new("shortcut_hint".to_string(), "快捷键: Cmd+Shift+Space").disabled();
+    let quit = CustomMenuItem::new("quit".to_string(), "退出 Recording King");
+
     let tray_menu = SystemTrayMenu::new()
+        .add_item(voice_input)
+        .add_item(start_recording)
+        .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(show)
-        .add_item(about)
+        .add_item(settings)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(shortcut_hint)
+        .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(quit);
+
     let system_tray = SystemTray::new().with_menu(tray_menu);
-    
-    // 创建优化的文本注入器作为独立的管理状态
-    let text_injection_config = system::OptimizedTextInjectionConfig::default();
-    let injector_for_state = Arc::new(system::SmartTextInjector::new(text_injection_config));
 
     tauri::Builder::default()
-        .manage(app_state)
-        .manage(injector_for_state)
         .system_tray(system_tray)
-        .on_system_tray_event(|app, event| {
-            match event {
-                SystemTrayEvent::MenuItemClick { id, .. } => {
-                    match id.as_str() {
-                        "quit" => {
-                            std::process::exit(0);
-                        }
-                        "show" => {
-                            if let Some(window) = app.get_window("main") {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
-                        "about" => {
-                            let version = app.package_info().version.to_string();
-                            let msg = format!(
-                                "Recording King（录音王）\n版本：v{}\n开发公司：miaoda（AI 科技公司）\n官网：miaoda.xin",
-                                version
-                            );
-                            tauri::api::dialog::message(None::<&tauri::Window>, "关于 Recording King", msg);
-                        }
-                        _ => {}
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::LeftClick { .. } => {
+                // 左键点击托盘图标 → 显示主窗口
+                if let Some(window) = app.get_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+                "quit" => {
+                    let service = app.state::<QuickInputService>();
+                    service.unregister_shortcut();
+                    println!("👋 Recording King shutting down");
+                    std::process::exit(0);
+                }
+                "show" => {
+                    if let Some(window) = app.get_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+                "settings" => {
+                    if let Some(window) = app.get_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        let _ = window.emit("navigate", "settings");
+                    }
+                }
+                "voice_input" | "start_recording" => {
+                    // 触发快速语音输入
+                    let service = app.state::<QuickInputService>();
+                    let app_handle = app.app_handle();
+                    if let Err(e) = service.trigger_quick_input(app_handle) {
+                        eprintln!("Failed to trigger quick input: {}", e);
                     }
                 }
                 _ => {}
-            }
-        })
-        .on_window_event(|event| match event.event() {
-            WindowEvent::CloseRequested { api, .. } => {
-                event.window().hide().unwrap();
-                api.prevent_close();
-            }
+            },
             _ => {}
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::transcribe_file,
-            commands::get_transcription_history,
-            commands::process_ai_agent,
-            commands::get_audio_devices,
-            commands::test_audio_input,
-            commands::start_recording,
-            commands::stop_recording,
-            commands::get_app_settings,
-            commands::update_app_settings,
-            // 权限管理命令
-            commands::check_permission,
-            commands::request_permission,
-            commands::open_system_preferences,
-            // 新的权限管理命令
-            system::check_all_permissions,
-            system::open_permission_settings,
-            system::get_permission_guide,
-            system::show_permission_warning_dialog,
-            system::check_critical_permissions,
-            // 历史记录管理命令
-            commands::advanced_search_entries,
-            commands::grouped_search_entries,
-            commands::bulk_operation_entries,
-            commands::get_history_statistics,
-            commands::get_smart_suggestions,
-            commands::export_history_entries,
-            commands::cleanup_history_entries,
-            commands::quick_search_entries,
-            commands::search_entries_by_date,
-            commands::search_entries_by_model,
-            commands::get_recent_entries,
-            commands::filter_entries_by_confidence,
-            commands::filter_entries_by_duration,
-            commands::bulk_delete_entries,
-            commands::bulk_add_tag,
-            commands::bulk_remove_tag,
-            commands::bulk_export_entries,
-            commands::get_data_integrity_report,
-            commands::build_search_options,
-            commands::get_search_suggestions,
-            commands::save_search_preset,
-            commands::load_search_preset,
-            commands::get_search_presets,
-            // 转录编辑命令
-            commands::create_transcription_document,
-            commands::get_transcription_document,
-            commands::smart_split_text,
-            commands::split_paragraph,
-            commands::merge_paragraphs,
-            commands::edit_paragraph,
-            commands::find_and_replace,
-            commands::undo_document_edit,
-            commands::redo_document_edit,
-            commands::save_transcription_document,
-            commands::get_document_edit_history,
-            commands::is_document_dirty,
-            commands::list_open_documents,
-            commands::close_transcription_document,
-            commands::set_auto_save_interval,
-            commands::get_document_statistics,
-            commands::export_document,
-            commands::import_document,
-            // 字幕生成命令
-            commands::generate_subtitle_file,
-            commands::batch_generate_subtitles,
-            commands::merge_subtitles,
-            commands::preview_subtitle,
-            commands::get_subtitle_statistics,
-            commands::get_supported_subtitle_formats,
-            commands::get_default_subtitle_options,
-            // 文本注入命令
-            commands::inject_text_to_cursor,
-            commands::smart_inject_text,
-            commands::check_text_injection_permission,
-            commands::get_active_app_info,
-            commands::test_text_injection,
-            commands::batch_inject_text,
-            commands::get_default_text_injection_config,
-            commands::validate_text_injection_config,
-            commands::clear_text_injection_history,
-            // 快捷键管理命令
-            commands::register_global_shortcut,
-            commands::unregister_global_shortcut,
-            commands::is_shortcut_registered,
-            commands::get_registered_shortcuts,
-            commands::register_multiple_shortcuts,
-            commands::unregister_all_shortcuts,
-            commands::validate_shortcut_format,
-            commands::check_shortcut_conflicts,
-            commands::test_shortcut,
-            commands::confirm_event_received,
-            // 录音状态管理命令
-            commands::get_recording_state,
-            commands::reset_recording_state,
-            commands::track_previous_app,
-            commands::smart_inject_text_with_app_switch,
-            // 语音输入快捷键命令
-            commands::register_voice_shortcut,
-            commands::unregister_all_voice_shortcuts,
-            commands::get_cursor_position,
-            commands::insert_text_to_app,
-            commands::configure_voice_shortcuts,
-            commands::load_voice_shortcut_config,
-            commands::trigger_voice_input_test,
-            commands::show_floating_input,
-            commands::debug_shortcut_status,
-            // 悬浮助手命令
-            commands::show_main_window,
-            commands::show_settings,
-            commands::open_quick_note,
-            commands::show_clipboard_history,
-            commands::show_search,
-            commands::toggle_floating_assistant,
-            commands::get_audio_level,
-            commands::stop_recording_and_transcribe,
-            // 长按快捷键命令
-            // Week 3: 渐进式触发系统命令
-            commands::start_progressive_trigger_monitoring,
-            commands::update_progressive_trigger_config,
-            commands::get_progressive_trigger_status,
-            commands::test_progressive_trigger,
-            // macOS 语音输入命令
-            commands::get_active_app_info_for_voice,
-            commands::start_voice_recording,
-            commands::stop_voice_recording,
-            commands::start_streaming_voice_input,
-            commands::start_progressive_voice_input,
-            // 诊断与自修复
-            diagnostics::run_full_diagnostics,
-            diagnostics::run_self_repair,
-        ])
+        .on_window_event(|event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event.event() {
+                if event.window().label() == "main" {
+                    event.window().hide().unwrap();
+                    api.prevent_close();
+                }
+            }
+        })
         .setup(|app| {
-            let app_handle = app.handle();
-            
-            // 获取应用状态以便管理历史管理器
-            let state = app.state::<AppState>();
-            app.manage(state.history_manager.clone());
-            app.manage(state.transcription_editor.clone());
-            
-            // 初始化原有的快捷键管理器（用于其他功能）
-            let shortcut_manager = commands::shortcut_management::ShortcutManager::new();
-            app.manage(shortcut_manager);
-            
-            // 创建悬浮输入窗口
-            match create_floating_input_window(&app_handle) {
-                Ok(_) => println!("✅ 悬浮输入窗口创建成功"),
-                Err(e) => eprintln!("❌ 悬浮输入窗口创建失败: {}", e),
-            }
-            
-            // 只使用EnhancedShortcutManager，避免重复注册
-            match shortcuts::EnhancedShortcutManager::new(app_handle.clone()) {
-                Ok(global_manager) => {
-                    if let Err(e) = global_manager.register_shortcuts() {
-                        eprintln!("⚠️ 注册全局快捷键失败: {}", e);
-                    }
-                    // 保存管理器实例
-                    app.manage(Arc::new(global_manager));
-                    println!("✅ 统一快捷键管理器已注册");
-                }
-                Err(e) => {
-                    eprintln!("❌ 创建全局快捷键管理器失败: {}", e);
-                    eprintln!("⚠️ 语音输入快捷键功能可能不可用");
-                }
-            }
-            
-            // 启动 Fn/F1 与 Option+Space 的长按监听（rdev全局按键按下/抬起）
-            {
-                let fn_listener_manager = shortcuts::ShortcutManager::new(app_handle.clone());
-                if let Err(e) = fn_listener_manager.start_fn_key_listener() {
-                    eprintln!("⚠️ 启动 Fn/Alt+Space 长按监听失败: {}", e);
-                } else {
-                    println!("✅ Fn/Alt+Space 长按监听已启动");
-                }
-            }
-            
-            println!("✅ 历史管理器已注册");
-            println!("✅ 转录编辑器已注册");
-            println!("✅ 快捷键管理器已注册");
-            println!("✅ 语音输入快捷键管理器已注册");
-            
-            // 移除直接快捷键注册，改由 enhancedShortcutManager 统一管理
-            println!("ℹ️ 快捷键注册已委托给 enhancedShortcutManager");
-            
-            println!("⌨️ 快捷键系统已启用 (CommandOrControl+Shift+R)");
-            
-            // 检查macOS权限
+            let app_dir = app
+                .path_resolver()
+                .app_data_dir()
+                .expect("Failed to get app data dir");
+            std::fs::create_dir_all(&app_dir)?;
+
+            let db_path = app_dir.join("recording-king.db");
+            let state = AppState::new(&db_path).expect("Failed to initialize app state");
+
+            // 检查辅助功能权限，未授权时弹出系统引导
             #[cfg(target_os = "macos")]
             {
-                println!("🔍 检查macOS权限...");
-                let has_accessibility = check_accessibility_permission();
-                if !has_accessibility {
-                    eprintln!("❌ 缺少辅助功能权限！");
-                } else {
-                    println!("✅ 辅助功能权限已启用");
+                if !crate::core::injection::check_accessibility_permission() {
+                    println!("⚠️  Requesting accessibility permission...");
+                    crate::core::injection::request_accessibility_permission();
                 }
             }
-            
-            println!("🚀 Recording King 启动完成");
+
+            let saved_shortcut = state.settings.lock().shortcut_key.clone();
+            app.manage(state);
+
+            let quick_input = QuickInputService::new();
+            app.manage(quick_input);
+
+            // 自动恢复之前的按住说话快捷键
+            if let Some(shortcut_key) = saved_shortcut {
+                let service = app.state::<QuickInputService>();
+                let app_handle = app.app_handle();
+                if let Err(e) = service.register_shortcut(&shortcut_key, app_handle) {
+                    eprintln!("Failed to restore shortcut {}: {}", shortcut_key, e);
+                }
+            }
+
+            // 创建悬浮输入窗口（不抢焦点）
+            let _quick_input_window = WindowBuilder::new(
+                app,
+                "quick-input",
+                WindowUrl::App("quick-input.html".into()),
+            )
+            .title("Quick Input")
+            .decorations(false)
+            .always_on_top(true)
+            .resizable(false)
+            .skip_taskbar(true)
+            .focused(false)
+            .inner_size(360.0, 80.0)
+            .center()
+            .visible(false)
+            .build()?;
+
+            println!("✅ Recording King v7.0 started");
+            println!("🎤 按住说话模式就绪");
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            commands::recording::start_recording,
+            commands::recording::stop_recording,
+            commands::recording::get_recording_state,
+            commands::recording::get_audio_devices,
+            commands::recording::transcribe_file,
+            commands::history::get_history,
+            commands::history::search_history,
+            commands::history::delete_entry,
+            commands::settings::get_settings,
+            commands::settings::update_settings,
+            commands::injection::inject_text,
+            commands::injection::check_injection_permission,
+            commands::injection::request_injection_permission,
+            commands::quick_input::quick_input_is_active,
+            commands::quick_input::register_global_shortcut,
+            commands::quick_input::unregister_global_shortcut,
+            commands::models::get_local_model_status,
+            commands::models::download_local_model,
+            commands::models::delete_local_model,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -3,12 +3,13 @@
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devPath": "http://localhost:1420",
-    "distDir": "../dist"
+    "distDir": "../dist",
+    "withGlobalTauri": false
   },
-    "package": {
-      "productName": "Recording King",
-      "version": "6.0.1"
-    },
+  "package": {
+    "productName": "Recording King",
+    "version": "7.0.0"
+  },
   "tauri": {
     "allowlist": {
       "all": false,
@@ -17,103 +18,45 @@
         "open": true
       },
       "dialog": {
-        "all": false,
-        "open": true,
-        "save": true,
-        "message": true,
-        "ask": true,
-        "confirm": true
+        "all": true
       },
       "fs": {
-        "all": false,
-        "readFile": true,
-        "writeFile": true,
-        "readDir": true,
-        "createDir": true,
-        "removeDir": true,
-        "removeFile": true,
-        "exists": true,
-        "scope": ["$AUDIO", "$DOWNLOAD", "$DOCUMENT", "$DESKTOP", "$HOME/Library/Application Support/spokenly-clone"]
-      },
-      "path": {
-        "all": true
+        "all": true,
+        "scope": ["$APPDATA/*", "$AUDIO/*", "$TEMP/*"]
       },
       "globalShortcut": {
         "all": true
-      },
-      "window": {
-        "all": true
-      },
-      "os": {
-        "all": true
-      },
-      "shell": {
-        "all": false,
-        "open": "^x-apple\\.systempreferences:.*"
       }
     },
     "bundle": {
       "active": true,
-      "identifier": "com.recordingking.app",
       "targets": "all",
-      "copyright": "Copyright © 2025 Recording King. All rights reserved.",
-      "category": "Productivity",
-      "shortDescription": "Recording King - AI语音转录工具",
-      "longDescription": "Recording King是一个功能强大的AI语音转录桌面应用，支持实时录音、多模型转录、全局快捷键等高级功能。",
+      "identifier": "com.recordingking.app",
       "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png", 
-        "icons/128x128@2x.png"
+        "icons/icon.icns"
       ],
       "macOS": {
-        "frameworks": [],
-        "minimumSystemVersion": "10.13",
-        "exceptionDomain": "",
-        "entitlements": "./Entitlements.plist",
-        "signingIdentity": null,
-        "hardenedRuntime": false
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": "",
-        "tsp": false,
-        "webviewInstallMode": {
-          "type": "downloadBootstrapper"
-        },
-        "allowDowngrades": true,
-        "nsis": {
-          "displayLanguageSelector": true,
-          "installerIcon": null,
-          "installMode": "currentUser",
-          "languages": ["English", "SimpChinese"],
-          "template": null
-        }
+        "entitlements": "entitlements.plist",
+        "minimumSystemVersion": "10.13"
       }
     },
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://api.openai.com https://api.deepgram.com https://ly.gl173.com https://ttkk.inping.com; media-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
+      "csp": null
     },
-    "updater": {
-      "active": false
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
     },
     "windows": [
       {
         "fullscreen": false,
         "resizable": true,
         "title": "Recording King",
-        "width": 1100,
-        "height": 700,
-        "visible": true,
-        "center": true,
-        "minWidth": 900,
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
         "minHeight": 600
       }
-    ],
-    "systemTray": {
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true,
-      "menuOnLeftClick": false
-    }
+    ]
   }
 }

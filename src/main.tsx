@@ -1,10 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import SpokenlyApp from './components/SpokenlyApp';
-import './styles/spokenly-design-system.css';
+import App from './App';
+import ErrorBoundary from './shared/components/ErrorBoundary';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <SpokenlyApp />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );

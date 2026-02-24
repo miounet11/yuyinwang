@@ -14,7 +14,7 @@ export default defineConfig(async () => ({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        'floating-input': resolve(__dirname, 'floating-input.html'),
+        'quick-input': resolve(__dirname, 'quick-input.html'),
       },
       output: {
         manualChunks: undefined,

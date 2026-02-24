@@ -1,53 +1,57 @@
 [package]
 name = "recording-king"
-version = "6.0.1"
-description = "Recording King - AI-powered speech-to-text desktop application"
+version = "7.0.0"
+description = "AI-Powered Voice Transcription Desktop App"
 authors = ["Recording King Team"]
+license = "MIT"
+repository = "https://github.com/recording-king/recording-king"
 edition = "2021"
 
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.5", features = [ "os-all", "fs-read-file", "dialog-open", "fs-remove-file", "dialog-message", "path-all", "fs-remove-dir", "dialog-ask", "fs-exists", "window-all", "dialog-confirm", "global-shortcut-all", "dialog-save", "fs-write-file", "fs-read-dir", "fs-create-dir", "shell-open", "global-shortcut", "system-tray"] }
+tauri = { version = "1.5", features = [ "global-shortcut-all", "system-tray", "global-shortcut", "dialog-all", "fs-all", "shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-cpal = "0.15"
-tokio = { version = "1", features = ["full"] }
-ringbuf = "0.3"
-crossbeam-channel = "0.5"
-once_cell = "1.19"
-rand = "0.8"
+tokio = { version = "1.35", features = ["full"] }
 reqwest = { version = "0.11", features = ["json", "multipart", "stream"] }
-hound = "3.5"
-uuid = { version = "1.0", features = ["v4"] }
-directories = "5.0"
-parking_lot = "0.12"
-chrono = "0.4"
 futures-util = "0.3"
-sysinfo = "0.30"
-cocoa = "0.25"
-objc = "0.2"
+anyhow = "1.0"
+thiserror = "1.0"
+parking_lot = "0.12"
+rusqlite = { version = "0.30", features = ["bundled"] }
+r2d2 = "0.8"
+r2d2_sqlite = "0.23"
+uuid = { version = "1.6", features = ["v4"] }
+chrono = "0.4"
+rdev = "0.5"
+base64 = "0.22"
+
+# Audio
+cpal = "0.15"
+hound = "3.5"
+ringbuf = "0.3"
+
+# Local Whisper inference
+whisper-rs = { version = "0.15", features = ["metal"] }
+
+# macOS specific
+[target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.23"
-whisper-rs = { version = "0.12", features = ["metal"] }
-rusqlite = { version = "0.37", features = ["bundled", "chrono"] }
-notify = "5.0"
-num_cpus = "1.16"
-rdev = "0.5.3"
-url = "2.5"
-tempfile = "3.8"
-# 音频解码和处理依赖
-symphonia = { version = "0.5", features = ["all"] }
-sha2 = "0.10"
-hex = "0.4"
-regex = "1.11.1"
-r2d2 = "0.8.10"
-r2d2_sqlite = "0.31.0"
-async-trait = "0.1"
-# FFT and audio analysis dependencies
-rustfft = "6.1"
-apodize = "1.0"
+core-foundation = "0.9"
 
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+proptest = "1.4"
+tempfile = "3.9"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "z"
+strip = true
