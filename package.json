@@ -10,7 +10,9 @@
     "test:run": "vitest --run",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "analyze": "vite build --mode analyze",
+    "build:stats": "vite build --mode production && vite-bundle-visualizer"
   },
   "dependencies": {
     "@tauri-apps/api": "^1.5.0",

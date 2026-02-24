@@ -7,6 +7,10 @@ license = "MIT"
 repository = "https://github.com/recording-king/recording-king"
 edition = "2021"
 
+[lib]
+name = "recording_king"
+path = "src/lib.rs"
+
 [build-dependencies]
 tauri-build = { version = "1.5", features = [] }
 
@@ -27,11 +31,13 @@ uuid = { version = "1.6", features = ["v4"] }
 chrono = "0.4"
 rdev = "0.5"
 base64 = "0.22"
+urlencoding = "2.1"
 
 # Audio
 cpal = "0.15"
 hound = "3.5"
 ringbuf = "0.3"
+rubato = "0.15"
 
 # Local Whisper inference
 whisper-rs = { version = "0.15", features = ["metal"] }
