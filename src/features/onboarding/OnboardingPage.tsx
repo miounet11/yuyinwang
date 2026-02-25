@@ -79,11 +79,11 @@ export const OnboardingPage: React.FC = () => {
       icon: '⌨️',
       action: async () => {
         try {
-          const defaultShortcut = 'CommandOrControl+Shift+Space';
-          await invoke('register_global_shortcut', { key: defaultShortcut });
-          const updated = { ...settings, shortcut_key: defaultShortcut };
-          await invoke('update_settings', { settings: updated });
-          setSettings(updated);
+          const defaultShortcut = 'Command+Shift+Space';
+          await invoke('register_global_shortcut', {
+            key: defaultShortcut,
+            activationMode: 'hold-or-toggle'
+          });
           return true;
         } catch (error) {
           console.error('Shortcut registration error:', error);
