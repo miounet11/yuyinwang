@@ -50,3 +50,7 @@ ehthumbs.db
 # Cache
 .cache/
 .parcel-cache/
+
+# Kiro/Claude Code working directory
+.kiro/
+.claude/
