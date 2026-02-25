@@ -24,14 +24,14 @@ impl QuickInputService {
     }
 
     pub fn register_shortcut(&self, key: &str, mode: &str, app_handle: AppHandle) -> Result<()> {
-        // 检查是否正在录音
-        let is_active = tauri::async_runtime::block_on(self.is_active.lock());
-        if *is_active {
-            return Err(crate::core::error::AppError::Other(
-                "请先停止当前录音再切换快捷键".into()
-            ));
+        // 检查是否正在录音（使用 try_lock 避免死锁）
+        if let Ok(is_active) = self.is_active.try_lock() {
+            if *is_active {
+                return Err(crate::core::error::AppError::Other(
+                    "请先停止当前录音再切换快捷键".into()
+                ));
+            }
         }
-        drop(is_active);
 
         self.listener.stop();
         self.listener.set_shortcut(key);
@@ -48,8 +48,13 @@ impl QuickInputService {
             let app = app_handle_press.clone();
 
             tauri::async_runtime::spawn(async move {
-                if *is_active.lock().await {
-                    return;
+                // 原子性检查+设置，防止竞态条件
+                {
+                    let mut active = is_active.lock().await;
+                    if *active {
+                        return;
+                    }
+                    *active = true;
                 }
 
                 #[cfg(target_os = "macos")]
@@ -67,10 +72,11 @@ impl QuickInputService {
                 if let Err(e) = state.start_recording().await {
                     println!("❌ 录音启动失败: {}", e);
                     let _ = app.emit_all("quick-input-error", e.to_string());
+                    // 启动失败，重置状态
+                    *is_active.lock().await = false;
                     return;
                 }
 
-                *is_active.lock().await = true;
                 let _ = app.emit_all("quick-input-started", ());
             });
         };

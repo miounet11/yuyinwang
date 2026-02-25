@@ -309,6 +309,8 @@ impl HoldToTalkListener {
                             ActivationMode::HoldOrToggle => {
                                 if recording {
                                     is_recording.store(false, Ordering::SeqCst);
+                                    // 重置 keys_down_time，防止 KeyRelease 再次触发 on_release
+                                    keys_down_time.store(0, Ordering::SeqCst);
                                     if let Some(cb) = on_release_holder.lock().as_ref() {
                                         cb();
                                     }
@@ -350,10 +352,15 @@ impl HoldToTalkListener {
                             }
                             ActivationMode::HoldOrToggle => {
                                 let down_time = keys_down_time.load(Ordering::SeqCst);
+                                // down_time == 0 表示已通过 toggle 路径处理，跳过
+                                if down_time == 0 {
+                                    return;
+                                }
                                 let held_duration = now_ms() - down_time;
 
                                 if held_duration >= HOLD_THRESHOLD_MS {
                                     is_recording.store(false, Ordering::SeqCst);
+                                    keys_down_time.store(0, Ordering::SeqCst);
                                     if let Some(cb) = on_release_holder.lock().as_ref() {
                                         cb();
                                     }
